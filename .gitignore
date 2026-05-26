@@ -14,4 +14,11 @@ redis-data/
 .pm2/
 backend/dev.db
 backend/dev.db-journal
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/_t.js
 TUNNEL_URL.txt
+tunnel-log.txt
+cloudflared*.exe
+*.exe
+frontend/tsconfig.tsbuildinfo
