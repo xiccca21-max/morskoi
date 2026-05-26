@@ -1,0 +1,154 @@
+// Naval Clash — Prisma schema (SQLite для локальной разработки)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================================
+// Users
+// ===========================================================
+model User {
+  id            String   @id @default(cuid())
+  telegramId    String   @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  avatar        String?
+
+  balance       Float    @default(0)
+
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  draws         Int      @default(0)
+  totalWagered  Float    @default(0)
+  totalWon      Float    @default(0)
+
+  banned        Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  matchesAsP1   Match[]  @relation("Player1")
+  matchesAsP2   Match[]  @relation("Player2")
+  matchesWon    Match[]  @relation("Winner")
+
+  transactions  Transaction[]
+  queueEntry    MatchmakingQueue?
+  lobbies       Lobby[]  @relation("LobbyHost")
+
+  @@index([telegramId])
+}
+
+// ===========================================================
+// Match
+// MatchStatus: PENDING | PLACEMENT | IN_PROGRESS | FINISHED | CANCELLED
+// ===========================================================
+model Match {
+  id            String    @id @default(cuid())
+  player1Id     String
+  player2Id     String?
+  winnerId      String?
+
+  wagerAmount   Float
+  rakeAmount    Float     @default(0)
+  prizePool     Float
+
+  status        String    @default("PENDING")
+
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime  @default(now())
+
+  player1       User      @relation("Player1", fields: [player1Id], references: [id])
+  player2       User?     @relation("Player2", fields: [player2Id], references: [id])
+  winner        User?     @relation("Winner",  fields: [winnerId],  references: [id])
+
+  gameState     GameState?
+
+  @@index([status])
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([winnerId])
+}
+
+// ===========================================================
+// GameState
+// gameStatus: PLACEMENT | IN_PROGRESS | FINISHED
+// ===========================================================
+model GameState {
+  id            String   @id @default(cuid())
+  matchId       String   @unique
+  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  currentTurn   String?
+  player1Board  String   // JSON
+  player2Board  String   // JSON
+  attackHistory String   @default("[]") // JSON
+  gameStatus    String   @default("PLACEMENT")
+  turnDeadline  DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ===========================================================
+// Transactions
+// type: DEPOSIT | WITHDRAW | WAGER_LOCK | WAGER_REFUND | PAYOUT | RAKE
+// status: PENDING | COMPLETED | FAILED | REVERSED
+// ===========================================================
+model Transaction {
+  id        String   @id @default(cuid())
+  userId    String
+  matchId   String?
+  type      String
+  amount    Float
+  status    String   @default("COMPLETED")
+  meta      String?  // JSON string
+
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([type])
+}
+
+// ===========================================================
+// Matchmaking queue
+// ===========================================================
+model MatchmakingQueue {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  wagerAmount Float
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([wagerAmount, createdAt])
+}
+
+// ===========================================================
+// Private lobbies
+// status: OPEN | STARTED | CLOSED
+// ===========================================================
+model Lobby {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  hostId      String
+  wagerAmount Float
+  status      String   @default("OPEN")
+  matchId     String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  host        User     @relation("LobbyHost", fields: [hostId], references: [id])
+
+  @@index([code])
+  @@index([status])
+}

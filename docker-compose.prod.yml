@@ -1,0 +1,53 @@
+# Прод: один backend+frontend, nginx с HTTPS, SQLite на volume
+# Запуск: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_TG_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_PORT: 4000
+      DATABASE_URL: file:/data/naval.db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_BOT_POLLING: ${TELEGRAM_BOT_POLLING:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      PLATFORM_RAKE_PERCENT: ${PLATFORM_RAKE_PERCENT:-5}
+      MIN_WAGER: ${MIN_WAGER:-1}
+      MAX_WAGER: ${MAX_WAGER:-1000}
+      PLACEMENT_TIMEOUT_SEC: ${PLACEMENT_TIMEOUT_SEC:-30}
+      TURN_TIMEOUT_SEC: ${TURN_TIMEOUT_SEC:-20}
+    volumes:
+      - naval-data:/data
+    expose:
+      - "4000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  naval-data:

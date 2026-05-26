@@ -1,0 +1,142 @@
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { tgReady, getInitData } from './lib/telegram';
+import { AuthAPI } from './api/endpoints';
+import { loadToken, setAuthToken } from './api/http';
+import { getSocket, closeSocket } from './api/socket';
+import { useAuthStore } from './stores/auth-store';
+import { useMatchStore } from './stores/match-store';
+
+import SplashScreen from './screens/SplashScreen';
+import HomeScreen from './screens/HomeScreen';
+import WalletScreen from './screens/WalletScreen';
+import MatchmakingScreen from './screens/MatchmakingScreen';
+import LobbyScreen from './screens/LobbyScreen';
+import PlacementScreen from './screens/PlacementScreen';
+import BattleScreen from './screens/BattleScreen';
+import ResultScreen from './screens/ResultScreen';
+import HistoryScreen from './screens/HistoryScreen';
+import LeaderboardScreen from './screens/LeaderboardScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import SettingsScreen from './screens/SettingsScreen';
+import { Layout } from './components/Layout';
+
+function Protected({ children }: { children: JSX.Element }) {
+  const { authenticated, ready } = useAuthStore();
+  if (!ready) return <SplashScreen />;
+  if (!authenticated) return <Navigate to="/" replace />;
+  return children;
+}
+
+export default function App() {
+  const setUser = useAuthStore((s) => s.setUser);
+  const setReady = useAuthStore((s) => s.setReady);
+  const updateBalance = useAuthStore((s) => s.updateBalance);
+  const setMatchState = useMatchStore((s) => s.setState);
+  const setLastAttack = useMatchStore((s) => s.setLastAttack);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    tgReady();
+    let cancelled = false;
+    (async () => {
+      // 1. пробуем существующий токен
+      const existing = loadToken();
+      const initData = getInitData();
+      try {
+        if (initData) {
+          // если есть Telegram — всегда апдейтим (или создаём)
+          const { token, user } = await AuthAPI.login(initData);
+          if (cancelled) return;
+          setAuthToken(token);
+          setUser({ ...user, balance: Number(user.balance) });
+        } else if (existing) {
+          // без Telegram — пробуем GET /users/me чтобы валидировать токен
+          try {
+            const me = await import('./api/endpoints').then((m) => m.UsersAPI.me());
+            setUser({ ...me, balance: Number(me.balance) });
+          } catch {
+            setAuthToken(null);
+            setAuthError('Откройте приложение через Telegram');
+          }
+        } else {
+          setAuthError('Откройте приложение через Telegram');
+        }
+      } catch (e: any) {
+        setAuthError(e?.response?.data?.message ?? e?.message ?? 'Auth failed');
+      } finally {
+        setReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setReady, setUser]);
+
+  // Подключение к сокету после логина + глобальные обработчики
+  useEffect(() => {
+    const unsub = useAuthStore.subscribe((s) => {
+      if (s.authenticated) {
+        const sock = getSocket();
+        sock.on('connect_error', (e) => console.warn('socket connect_error', e.message));
+        sock.on('auth:error', () => {
+          setAuthToken(null);
+          window.location.reload();
+        });
+
+        sock.on('match:state', (state) => {
+          setMatchState(state);
+        });
+        sock.on('match:attack', (a) => {
+          setLastAttack({ ...a, ts: Date.now() });
+        });
+        sock.on('match:found', () => {
+          // экран матчмейкинга сам подхватит из state
+        });
+        sock.on('match:finished', () => {
+          // ResultScreen покажется автоматически по статусу
+        });
+        sock.on('wallet:update', (b: number) => updateBalance(b));
+      }
+    });
+    return () => {
+      unsub();
+      closeSocket();
+    };
+  }, [setMatchState, setLastAttack, updateBalance]);
+
+  if (authError) {
+    return (
+      <div className="h-full flex items-center justify-center p-8 text-center">
+        <div className="card p-8 max-w-md">
+          <h1 className="font-display text-2xl text-cyber-cyan mb-3">Naval Clash</h1>
+          <p className="text-white/70 mb-4">{authError}</p>
+          <p className="text-xs text-white/50">
+            Это Telegram Mini App. Открой бота{' '}
+            <span className="text-cyber-cyan">@{import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot'}</span> и нажми «Открыть игру».
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<SplashScreen />} />
+      <Route element={<Protected><Layout /></Protected>}>
+        <Route path="/home" element={<HomeScreen />} />
+        <Route path="/wallet" element={<WalletScreen />} />
+        <Route path="/matchmaking" element={<MatchmakingScreen />} />
+        <Route path="/lobby/:code" element={<LobbyScreen />} />
+        <Route path="/placement/:matchId" element={<PlacementScreen />} />
+        <Route path="/battle/:matchId" element={<BattleScreen />} />
+        <Route path="/result/:matchId" element={<ResultScreen />} />
+        <Route path="/history" element={<HistoryScreen />} />
+        <Route path="/leaderboard" element={<LeaderboardScreen />} />
+        <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="/settings" element={<SettingsScreen />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/home" replace />} />
+    </Routes>
+  );
+}

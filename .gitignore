@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+coverage/
+.idea/
+.vscode/
+postgres-data/
+redis-data/
+.pm2/
+backend/dev.db
+backend/dev.db-journal
+TUNNEL_URL.txt
