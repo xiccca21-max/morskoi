@@ -19,6 +19,7 @@ export interface AttackCell {
   y: number;
   hit: boolean;
   sunkShipId?: string | null;
+  auto?: boolean;
 }
 
 export const BOARD_SIZE = 10;

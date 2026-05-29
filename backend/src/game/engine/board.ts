@@ -138,6 +138,27 @@ export function applyAttack(defenderBoard: PrivateBoard, x: number, y: number): 
     sunkShipId: hitShip.sunk ? hitShip.id : null,
   });
 
+  // Классическое правило: потопленный корабль «окружается точками» — клетки вокруг
+  // него гарантированно пусты, поэтому помечаем их промахами автоматически.
+  if (hitShip.sunk) {
+    const seen = new Set(
+      defenderBoard.attacksReceived.map((a) => `${a.x}:${a.y}`),
+    );
+    for (const [sx, sy] of shipCells(hitShip)) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = sx + dx;
+          const ny = sy + dy;
+          if (!inBounds(nx, ny)) continue;
+          const key = `${nx}:${ny}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          defenderBoard.attacksReceived.push({ x: nx, y: ny, hit: false, auto: true });
+        }
+      }
+    }
+  }
+
   const gameOver = defenderBoard.ships.every((s) => s.sunk);
 
   return {

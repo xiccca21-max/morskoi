@@ -144,6 +144,7 @@ model Lobby {
   hostId      String
   wagerAmount Float
   status      String   @default("OPEN")
+  isPublic    Boolean  @default(false)
   matchId     String?
   createdAt   DateTime @default(now())
   expiresAt   DateTime
@@ -152,4 +153,5 @@ model Lobby {
 
   @@index([code])
   @@index([status])
+  @@index([isPublic, status])
 }

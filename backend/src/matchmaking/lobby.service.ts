@@ -17,7 +17,7 @@ export class LobbyService {
     private readonly game: GameService,
   ) {}
 
-  async create(hostId: string, wagerAmount: number) {
+  async create(hostId: string, wagerAmount: number, isPublic = false) {
     const min = Number(process.env.MIN_WAGER ?? 1);
     const max = Number(process.env.MAX_WAGER ?? 1000);
     if (wagerAmount < min || wagerAmount > max) {
@@ -29,6 +29,13 @@ export class LobbyService {
       throw new BadRequestException('Insufficient balance');
     }
 
+    // У одного игрока не может «висеть» несколько открытых лобби —
+    // закрываем предыдущие, чтобы список не засорялся.
+    await this.prisma.lobby.updateMany({
+      where: { hostId, status: LobbyStatus.OPEN },
+      data: { status: LobbyStatus.CLOSED },
+    });
+
     let code = '';
     for (let i = 0; i < 5; i++) {
       code = genCode(6);
@@ -38,9 +45,69 @@ export class LobbyService {
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 минут
     const lobby = await this.prisma.lobby.create({
-      data: { code, hostId, wagerAmount, expiresAt, status: LobbyStatus.OPEN },
+      // isPublic — новое поле; каст до регенерации Prisma Client в проде
+      data: { code, hostId, wagerAmount, expiresAt, status: LobbyStatus.OPEN, isPublic } as any,
     });
     return lobby;
+  }
+
+  /** Список открытых публичных боёв (для «Поиска матча»). */
+  async listOpen(
+    viewerId: string,
+    opts: { minWager?: number; maxWager?: number; query?: string } = {},
+  ) {
+    const lobbies = (await this.prisma.lobby.findMany({
+      where: {
+        isPublic: true,
+        status: LobbyStatus.OPEN,
+        expiresAt: { gt: new Date() },
+        ...(opts.minWager != null || opts.maxWager != null
+          ? {
+              wagerAmount: {
+                ...(opts.minWager != null ? { gte: opts.minWager } : {}),
+                ...(opts.maxWager != null ? { lte: opts.maxWager } : {}),
+              },
+            }
+          : {}),
+      } as any,
+      include: {
+        host: { select: { id: true, username: true, firstName: true, avatar: true, wins: true, losses: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    })) as any[];
+
+    const q = (opts.query ?? '').trim().toLowerCase();
+    return lobbies
+      .filter((l: any) => {
+        if (!q) return true;
+        const name = `${l.host.firstName ?? ''} ${l.host.username ?? ''}`.toLowerCase();
+        return name.includes(q);
+      })
+      .map((l: any) => ({
+        id: l.id,
+        code: l.code,
+        wagerAmount: Number(l.wagerAmount),
+        createdAt: l.createdAt,
+        isMine: l.hostId === viewerId,
+        host: {
+          id: l.host.id,
+          username: l.host.username,
+          firstName: l.host.firstName,
+          avatar: l.host.avatar,
+          wins: l.host.wins,
+          losses: l.host.losses,
+        },
+      }));
+  }
+
+  /** Снять собственный открытый бой со списка. */
+  async cancelMine(hostId: string) {
+    await this.prisma.lobby.updateMany({
+      where: { hostId, status: LobbyStatus.OPEN },
+      data: { status: LobbyStatus.CLOSED },
+    });
+    return { ok: true };
   }
 
   async join(code: string, joinerId: string) {

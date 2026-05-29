@@ -89,6 +89,17 @@ export default function PlacementScreen() {
   }, [selected?.id, hover?.x, hover?.y, orientation, placedShips]);
 
   const onCellClick = (x: number, y: number) => {
+    // Тап по уже стоящему кораблю — «поднимаем» его, чтобы переставить.
+    const onShip = fleet.find(
+      (f) => f.placed && shipCells(f.placed).some(([cx, cy]) => cx === x && cy === y),
+    );
+    if (onShip && onShip.id !== selectedId) {
+      setFleet((f) => f.map((it) => (it.id === onShip.id ? { ...it, placed: undefined } : it)));
+      setSelectedId(onShip.id);
+      tgHaptic('light');
+      return;
+    }
+
     if (!selected) return;
     const cand: ShipPlacement = { id: selected.id, kind: selected.kind, size: selected.size, x, y, orientation };
     const others = placedShips.filter((s) => s.id !== selected.id);
@@ -180,6 +191,10 @@ export default function PlacementScreen() {
         <button className="btn-secondary flex-1" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
         <button className="btn-ghost flex-1" onClick={reset}>Сброс</button>
       </div>
+
+      <p className="text-center text-muted text-[11px]">
+        Тапни по клетке, чтобы поставить · тапни по кораблю, чтобы передвинуть
+      </p>
 
       {/* Верфь */}
       <div className="card p-3">

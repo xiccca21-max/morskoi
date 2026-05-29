@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { IsNumber, IsPositive, IsString, Length } from 'class-validator';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length } from 'class-validator';
 import { MatchmakingService } from './matchmaking.service';
 import { LobbyService } from './lobby.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -16,6 +16,16 @@ class CodeDto {
   @IsString()
   @Length(4, 10)
   code!: string;
+}
+
+class CreateLobbyDto {
+  @IsNumber()
+  @IsPositive()
+  wagerAmount!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }
 
 @Controller('matchmaking')
@@ -42,13 +52,33 @@ export class MatchmakingController {
   }
 
   @Post('lobby')
-  createLobby(@CurrentUser() u: JwtPayload, @Body() dto: WagerDto) {
-    return this.lobbies.create(u.sub, dto.wagerAmount);
+  createLobby(@CurrentUser() u: JwtPayload, @Body() dto: CreateLobbyDto) {
+    return this.lobbies.create(u.sub, dto.wagerAmount, dto.isPublic ?? false);
   }
 
   @Post('lobby/join')
   joinLobby(@CurrentUser() u: JwtPayload, @Body() dto: CodeDto) {
     return this.lobbies.join(dto.code.toUpperCase(), u.sub);
+  }
+
+  // Список открытых публичных боёв (для экрана «Поиск матча»)
+  @Get('open')
+  listOpen(
+    @CurrentUser() u: JwtPayload,
+    @Query('min') min?: string,
+    @Query('max') max?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.lobbies.listOpen(u.sub, {
+      minWager: min != null && min !== '' ? Number(min) : undefined,
+      maxWager: max != null && max !== '' ? Number(max) : undefined,
+      query: q,
+    });
+  }
+
+  @Delete('open')
+  cancelOpen(@CurrentUser() u: JwtPayload) {
+    return this.lobbies.cancelMine(u.sub);
   }
 
   @Get('lobby/:code')

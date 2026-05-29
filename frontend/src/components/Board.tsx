@@ -157,7 +157,10 @@ export function Board({
                 const att = attackMap.get(key);
                 const isGhost = ghostSet.has(key);
                 const isHighlight = highlight?.x === x && highlight?.y === y;
-                const isClickable = mode === 'enemy' && !disabled && myTurn && !att;
+                const isClickable =
+                  mode === 'placement'
+                    ? !disabled
+                    : mode === 'enemy' && !disabled && myTurn && !att;
 
                 let cls = 'relative w-full h-full transition-colors';
                 if (isGhost) cls += ghostInvalid ? ' cell-ghost-bad' : ' cell-ghost';

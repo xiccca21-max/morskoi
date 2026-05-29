@@ -24,6 +24,7 @@ export interface AttackCell {
   y: number;
   hit: boolean;
   sunkShipId?: string | null;
+  auto?: boolean; // клетка помечена автоматически (окружение потопленного корабля)
 }
 
 export interface AttackResult {
