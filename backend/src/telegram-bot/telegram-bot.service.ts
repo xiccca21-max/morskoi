@@ -38,6 +38,28 @@ export class TelegramBotService implements OnModuleInit {
       this.logger.log('Bot started with polling');
     }
 
+    // Устанавливаем кнопку меню «Начать играть» для всех чатов по умолчанию
+    const webAppUrl = process.env.TELEGRAM_WEBAPP_URL;
+    if (webAppUrl) {
+      await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menu_button: {
+            type: 'web_app',
+            text: 'Начать играть',
+            web_app: { url: webAppUrl },
+          },
+        }),
+      })
+        .then((r) => r.json())
+        .then((r: any) => {
+          if (r.ok) this.logger.log('Menu button set: «Начать играть»');
+          else this.logger.warn(`setChatMenuButton failed: ${JSON.stringify(r)}`);
+        })
+        .catch((e) => this.logger.warn(`setChatMenuButton error: ${e.message}`));
+    }
+
     this.bot.onText(/\/start(.*)/, async (msg, match) => {
       const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
       const param = (match?.[1] ?? '').trim();
