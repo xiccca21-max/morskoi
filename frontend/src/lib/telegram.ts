@@ -31,6 +31,17 @@ export function tgReady() {
   }
 }
 
+/** Вибрация телефона паттерном (мс): [вибро, пауза, вибро, ...]. Фолбэк для обычных браузеров. */
+export function tgVibrate(pattern: number | number[]) {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export function tgHaptic(kind: 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'warning' = 'light') {
   const tg = getTelegramWebApp();
   try {
@@ -42,6 +53,21 @@ export function tgHaptic(kind: 'light' | 'medium' | 'heavy' | 'success' | 'error
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Вибрация «как уведомление»: двойной/тройной импульс.
+ * Использует Telegram notification-haptic + navigator.vibrate как фолбэк.
+ */
+export function tgNotify(kind: 'success' | 'error' | 'warning' = 'success') {
+  tgHaptic(kind);
+  const pattern =
+    kind === 'error'
+      ? [0, 120, 60, 120, 60, 220] // потоплен — длиннее
+      : kind === 'warning'
+      ? [0, 90, 50, 90]
+      : [0, 80, 45, 80]; // попадание — двойной буз, как push-уведомление
+  tgVibrate(pattern);
 }
 
 export function tgShare(url: string, text: string) {

@@ -7,7 +7,7 @@ import { Explosion, Splash } from '../components/Effects';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic } from '../lib/telegram';
+import { tgHaptic, tgNotify, tgVibrate } from '../lib/telegram';
 import { SHIP_FLEET, ShipKind } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
 import { playSound } from '../lib/audio';
@@ -46,11 +46,13 @@ export default function BattleScreen() {
       setExplosionKey((k) => k + 1);
       setShake(true);
       setTimeout(() => setShake(false), 400);
-      tgHaptic(lastAttack.sunk ? 'error' : 'heavy');
+      // Вибрация как при уведомлении: двойной импульс на попадание, длиннее — на потопление
+      tgNotify(lastAttack.sunk ? 'error' : 'success');
       playSound('boom');
     } else {
       setSplashKey((k) => k + 1);
       tgHaptic('light');
+      tgVibrate(35);
       playSound('splash');
     }
   }, [lastAttack?.ts]); // eslint-disable-line
