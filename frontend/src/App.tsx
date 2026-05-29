@@ -9,7 +9,7 @@ import { getSocket, closeSocket } from './api/socket';
 import { useAuthStore } from './stores/auth-store';
 import { useMatchStore } from './stores/match-store';
 import { useThemeStore } from './stores/theme-store';
-import { playSound } from './lib/audio';
+import { playSound, unlockAudio } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
 import DevLoginScreen from './screens/DevLoginScreen';
@@ -44,6 +44,17 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
+
+  // Разблокировать AudioContext при первом касании (браузер требует user gesture)
+  useEffect(() => {
+    const unlock = () => { unlockAudio(); };
+    document.addEventListener('touchstart', unlock, { once: true, passive: true });
+    document.addEventListener('click', unlock, { once: true });
+    return () => {
+      document.removeEventListener('touchstart', unlock);
+      document.removeEventListener('click', unlock);
+    };
+  }, []);
 
   const theme = useThemeStore((s) => s.theme);
   useEffect(() => {
