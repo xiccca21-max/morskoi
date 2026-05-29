@@ -1,41 +1,42 @@
 import { useEffect, useState } from 'react';
 import { HistoryAPI } from '../api/endpoints';
+import { Icon } from '../components/Icon';
 
 export default function HistoryScreen() {
   const [items, setItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    HistoryAPI.list(50).then(setItems).catch(() => {});
-  }, []);
+  useEffect(() => { HistoryAPI.list(50).then(setItems).catch(() => {}); }, []);
 
   return (
     <div className="max-w-md mx-auto space-y-3">
-      <h2 className="font-display text-cyber-cyan tracking-widest text-sm">ИСТОРИЯ МАТЧЕЙ</h2>
-      {items.length === 0 && <div className="card p-6 text-center text-white/40">Пока ни одного боя</div>}
+      <h2 className="title text-main text-lg">Журнал боёв</h2>
+      {items.length === 0 && <div className="card p-6 text-center text-muted">Ещё ни одного боя</div>}
       <ul className="space-y-2">
-        {items.map((m) => (
-          <li key={m.id} className="card p-4 flex items-center gap-3">
-            <div className={[
-              'w-10 h-10 rounded-xl flex items-center justify-center text-xl font-display',
-              m.result === 'win' ? 'bg-sonar-500/15 text-sonar-400' :
-              m.result === 'loss' ? 'bg-cyber-red/15 text-cyber-red' :
-              'bg-white/10 text-white/60'
-            ].join(' ')}>
-              {m.result === 'win' ? 'W' : m.result === 'loss' ? 'L' : '·'}
-            </div>
-            <div className="flex-1">
-              <div className="text-sm">vs {m.opponent?.name ?? 'Unknown'}</div>
-              <div className="text-xs text-white/40">
-                {m.endedAt ? new Date(m.endedAt).toLocaleString() : '—'}
+        {items.map((m) => {
+          const win = m.result === 'win';
+          const loss = m.result === 'loss';
+          return (
+            <li key={m.id} className="card p-4 flex items-center gap-3">
+              <div className={[
+                'w-9 h-9 rounded-lg flex items-center justify-center border',
+                win ? 'text-main border-line'
+                  : loss ? 'text-danger border-danger'
+                    : 'text-muted border-line',
+              ].join(' ')}>
+                <Icon name={win ? 'trophy' : loss ? 'skull' : 'handshake'} size={18} />
               </div>
-            </div>
-            <div className={['font-display', m.result === 'win' ? 'text-sonar-400' : 'text-white/70'].join(' ')}>
-              {m.result === 'win' ? `+$${(m.prizePool - m.rakeAmount).toFixed(2)}` :
-               m.result === 'loss' ? `−$${m.wagerAmount.toFixed(2)}` :
-               `${m.wagerAmount.toFixed(2)}`}
-            </div>
-          </li>
-        ))}
+              <div className="flex-1">
+                <div className="text-sm text-main">против {m.opponent?.name ?? 'неизвестного'}</div>
+                <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString() : '—'}</div>
+              </div>
+              <div className={['font-display tabular-nums', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
+                {win ? `+${(m.prizePool - m.rakeAmount).toFixed(0)} ₽`
+                  : loss ? `−${m.wagerAmount.toFixed(0)} ₽`
+                    : `${m.wagerAmount.toFixed(0)} ₽`}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

@@ -1,21 +1,24 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AttackCell, BOARD_SIZE, ShipPlacement, shipCells } from '../lib/game-types';
+import { AttackCell, BOARD_SIZE, ShipPlacement } from '../lib/game-types';
+import { Ship } from './Ship';
 
 type Mode = 'own' | 'enemy' | 'placement';
 
 interface BoardProps {
   mode: Mode;
-  ships?: ShipPlacement[];                  // отображаемые корабли
-  attacks?: AttackCell[];                    // полученные атаки (для own/enemy)
-  ghostCells?: Array<[number, number]>;      // подсветка при drag (placement)
-  ghostInvalid?: boolean;                    // подсветка красным
+  ships?: ShipPlacement[];
+  attacks?: AttackCell[];
+  ghostCells?: Array<[number, number]>;
+  ghostInvalid?: boolean;
   onCellClick?: (x: number, y: number) => void;
   onCellEnter?: (x: number, y: number) => void;
   disabled?: boolean;
   myTurn?: boolean;
-  highlight?: { x: number; y: number } | null; // сонар-метка
+  highlight?: { x: number; y: number } | null;
 }
+
+const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 
 export function Board({
   mode,
@@ -29,121 +32,172 @@ export function Board({
   myTurn = true,
   highlight = null,
 }: BoardProps) {
-  const shipsGrid = useMemo(() => {
-    const g: (ShipPlacement | null)[][] = Array.from({ length: BOARD_SIZE }, () =>
-      Array(BOARD_SIZE).fill(null),
-    );
-    for (const s of ships) {
-      for (const [x, y] of shipCells(s)) {
-        if (x < BOARD_SIZE && y < BOARD_SIZE && x >= 0 && y >= 0) g[y][x] = s;
-      }
-    }
-    return g;
-  }, [ships]);
-
   const attackMap = useMemo(() => {
     const m = new Map<string, AttackCell>();
     for (const a of attacks) m.set(`${a.x}:${a.y}`, a);
     return m;
   }, [attacks]);
 
-  const ghostSet = useMemo(() => new Set(ghostCells.map(([x, y]) => `${x}:${y}`)), [ghostCells]);
+  const ghostSet = useMemo(
+    () => new Set(ghostCells.map(([x, y]) => `${x}:${y}`)),
+    [ghostCells],
+  );
+
+  const showShips = mode === 'own' || mode === 'placement' || ships.length > 0;
+  const cellPct = 100 / BOARD_SIZE;
 
   return (
-    <div className="relative aspect-square w-full max-w-[440px] mx-auto select-none">
-      {/* Радар фон */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-navy-900 to-navy-950 border border-cyber-cyan/20 overflow-hidden water-bg">
-        {/* радар-развёртка для enemy при моём ходе */}
-        {mode === 'enemy' && myTurn && (
-          <div
-            className="absolute inset-0 pointer-events-none origin-center animate-radarSweep"
-            style={{
-              background:
-                'conic-gradient(from 0deg, transparent 70%, rgba(34,211,238,0.18) 88%, transparent 100%)',
-            }}
-          />
-        )}
-        {/* координатная сетка */}
-        <svg className="absolute inset-0 w-full h-full text-cyber-cyan/15" aria-hidden>
-          {Array.from({ length: BOARD_SIZE + 1 }).map((_, i) => (
-            <g key={i}>
-              <line
-                x1={`${(i * 100) / BOARD_SIZE}%`} y1="0"
-                x2={`${(i * 100) / BOARD_SIZE}%`} y2="100%"
-                stroke="currentColor" strokeWidth="1"
+    <div className="relative w-full max-w-[440px] mx-auto select-none">
+      {/* Графитовая рама */}
+      <div
+        className="rounded-xl p-2"
+        style={{
+          background: 'var(--c-panel)',
+          boxShadow: 'inset 0 0 0 var(--border-w) var(--c-line), var(--shadow-card)',
+        }}
+      >
+        <div
+          className="grid gap-0"
+          style={{ gridTemplateColumns: '16px 1fr', gridTemplateRows: '16px auto' }}
+        >
+          {/* угол */}
+          <div />
+          {/* буквы сверху */}
+          <div className="flex">
+            {LETTERS.map((l) => (
+              <div key={l} className="flex-1 flex items-center justify-center text-[9px] font-display text-muted">
+                {l}
+              </div>
+            ))}
+          </div>
+          {/* числа слева */}
+          <div className="flex flex-col">
+            {Array.from({ length: BOARD_SIZE }).map((_, i) => (
+              <div key={i} className="flex-1 flex items-center justify-center text-[9px] font-display text-muted">
+                {i + 1}
+              </div>
+            ))}
+          </div>
+
+          {/* Игровое поле — квадрат */}
+          <div className="relative w-full aspect-square rounded-md overflow-hidden bg-panel">
+            {/* Подложка-море */}
+            <div className="absolute inset-0 cell-water sea-bg animate-waveDrift" />
+            {/* радар-развёртка для вражеского поля в мой ход */}
+            {mode === 'enemy' && myTurn && (
+              <div
+                className="absolute inset-0 pointer-events-none animate-compassSpin opacity-40"
+                style={{ background: 'conic-gradient(from 0deg, transparent 74%, rgba(225,87,75,0.22) 90%, transparent 100%)', animationDuration: '4s' }}
               />
-              <line
-                y1={`${(i * 100) / BOARD_SIZE}%`} x1="0"
-                y2={`${(i * 100) / BOARD_SIZE}%`} x2="100%"
-                stroke="currentColor" strokeWidth="1"
-              />
-            </g>
-          ))}
-        </svg>
-      </div>
+            )}
+            {/* сетка */}
+            <svg className="absolute inset-0 w-full h-full text-muted opacity-40" aria-hidden>
+              {Array.from({ length: BOARD_SIZE + 1 }).map((_, i) => (
+                <g key={i}>
+                  <line x1={`${i * cellPct}%`} y1="0" x2={`${i * cellPct}%`} y2="100%" stroke="currentColor" strokeWidth="1" />
+                  <line y1={`${i * cellPct}%`} x1="0" y2={`${i * cellPct}%`} x2="100%" stroke="currentColor" strokeWidth="1" />
+                </g>
+              ))}
+            </svg>
 
-      {/* Клетки */}
-      <div className="absolute inset-0 grid"
-           style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`, gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)` }}>
-        {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, idx) => {
-          const x = idx % BOARD_SIZE;
-          const y = Math.floor(idx / BOARD_SIZE);
-          const key = `${x}:${y}`;
-          const ship = shipsGrid[y][x];
-          const att = attackMap.get(key);
-          const isGhost = ghostSet.has(key);
-          const isHighlight = highlight?.x === x && highlight?.y === y;
-          // показываем корабли только в режимах own/placement
-          const showShip = (mode === 'own' || mode === 'placement') && !!ship;
-          const isClickable = mode === 'enemy' && !disabled && myTurn && !att;
+            {/* Корабли (свои / расстановка) */}
+            {showShips &&
+              ships.map((s) => {
+                const w = s.orientation === 'H' ? s.size * cellPct : cellPct;
+                const h = s.orientation === 'V' ? s.size * cellPct : cellPct;
+                return (
+                  <motion.div
+                    key={s.id}
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className={s.sunk && mode !== 'enemy' ? 'absolute animate-sink' : 'absolute'}
+                    style={{
+                      left: `${s.x * cellPct}%`,
+                      top: `${s.y * cellPct}%`,
+                      width: `${w}%`,
+                      height: `${h}%`,
+                      padding: '2.5%',
+                      zIndex: 5,
+                    }}
+                  >
+                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} sunk={s.sunk} />
+                  </motion.div>
+                );
+              })}
 
-          let cellClasses = 'relative w-full h-full transition-colors';
-          if (showShip) cellClasses += ship!.sunk ? ' cell-sunk' : ' cell-ship';
-          if (att?.hit && mode === 'enemy') cellClasses += ' cell-hit';
-          if (att && !att.hit) cellClasses += ' cell-miss';
-          if (att?.sunkShipId && mode === 'enemy') cellClasses += ' cell-sunk';
-          if (isGhost) cellClasses += ghostInvalid ? ' bg-cyber-red/40' : ' bg-cyber-cyan/30';
-          if (isClickable) cellClasses += ' hover:bg-cyber-cyan/15 cursor-crosshair';
-
-          return (
+            {/* Слой клеток (клики + метки) */}
             <div
-              key={key}
-              className={cellClasses}
-              onClick={() => isClickable && onCellClick?.(x, y)}
-              onMouseEnter={() => onCellEnter?.(x, y)}
-              onTouchStart={() => onCellEnter?.(x, y)}
+              className="absolute inset-0 grid"
+              style={{
+                gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`,
+                gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)`,
+                zIndex: 10,
+              }}
             >
-              {/* индикатор центра */}
-              {att && (
-                <>
-                  {att.hit ? (
-                    <motion.span
-                      initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      className="absolute inset-1 rounded-full bg-cyber-red shadow-[0_0_18px_rgba(239,68,68,0.7)]"
-                    />
-                  ) : (
-                    <motion.span
-                      initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      className="absolute inset-[35%] rounded-full bg-blue-200/80"
-                    />
-                  )}
-                </>
-              )}
-              {isHighlight && <SonarRing />}
+              {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, idx) => {
+                const x = idx % BOARD_SIZE;
+                const y = Math.floor(idx / BOARD_SIZE);
+                const key = `${x}:${y}`;
+                const att = attackMap.get(key);
+                const isGhost = ghostSet.has(key);
+                const isHighlight = highlight?.x === x && highlight?.y === y;
+                const isClickable = mode === 'enemy' && !disabled && myTurn && !att;
+
+                let cls = 'relative w-full h-full transition-colors';
+                if (isGhost) cls += ghostInvalid ? ' cell-ghost-bad' : ' cell-ghost';
+                if (isClickable) cls += ' cell-aim';
+
+                return (
+                  <div
+                    key={key}
+                    className={cls}
+                    onClick={() => isClickable && onCellClick?.(x, y)}
+                    onMouseEnter={() => onCellEnter?.(x, y)}
+                    onTouchStart={() => onCellEnter?.(x, y)}
+                  >
+                    {att && <Marker hit={att.hit} sunk={!!att.sunkShipId} />}
+                    {isHighlight && isClickable && <Crosshair />}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function SonarRing() {
+function Marker({ hit, sunk }: { hit: boolean; sunk: boolean }) {
+  if (!hit) {
+    return (
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'repeating-linear-gradient(45deg, var(--c-muted) 0px, var(--c-muted) 2px, transparent 2px, transparent 6px)',
+          opacity: 0.35,
+        }}
+      />
+    );
+  }
   return (
-    <>
-      <span className="sonar-ring animate-sonarPulse" />
-      <span className="sonar-ring animate-sonarPulse" style={{ animationDelay: '0.4s' }} />
-      <span className="sonar-ring animate-sonarPulse" style={{ animationDelay: '0.8s' }} />
-    </>
+    <motion.span
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      className={["absolute inset-[14%] rounded-sm flex items-center justify-center shadow-[2px_2px_0px_#000]", sunk ? "bg-panel border-2 border-danger text-danger" : "bg-danger text-white"].join(' ')}
+    >
+      <span className="font-display text-[14px] leading-none">✕</span>
+    </motion.span>
+  );
+}
+
+function Crosshair() {
+  return (
+    <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
+      <span className="absolute w-full h-[2px] bg-danger shadow-[2px_2px_0px_#000]" />
+      <span className="absolute h-full w-[2px] bg-danger shadow-[2px_2px_0px_#000]" />
+    </span>
   );
 }

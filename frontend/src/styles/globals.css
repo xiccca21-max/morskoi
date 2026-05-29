@@ -2,7 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root, [data-theme="brutal"] {
+  --c-base: #EAE6D7;
+  --c-panel: #FFFFFF;
+  --c-main: #000000;
+  --c-muted: #444444;
+  --c-accent: #FF4911;
+  --c-danger: #FF0000;
+  --c-line: #000000;
+  --c-water: rgba(0,0,0,0.05);
+  --radius-card: 0px;
+  --radius-btn: 0px;
+  --border-w: 3px;
+  --shadow-card: 4px 4px 0px #000000;
+  --font-display: 'Oswald', Impact, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --bg-pattern: none;
+  color-scheme: light;
+}
+
+[data-theme="radar"] {
+  --c-base: #020A04;
+  --c-panel: #041408;
+  --c-main: #4AF626;
+  --c-muted: #1F7A12;
+  --c-accent: #4AF626;
+  --c-danger: #FF003C;
+  --c-line: #1F7A12;
+  --c-water: rgba(74, 246, 38, 0.08);
+  --radius-card: 0px;
+  --radius-btn: 0px;
+  --border-w: 1px;
+  --shadow-card: none;
+  --font-display: 'Courier New', Courier, monospace;
+  --font-body: 'Courier New', Courier, monospace;
+  --bg-pattern: repeating-linear-gradient(0deg, rgba(74,246,38,0.03) 0px, rgba(74,246,38,0.03) 1px, transparent 1px, transparent 4px);
+  color-scheme: dark;
+}
+
+[data-theme="blueprint"] {
+  --c-base: #0A3A69;
+  --c-panel: #114B82;
+  --c-main: #FFFFFF;
+  --c-muted: #8CB4DE;
+  --c-accent: #FFFFFF;
+  --c-danger: #FF6B00;
+  --c-line: #8CB4DE;
+  --c-water: rgba(255, 255, 255, 0.05);
+  --radius-card: 4px;
+  --radius-btn: 4px;
+  --border-w: 1px;
+  --shadow-card: none;
+  --font-display: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --bg-pattern: 
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
   color-scheme: dark;
 }
 
@@ -14,71 +69,117 @@ html, body, #root {
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(34,211,238,0.10), transparent 60%),
-    radial-gradient(900px 500px at 90% 110%, rgba(74,222,128,0.07), transparent 60%),
-    #050a14;
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--c-main);
+  background-color: var(--c-base);
+  font-family: var(--font-body);
+  background-image: var(--bg-pattern);
+  background-size: 20px 20px;
+  background-attachment: fixed;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-.font-display { font-family: 'Orbitron', 'Inter', sans-serif; letter-spacing: 0.04em; }
-
-/* ===== Water animation для клеток ===== */
-.water-bg {
-  background:
-    linear-gradient(130deg, rgba(34, 211, 238, 0.18), rgba(15, 28, 58, 0.6) 60%) ,
-    radial-gradient(circle at 30% 30%, rgba(94, 234, 212, 0.18), transparent 60%);
-  background-size: 200% 200%;
-  animation: waterShimmer 7s ease-in-out infinite;
+/* ===== Типографика ===== */
+.font-display { font-family: var(--font-display); letter-spacing: 0.01em; }
+.font-serif   { font-family: var(--font-body); }
+.title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+}
+.eyebrow {
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 10px;
+  color: var(--c-muted);
+  font-weight: 600;
 }
 
-/* ===== Sonar ring ===== */
-.sonar-ring {
-  position: absolute; inset: 0;
-  border-radius: 9999px;
-  border: 2px solid rgba(34, 211, 238, 0.7);
-  pointer-events: none;
+/* ===== Кнопки ===== */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-3 transition-all active:scale-[0.98] select-none;
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border-radius: var(--radius-btn);
+  border: var(--border-w) solid transparent;
+  box-shadow: var(--shadow-card);
+}
+.btn-primary {
+  @apply btn text-white;
+  background: var(--c-danger);
+  border-color: var(--c-danger);
+}
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-primary:disabled { opacity: 0.5; filter: grayscale(1); }
+
+.btn-secondary {
+  @apply btn;
+  color: var(--c-main);
+  background: var(--c-panel);
+  border-color: var(--c-line);
+}
+.btn-secondary:hover { filter: brightness(1.1); }
+
+.btn-danger {
+  @apply btn;
+  color: var(--c-danger);
+  background: transparent;
+  border-color: var(--c-danger);
+}
+.btn-danger:hover { background: rgba(200, 69, 59, 0.1); }
+
+.btn-ghost {
+  @apply btn;
+  color: var(--c-muted);
+  background: transparent;
+  border-color: var(--c-line);
+  box-shadow: none;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--c-main); }
+
+/* ===== Карточки ===== */
+.card {
+  position: relative;
+  background: var(--c-panel);
+  border: var(--border-w) solid var(--c-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.plate {
+  background: var(--c-panel);
+  border: var(--border-w) solid var(--c-line);
+  border-radius: var(--radius-btn);
 }
 
-/* ===== Glow ===== */
-.cell-hit {
-  background: radial-gradient(circle at center, #ef4444 0%, #7f1d1d 60%, transparent 75%);
-  box-shadow: 0 0 18px rgba(239, 68, 68, 0.7);
+.rope {
+  height: var(--border-w);
+  background: var(--c-line);
+  border-radius: 0;
 }
-.cell-miss {
-  background: radial-gradient(circle at center, #93c5fd 0%, transparent 70%);
-}
-.cell-sunk {
-  background: linear-gradient(135deg, #b91c1c, #450a0a);
-  box-shadow: 0 0 24px rgba(239, 68, 68, 0.9);
-}
-.cell-ship {
-  background: linear-gradient(135deg, #1d3b78, #0a1226);
-  border: 1px solid rgba(94, 234, 212, 0.4);
-}
+
+/* ===== Акценты ===== */
+.text-gold { color: var(--c-main); }
+.text-foam { color: var(--c-main); }
+.hairline { border-color: var(--c-line); }
+
+/* ===== Поле / клетки ===== */
+.cell-water { background: var(--c-water); }
+.cell-water:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* Подсветка клеток при расстановке/прицеле (работает с цветами темы) */
+.cell-ghost { background: color-mix(in srgb, var(--c-muted) 45%, transparent); }
+.cell-ghost-bad { background: color-mix(in srgb, var(--c-danger) 55%, transparent); }
+.cell-aim { cursor: crosshair; }
+.cell-aim:hover { background: color-mix(in srgb, var(--c-danger) 18%, transparent); }
+.cell-hit { background: var(--c-danger); opacity: 0.8; }
+.cell-miss { background: var(--c-muted); opacity: 0.3; }
+.cell-sunk { background: var(--c-danger); }
 
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(34,211,238,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--c-line); border-radius: 3px; }
 
-/* ===== Buttons ===== */
-.btn {
-  @apply inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all active:scale-95 select-none;
-}
-.btn-primary {
-  @apply btn bg-cyber-cyan/90 text-navy-950 shadow-glow hover:bg-cyber-cyan;
-}
-.btn-secondary {
-  @apply btn bg-navy-700 border border-cyber-cyan/40 text-cyber-cyan hover:bg-navy-600;
-}
-.btn-danger {
-  @apply btn bg-cyber-red/90 text-white hover:bg-cyber-red;
-}
-.btn-ghost {
-  @apply btn bg-transparent border border-white/15 text-white/80 hover:bg-white/5;
-}
-
-/* ===== Card ===== */
-.card {
-  @apply rounded-2xl bg-navy-900/70 border border-white/10 backdrop-blur-sm;
-}
+.fx-shake { animation: shake 0.4s ease-in-out; }

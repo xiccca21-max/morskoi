@@ -7,6 +7,11 @@ class LoginDto {
   initData!: string;
 }
 
+class DevLoginDto {
+  @IsString()
+  nickname!: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -14,5 +19,10 @@ export class AuthController {
   @Post('telegram')
   async telegram(@Body() dto: LoginDto) {
     return this.auth.loginWithTelegram(dto.initData);
+  }
+
+  @Post('dev')
+  async dev(@Body() dto: DevLoginDto) {
+    return this.auth.loginDev(dto.nickname);
   }
 }

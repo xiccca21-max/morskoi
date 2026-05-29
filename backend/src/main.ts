@@ -53,7 +53,8 @@ async function bootstrap() {
     Logger.warn(`Frontend dist not found`, 'Bootstrap');
   }
 
-  const port = Number(process.env.BACKEND_PORT ?? 4000);
+  // Railway/Render задают PORT; локально и Docker — BACKEND_PORT
+  const port = Number(process.env.PORT ?? process.env.BACKEND_PORT ?? 4000);
   await app.listen(port, '0.0.0.0');
 
   Logger.log(`🚢 Naval Clash backend running on :${port}`, 'Bootstrap');

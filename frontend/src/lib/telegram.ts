@@ -24,8 +24,8 @@ export function tgReady() {
   try {
     tg.ready();
     tg.expand();
-    tg.setHeaderColor?.('#050a14');
-    tg.setBackgroundColor?.('#050a14');
+    tg.setHeaderColor?.('#000000');
+    tg.setBackgroundColor?.('#000000');
   } catch {
     /* ignore */
   }

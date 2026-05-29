@@ -2,24 +2,23 @@ import { useEffect, useState } from 'react';
 import { WalletAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic } from '../lib/telegram';
+import { Icon } from '../components/Icon';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 
 export default function WalletScreen() {
   const user = useAuthStore((s) => s.user);
   const updateBalance = useAuthStore((s) => s.updateBalance);
-  const [amount, setAmount] = useState(10);
+  const [amount, setAmount] = useState(50);
   const [txs, setTxs] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    WalletAPI.txs().then(setTxs).catch(() => {});
-  }, []);
+  useEffect(() => { WalletAPI.txs().then(setTxs).catch(() => {}); }, []);
 
   const deposit = async () => {
     setBusy(true);
     try {
       const r = await WalletAPI.deposit(amount);
-      updateBalance(r.balance);
-      tgHaptic('success');
+      updateBalance(r.balance); tgHaptic('success');
       WalletAPI.txs().then(setTxs);
     } finally { setBusy(false); }
   };
@@ -28,60 +27,61 @@ export default function WalletScreen() {
     setBusy(true);
     try {
       const r = await WalletAPI.withdraw(amount);
-      updateBalance(r.balance);
-      tgHaptic('success');
+      updateBalance(r.balance); tgHaptic('success');
       WalletAPI.txs().then(setTxs);
     } catch (e: any) {
-      tgHaptic('error');
-      alert(e?.response?.data?.message ?? e?.message);
+      tgHaptic('error'); alert(e?.response?.data?.message ?? e?.message);
     } finally { setBusy(false); }
   };
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <section className="card p-6 text-center">
-        <p className="text-white/60 text-sm">Текущий баланс</p>
-        <p className="font-display text-4xl text-cyber-cyan mt-1">${user?.balance?.toFixed(2) ?? '0.00'}</p>
+      <section className="card p-6 flex items-center justify-between">
+        <div>
+          <p className="eyebrow">Баланс</p>
+          <p className="font-display text-4xl text-main mt-1 tabular-nums">
+            <AnimatedNumber value={user?.balance ?? 0} formatter={(v) => v.toFixed(2)} /> ₽
+          </p>
+        </div>
+        <Icon name="coins" size={32} className="text-muted" />
       </section>
 
       <section className="card p-5 space-y-3">
-        <label className="block">
-          <span className="text-xs uppercase tracking-widest text-white/60">Сумма</span>
-          <input
-            type="number" min={1}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full mt-1 px-4 py-3 rounded-xl bg-navy-800 border border-white/10 focus:border-cyber-cyan outline-none"
-          />
-        </label>
+        <p className="eyebrow">Сумма</p>
+        <input
+          type="number" min={1} value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          className="w-full px-4 py-3 rounded-lg bg-panel border border-line text-main focus:border-line outline-none tabular-nums"
+        />
         <div className="flex gap-2">
-          {[5, 10, 25, 50, 100].map((v) => (
-            <button key={v} className="btn-ghost flex-1" onClick={() => setAmount(v)}>
-              ${v}
-            </button>
+          {[10, 50, 100, 500].map((v) => (
+            <button key={v} className="btn-ghost flex-1 tabular-nums" onClick={() => setAmount(v)}>{v}</button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <button className="btn-primary" onClick={deposit} disabled={busy}>Пополнить</button>
-          <button className="btn-secondary" onClick={withdraw} disabled={busy}>Вывести</button>
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <button className="btn-primary" onClick={deposit} disabled={busy}><Icon name="plus" size={16} /> Пополнить</button>
+          <button className="btn-secondary" onClick={withdraw} disabled={busy}><Icon name="minus" size={16} /> Вывести</button>
         </div>
-        <p className="text-xs text-white/40">
-          Demo: deposit/withdraw — заглушки. В проде подключите Telegram&nbsp;Stars или крипто-провайдер.
+        <p className="text-xs text-muted">
+          Демо-режим: операции условны. В проде — Telegram Stars или крипто-провайдер.
         </p>
       </section>
 
       <section className="card p-5">
-        <h3 className="font-display text-sm text-cyber-cyan tracking-widest mb-3">ИСТОРИЯ ОПЕРАЦИЙ</h3>
-        {txs.length === 0 && <p className="text-white/40 text-sm">Пусто</p>}
-        <ul className="space-y-1">
-          {txs.map((t) => (
-            <li key={t.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5">
-              <span className="text-white/70">{txLabel(t.type)}</span>
-              <span className={['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type) ? 'text-sonar-400' : 'text-cyber-red'}>
-                {['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type) ? '+' : '−'}${Number(t.amount).toFixed(2)}
-              </span>
-            </li>
-          ))}
+        <p className="eyebrow mb-3">История операций</p>
+        {txs.length === 0 && <p className="text-muted text-sm">Пусто</p>}
+        <ul className="divide-y divide-line">
+          {txs.map((t) => {
+            const plus = ['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type);
+            return (
+              <li key={t.id} className="flex items-center justify-between text-sm py-2.5">
+                <span className="text-main">{txLabel(t.type)}</span>
+                <span className={['tabular-nums font-display', plus ? 'text-main' : 'text-danger'].join(' ')}>
+                  {plus ? '+' : '−'}{Number(t.amount).toFixed(2)} ₽
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>

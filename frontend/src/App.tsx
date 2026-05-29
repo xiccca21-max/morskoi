@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { tgReady, getInitData } from './lib/telegram';
-import { AuthAPI } from './api/endpoints';
+import { AuthAPI, UsersAPI } from './api/endpoints';
 import { loadToken, setAuthToken } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
 import { useAuthStore } from './stores/auth-store';
 import { useMatchStore } from './stores/match-store';
+import { useThemeStore } from './stores/theme-store';
+import { playSound } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
+import DevLoginScreen from './screens/DevLoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import WalletScreen from './screens/WalletScreen';
 import MatchmakingScreen from './screens/MatchmakingScreen';
@@ -36,6 +39,23 @@ export default function App() {
   const setLastAttack = useMatchStore((s) => s.setLastAttack);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  const theme = useThemeStore((s) => s.theme);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  // Глобальный слушатель кликов по кнопкам
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('a')) {
+        playSound('click');
+      }
+    };
+    document.addEventListener('click', handleGlobalClick, true);
+    return () => document.removeEventListener('click', handleGlobalClick, true);
+  }, []);
+
   useEffect(() => {
     tgReady();
     let cancelled = false;
@@ -53,7 +73,7 @@ export default function App() {
         } else if (existing) {
           // без Telegram — пробуем GET /users/me чтобы валидировать токен
           try {
-            const me = await import('./api/endpoints').then((m) => m.UsersAPI.me());
+            const me = await UsersAPI.me();
             setUser({ ...me, balance: Number(me.balance) });
           } catch {
             setAuthToken(null);
@@ -105,19 +125,14 @@ export default function App() {
     };
   }, [setMatchState, setLastAttack, updateBalance]);
 
-  if (authError) {
-    return (
-      <div className="h-full flex items-center justify-center p-8 text-center">
-        <div className="card p-8 max-w-md">
-          <h1 className="font-display text-2xl text-cyber-cyan mb-3">Naval Clash</h1>
-          <p className="text-white/70 mb-4">{authError}</p>
-          <p className="text-xs text-white/50">
-            Это Telegram Mini App. Открой бота{' '}
-            <span className="text-cyber-cyan">@{import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot'}</span> и нажми «Открыть игру».
-          </p>
-        </div>
-      </div>
-    );
+  const authenticated = useAuthStore((s) => s.authenticated);
+  const ready = useAuthStore((s) => s.ready);
+
+  if (authError && !authenticated) {
+    return <DevLoginScreen />;
+  }
+  if (ready && !authenticated) {
+    return <DevLoginScreen />;
   }
 
   return (

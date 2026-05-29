@@ -4,52 +4,70 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: {
-          950: '#050a14',
-          900: '#0a1226',
-          800: '#0f1c3a',
-          700: '#152954',
-          600: '#1d3b78',
-        },
-        sonar: {
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-        },
-        cyber: {
-          cyan: '#22d3ee',
-          mint: '#5eead4',
-          red: '#ef4444',
-          gold: '#fbbf24',
-        },
+        base: 'var(--c-base)',
+        panel: 'var(--c-panel)',
+        main: 'var(--c-main)',
+        muted: 'var(--c-muted)',
+        accent: 'var(--c-accent)',
+        danger: 'var(--c-danger)',
+        line: 'var(--c-line)',
+        water: 'var(--c-water)',
       },
       fontFamily: {
-        display: ['"Orbitron"', 'system-ui', 'sans-serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'sans-serif'],
+        sans: ['var(--font-body)', 'sans-serif'],
       },
       boxShadow: {
-        sonar: '0 0 20px rgba(34, 211, 238, 0.45)',
-        radar: '0 0 30px rgba(74, 222, 128, 0.4)',
-        glow: '0 0 40px rgba(34, 211, 238, 0.25)',
+        card: 'var(--shadow-card)',
       },
       keyframes: {
-        sonarPulse: {
-          '0%':   { transform: 'scale(0.3)',  opacity: '0.9' },
-          '100%': { transform: 'scale(1.8)', opacity: '0' },
+        waveDrift: {
+          '0%, 100%': { backgroundPosition: '0px 0px, 0px 0px' },
+          '50%': { backgroundPosition: '40px -8px, -30px 6px' },
         },
-        radarSweep: {
-          '0%':   { transform: 'rotate(0deg)' },
+        flagWave: {
+          '0%, 100%': { transform: 'skewX(-6deg) translateY(0)' },
+          '50%': { transform: 'skewX(6deg) translateY(-1px)' },
+        },
+        compassSpin: {
+          '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
-        waterShimmer: {
-          '0%, 100%': { backgroundPosition: '0% 50%' },
-          '50%':      { backgroundPosition: '100% 50%' },
+        fuseBurn: { '0%': { width: '100%' }, '100%': { width: '0%' } },
+        floatY: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-6px)' },
+        },
+        sink: {
+          '0%': { transform: 'translateY(0) rotate(0deg)', opacity: '1' },
+          '100%': { transform: 'translateY(60px) rotate(8deg)', opacity: '0.15' },
+        },
+        boom: {
+          '0%': { transform: 'scale(0.2)', opacity: '0' },
+          '20%': { transform: 'scale(1)', opacity: '1' },
+          '100%': { transform: 'scale(1.6)', opacity: '0' },
+        },
+        ripple: {
+          '0%': { transform: 'scale(0.3)', opacity: '0.9' },
+          '100%': { transform: 'scale(2.2)', opacity: '0' },
+        },
+        shake: {
+          '0%, 100%': { transform: 'translate(0,0)' },
+          '20%': { transform: 'translate(-4px, 2px)' },
+          '40%': { transform: 'translate(4px, -2px)' },
+          '60%': { transform: 'translate(-3px, -1px)' },
+          '80%': { transform: 'translate(3px, 1px)' },
         },
       },
       animation: {
-        sonarPulse: 'sonarPulse 1.4s ease-out infinite',
-        radarSweep: 'radarSweep 3.5s linear infinite',
-        waterShimmer: 'waterShimmer 6s ease-in-out infinite',
+        waveDrift: 'waveDrift 9s ease-in-out infinite',
+        flagWave: 'flagWave 2.2s ease-in-out infinite',
+        compassSpin: 'compassSpin 8s linear infinite',
+        floatY: 'floatY 4s ease-in-out infinite',
+        sink: 'sink 1.6s ease-in forwards',
+        boom: 'boom 0.7s ease-out forwards',
+        ripple: 'ripple 0.9s ease-out forwards',
+        shake: 'shake 0.4s ease-in-out',
       },
     },
   },

@@ -379,6 +379,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return { ok: true, waiting: true };
   }
 
+  @SubscribeMessage('match:reaction')
+  async reaction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { matchId: string; reaction: string; nonce?: string },
+  ) {
+    const s = this.requireAuth(client);
+    await this.ensureNonce(s.data.userId, body.nonce);
+    
+    // Просто пересылаем эмоцию (или иконку) в комнату
+    this.server.to(`match:${body.matchId}`).emit('match:reaction', {
+      by: s.data.userId,
+      reaction: body.reaction,
+    });
+    return { ok: true };
+  }
+
   // ============= Heartbeat =============
 
   @SubscribeMessage('ping')

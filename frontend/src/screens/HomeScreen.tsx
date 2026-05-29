@@ -1,96 +1,125 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
+import { useMatchStore } from '../stores/match-store';
 import { tgHaptic } from '../lib/telegram';
+import { getRank, rankProgress } from '../lib/rank';
+import { Icon, IconName } from '../components/Icon';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const match = useMatchStore((s) => s.state);
+
+  const wins = user?.wins ?? 0;
+  const losses = user?.losses ?? 0;
+  const rank = getRank(wins);
+  const progress = rankProgress(wins);
+  const total = wins + losses;
+  const wr = total ? Math.round((wins / total) * 100) : 0;
+
+  const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
 
   return (
-    <div className="max-w-md mx-auto space-y-5">
-      {/* Hero */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className="card p-6 relative overflow-hidden"
-      >
-        <div
-          className="absolute -right-10 -top-10 w-48 h-48 rounded-full opacity-30"
-          style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.5), transparent 60%)' }}
-        />
-        <p className="text-white/60 text-sm">С возвращением, капитан</p>
-        <h2 className="font-display text-2xl mt-1">{user?.firstName ?? user?.username ?? 'Командующий'}</h2>
+    <div className="max-w-md mx-auto space-y-4">
+      {/* Каюта капитана */}
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="eyebrow">Капитан</p>
+            <h2 className="font-display text-2xl text-main leading-tight mt-0.5">
+              {user?.firstName ?? user?.username ?? 'без имени'}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 text-muted">
+            <Icon name={rank.icon} size={22} />
+            <span className="title text-xs text-main">{rank.title}</span>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-5 text-center">
-          <Stat label="Победы" value={user?.wins ?? 0} accent="text-sonar-400" />
-          <Stat label="Поражения" value={user?.losses ?? 0} accent="text-cyber-red" />
-          <Stat label="Баланс" value={`$${user?.balance?.toFixed(2) ?? '0.00'}`} accent="text-cyber-cyan" />
+        <div className="mt-4">
+          <div className="flex items-center justify-between eyebrow mb-1.5">
+            <span>Прогресс звания</span>
+            <span className="text-muted">{wins}{rank.next ? ` / ${rank.next}` : ''}</span>
+          </div>
+          <div className="h-1 rounded-full bg-panel overflow-hidden">
+            <div className="h-full bg-main" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-px mt-5 bg-line rounded-lg overflow-hidden">
+          <Stat label="Победы" value={wins} />
+          <Stat label="Поражения" value={losses} accent />
+          <Stat label="Точность" value={`${wr}%`} />
         </div>
       </motion.section>
 
-      {/* Actions */}
-      <section className="grid grid-cols-1 gap-3">
+      {activeMatch && (
         <button
-          className="card p-5 text-left hover:bg-cyber-cyan/5 transition relative"
-          onClick={() => { tgHaptic('medium'); navigate('/matchmaking'); }}
+          onClick={() => navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`)}
+          className="btn-danger w-full"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-cyber-cyan/15 flex items-center justify-center text-2xl shadow-glow">⚔</div>
-            <div className="flex-1">
-              <h3 className="font-semibold">Быстрая игра</h3>
-              <p className="text-white/50 text-sm">PvP матч с реальной ставкой</p>
-            </div>
-            <span className="text-cyber-cyan">→</span>
-          </div>
+          <Icon name="swords" size={18} /> Вернуться в бой
         </button>
+      )}
 
-        <button
-          className="card p-5 text-left hover:bg-cyber-cyan/5 transition"
-          onClick={() => navigate('/wallet')}
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-sonar-500/15 flex items-center justify-center text-2xl">💰</div>
-            <div className="flex-1">
-              <h3 className="font-semibold">Кошелёк</h3>
-              <p className="text-white/50 text-sm">Пополнить / вывести</p>
-            </div>
-            <span className="text-cyber-cyan">→</span>
-          </div>
-        </button>
+      {/* Главная кнопка */}
+      <button
+        onClick={() => { tgHaptic('medium'); navigate('/matchmaking'); }}
+        className="w-full card p-5 text-left flex items-center justify-between hover:border-line transition group"
+      >
+        <div>
+          <span className="title text-xl text-main">В бой</span>
+          <p className="text-muted text-sm mt-1">Найти соперника и сразиться на ставку</p>
+        </div>
+        <span className="w-11 h-11 rounded-full bg-danger flex items-center justify-center text-white">
+          <Icon name="arrow-right" size={20} />
+        </span>
+      </button>
 
-        <button
-          className="card p-5 text-left hover:bg-cyber-cyan/5 transition"
-          onClick={() => navigate('/leaderboard')}
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-cyber-gold/15 flex items-center justify-center text-2xl">🏆</div>
-            <div className="flex-1">
-              <h3 className="font-semibold">Лидерборд</h3>
-              <p className="text-white/50 text-sm">Лучшие капитаны планеты</p>
-            </div>
-            <span className="text-cyber-cyan">→</span>
-          </div>
-        </button>
-      </section>
+      <div className="grid grid-cols-2 gap-3">
+        <Tile icon="coins" title="Казна" sub="Пополнить / вывести" onClick={() => navigate('/wallet')} />
+        <Tile icon="trophy" title="Топ" sub="Лучшие капитаны" onClick={() => navigate('/leaderboard')} />
+      </div>
 
+      {/* Правила */}
       <section className="card p-5">
-        <h3 className="font-display text-cyber-cyan text-sm tracking-widest mb-2">КАК ЭТО РАБОТАЕТ</h3>
-        <ul className="text-sm text-white/70 space-y-1.5">
-          <li>• Выбери ставку и найди соперника</li>
-          <li>• Оба депонируют одинаковую сумму</li>
-          <li>• Победитель забирает 95% призового фонда</li>
-          <li>• 5% — комиссия платформы (rake)</li>
-        </ul>
+        <p className="eyebrow mb-3">Как это работает</p>
+        <ol className="text-sm text-main space-y-2.5">
+          <Rule n={1}>Выбери ставку и найди соперника</Rule>
+          <Rule n={2}>Оба ставят равную сумму в общий банк</Rule>
+          <Rule n={3}>Расставь флот и топи корабли врага</Rule>
+          <Rule n={4}>Победитель забирает 95% банка, 5% — комиссия</Rule>
+        </ol>
       </section>
     </div>
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: any; accent: string }) {
+function Stat({ label, value, accent }: { label: string; value: any; accent?: boolean }) {
   return (
-    <div className="rounded-xl bg-navy-800/60 p-3">
-      <div className={`font-display text-lg ${accent}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
+    <div className="bg-panel p-3 text-center">
+      <div className={['font-display text-xl tabular-nums', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
+      <div className="eyebrow mt-0.5">{label}</div>
     </div>
+  );
+}
+
+function Tile({ icon, title, sub, onClick }: { icon: IconName; title: string; sub: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="card p-4 text-left hover:border-line transition">
+      <Icon name={icon} size={22} className="text-muted" />
+      <div className="font-display text-main mt-2">{title}</div>
+      <div className="text-[11px] text-muted">{sub}</div>
+    </button>
+  );
+}
+
+function Rule({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span className="shrink-0 w-5 h-5 rounded-full border border-line text-[11px] font-display flex items-center justify-center text-muted">{n}</span>
+      <span>{children}</span>
+    </li>
   );
 }

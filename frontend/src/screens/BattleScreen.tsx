@@ -2,11 +2,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../components/Board';
+import { Ship } from '../components/Ship';
 import { Explosion, Splash } from '../components/Effects';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic } from '../lib/telegram';
+import { SHIP_FLEET, ShipKind } from '../lib/game-types';
+import { Icon, IconName } from '../components/Icon';
+import { playSound } from '../lib/audio';
+
+const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
+const coord = (x: number, y: number) => `${LETTERS[x] ?? '?'}${y + 1}`;
+
+// Полный флот (для трекера): по размеру, от большого к малому
+const FULL_FLEET: { kind: ShipKind; size: number }[] = SHIP_FLEET.flatMap((f) =>
+  Array.from({ length: f.count }, () => ({ kind: f.kind, size: f.size })),
+).sort((a, b) => b.size - a.size);
 
 export default function BattleScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -19,111 +31,149 @@ export default function BattleScreen() {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [explosionKey, setExplosionKey] = useState(0);
   const [splashKey, setSplashKey] = useState(0);
+  const [shake, setShake] = useState(false);
   const [view, setView] = useState<'enemy' | 'own'>('enemy');
+  const [reactions, setReactions] = useState<Array<{ id: number; icon: IconName; isMine: boolean }>>([]);
 
-  // Запрос состояния при входе
-  useEffect(() => {
-    if (matchId) {
-      getSocket().emit('match:requestState', { matchId });
-    }
-  }, [matchId]);
+  const [surrenderConfirm, setSurrenderConfirm] = useState(false);
 
-  // timers
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(t);
-  }, []);
+  useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
 
-  // hit/miss эффекты
   useEffect(() => {
     if (!lastAttack) return;
     if (lastAttack.hit) {
       setExplosionKey((k) => k + 1);
+      setShake(true);
+      setTimeout(() => setShake(false), 400);
       tgHaptic(lastAttack.sunk ? 'error' : 'heavy');
+      playSound('boom');
     } else {
       setSplashKey((k) => k + 1);
       tgHaptic('light');
+      playSound('splash');
     }
   }, [lastAttack?.ts]); // eslint-disable-line
 
-  // Переходы
   useEffect(() => {
     if (state?.gameStatus === 'FINISHED' && matchId) navigate(`/result/${matchId}`);
   }, [state?.gameStatus, matchId, navigate]);
 
+  // Глобальный слушатель реакций
+  useEffect(() => {
+    const sock = getSocket();
+    const onReaction = (data: any) => {
+      playSound('click'); // тихий звук при приходе
+      setReactions((prev) => [...prev, { id: Date.now(), icon: data.reaction as IconName, isMine: data.by === me?.id }]);
+      setTimeout(() => {
+        setReactions((prev) => prev.slice(1));
+      }, 3000);
+    };
+    sock.on('match:reaction', onReaction);
+    return () => { sock.off('match:reaction', onReaction); };
+  }, [me?.id]);
+
   const myTurn = state?.currentTurn === me?.id;
   const deadline = state?.turnDeadline ? new Date(state.turnDeadline).getTime() : 0;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
+  const fuse = Math.max(0, Math.min(100, (remaining / 20) * 100));
 
   const enemyAttacks = state?.enemy.view.attacks ?? [];
-  const ownAttacks   = state?.me.own.attacks ?? [];
-  const ownShips     = state?.me.own.ships ?? [];
+  const ownAttacks = state?.me.own.attacks ?? [];
+  const ownShips = state?.me.own.ships ?? [];
 
-  const enemySunk = useMemo(
-    () => (state?.enemy.view.sunkShips ?? []).length,
-    [state?.enemy.view.sunkShips],
-  );
-  const ownSunk = useMemo(
-    () => ownShips.filter((s: any) => s.sunk).length,
-    [ownShips],
-  );
+  const enemySunkRaw = state?.enemy.view.sunkShips ?? [];
+  const enemySunk = enemySunkRaw.length;
+  const ownSunk = useMemo(() => ownShips.filter((s: any) => s.sunk).length, [ownShips]);
+
+  // Преобразуем потопленные корабли врага ({id, kind, cells}) в формат для Board.
+  const enemySunkShips = useMemo(() => {
+    return enemySunkRaw.map((s: any) => {
+      const cells: Array<[number, number]> = s.cells ?? [];
+      const xs = cells.map((c) => c[0]);
+      const ys = cells.map((c) => c[1]);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const horizontal = ys.every((v) => v === ys[0]);
+      const size = cells.length || 1;
+      return {
+        id: s.id,
+        kind: s.kind,
+        size,
+        orientation: horizontal ? 'H' : 'V',
+        x: minX,
+        y: minY,
+        hits: size,
+        sunk: true,
+      };
+    });
+  }, [enemySunkRaw]);
+
+  // Лог последних выстрелов (мои по enemyAttacks)
+  const myLog = useMemo(() => enemyAttacks.slice(-5).reverse(), [enemyAttacks]);
 
   const attack = (x: number, y: number) => {
     if (!myTurn || !matchId) return;
     if (enemyAttacks.some((a) => a.x === x && a.y === y)) return;
-    getSocket().emit(
-      'game:attack',
-      { matchId, x, y, nonce: newNonce() },
-      (_ack: any) => { /* event придёт через 'match:attack' */ },
-    );
+    getSocket().emit('game:attack', { matchId, x, y, nonce: newNonce() });
   };
 
   const surrender = () => {
     if (!matchId) return;
-    if (!confirm('Сдаться? Соперник получит выигрыш.')) return;
+    if (!surrenderConfirm) {
+      setSurrenderConfirm(true);
+      setTimeout(() => setSurrenderConfirm(false), 3000);
+      return;
+    }
     getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
   };
 
-  if (!state) {
-    return (
-      <div className="card p-6 text-center">
-        Загрузка боя…
-      </div>
-    );
-  }
+  const sendReaction = (icon: IconName) => {
+    if (!matchId) return;
+    getSocket().emit('match:reaction', { matchId, reaction: icon, nonce: newNonce() });
+  };
+
+  if (!state) return <div className="card p-6 text-center text-muted max-w-md mx-auto">Выходим на позицию…</div>;
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className={['max-w-md mx-auto space-y-3', shake ? 'fx-shake' : ''].join(' ')}>
       {/* HUD */}
       <div className="card p-3 flex items-center justify-between">
-        <div className="text-xs">
-          <p className="text-white/40">Призовой фонд</p>
-          <p className="font-display text-cyber-cyan">${state.prizePool.toFixed(2)}</p>
+        <div>
+          <p className="eyebrow">Банк</p>
+          <p className="font-display text-main text-lg leading-none tabular-nums">{state.prizePool.toFixed(0)} ₽</p>
         </div>
-        <div className="text-center">
-          <TurnIndicator myTurn={myTurn} remaining={remaining} />
+        <div className="text-center flex-1 px-3">
+          <p className={['eyebrow', myTurn ? 'text-main' : 'text-muted'].join(' ')}>
+            {myTurn ? 'Твой залп' : 'Ход соперника'}
+          </p>
+          <div className="h-1 rounded-full bg-panel overflow-hidden mt-1.5">
+            <div className={['h-full transition-all', myTurn ? 'bg-danger' : 'bg-muted'].join(' ')} style={{ width: `${fuse}%` }} />
+          </div>
+          <p className="font-display text-xl text-main mt-0.5 tabular-nums">{remaining}c</p>
         </div>
-        <button onClick={surrender} className="btn-ghost text-xs py-1.5 px-3">Сдаться</button>
+        <button 
+          onClick={surrender} 
+          className={['btn-ghost text-xs py-2 px-2.5 transition', surrenderConfirm ? 'bg-danger text-white border-danger' : ''].join(' ')} 
+          title="Сдаться"
+        >
+          <Icon name={surrenderConfirm ? "skull" : "flag"} size={16} />
+        </button>
       </div>
 
-      {/* Switch */}
-      <div className="card p-1 flex">
-        <button
-          onClick={() => setView('enemy')}
-          className={['flex-1 py-2 rounded-lg text-sm font-semibold', view === 'enemy' ? 'bg-cyber-cyan text-navy-950' : 'text-white/70'].join(' ')}
-        >🎯 Атака</button>
-        <button
-          onClick={() => setView('own')}
-          className={['flex-1 py-2 rounded-lg text-sm font-semibold', view === 'own' ? 'bg-cyber-cyan text-navy-950' : 'text-white/70'].join(' ')}
-        >⚓ Мой флот</button>
+      {/* Переключатель полей */}
+      <div className="card p-1 flex gap-1">
+        <SwitchBtn active={view === 'enemy'} onClick={() => setView('enemy')} icon="target">Атака</SwitchBtn>
+        <SwitchBtn active={view === 'own'} onClick={() => setView('own')} icon="shield">Мой флот</SwitchBtn>
       </div>
 
-      {/* Board */}
+      {/* Поле */}
       <div className="relative">
         {view === 'enemy' ? (
           <>
             <Board
               mode="enemy"
+              ships={enemySunkShips as any}
               attacks={enemyAttacks}
               onCellClick={attack}
               onCellEnter={(x, y) => setHover({ x, y })}
@@ -131,10 +181,9 @@ export default function BattleScreen() {
               myTurn={myTurn}
               highlight={hover && myTurn ? hover : null}
             />
-            {/* hit/miss FX */}
             <AnimatePresence>
-              {lastAttack?.hit && lastAttack.by === me?.id && <Explosion keyId={explosionKey} />}
-              {lastAttack?.hit === false && lastAttack?.by === me?.id && <Splash keyId={splashKey} />}
+              {lastAttack?.by === me?.id && lastAttack?.hit && <Explosion keyId={explosionKey} />}
+              {lastAttack?.by === me?.id && lastAttack?.hit === false && <Splash keyId={splashKey} />}
             </AnimatePresence>
           </>
         ) : (
@@ -142,46 +191,97 @@ export default function BattleScreen() {
         )}
       </div>
 
-      {/* Скоры */}
-      <div className="grid grid-cols-2 gap-3">
-        <ScoreCard title="Враг потоплено" value={enemySunk} max={10} accent="text-cyber-red" />
-        <ScoreCard title="Своих потеряно" value={ownSunk} max={10} accent="text-cyber-gold" />
+      {/* Трекер вражеского флота */}
+      <div className="card p-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="eyebrow">Флот врага</p>
+          <span className="text-xs font-display text-danger tabular-nums">{enemySunk}/10 потоплено</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {FULL_FLEET.map((s, i) => {
+            const dead = i < enemySunk;
+            return (
+              <div
+                key={i}
+                className={['h-4 rounded-sm transition', dead ? 'opacity-30' : ''].join(' ')}
+                style={{ width: s.size * 11 }}
+                title={`${s.size} кл.`}
+              >
+                <Ship kind={s.kind} size={s.size} orientation="H" sunk={dead} icon />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className="text-center text-sm text-white/60"
-      >
-        {myTurn
-          ? 'Тапни по вражеской клетке для атаки. Попадание — ещё ход.'
-          : 'Ход соперника. Жди…'}
-      </motion.div>
+      {/* Лог выстрелов */}
+      {myLog.length > 0 && view === 'enemy' && (
+        <div className="card p-3">
+          <p className="eyebrow mb-2">Твои залпы</p>
+          <ul className="space-y-1">
+            {myLog.map((a, i) => (
+              <li key={i} className="flex items-center justify-between text-sm">
+                <span className="font-display text-main tabular-nums">{coord(a.x, a.y)}</span>
+                <span className={['flex items-center gap-1.5', a.hit ? 'text-danger' : 'text-muted'].join(' ')}>
+                  {a.sunkShipId ? 'потоплен' : a.hit ? 'попадание' : 'мимо'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-sm text-muted">
+        {myTurn ? 'Наведись на клетку врага и дай залп. Попал — стреляй снова.' : 'Ход соперника. Ожидайте.'}
+      </motion.p>
+
+      {/* Дразнилки (Реакции) */}
+      <div className="flex items-center justify-center gap-2 pt-2">
+        <ReactionBtn icon="skull" onClick={() => sendReaction('skull')} />
+        <ReactionBtn icon="crown" onClick={() => sendReaction('crown')} />
+        <ReactionBtn icon="flag" onClick={() => sendReaction('flag')} />
+        <ReactionBtn icon="wave" onClick={() => sendReaction('wave')} />
+      </div>
+
+      {/* Всплывающие анимации реакций поверх поля */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-50">
+        <AnimatePresence>
+          {reactions.map((r) => (
+            <motion.div
+              key={r.id}
+              initial={{ opacity: 0, scale: 0.5, y: 50, x: r.isMine ? -20 : 20 }}
+              animate={{ opacity: 1, scale: 1, y: -100, x: r.isMine ? -50 : 50 }}
+              exit={{ opacity: 0, scale: 1.5, y: -200 }}
+              transition={{ duration: 1.5, ease: 'easeOut' }}
+              className={['absolute bottom-1/3 text-4xl', r.isMine ? 'left-1/2 text-main' : 'right-1/2 text-danger'].join(' ')}
+            >
+              <Icon name={r.icon} size={48} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
 
-function TurnIndicator({ myTurn, remaining }: { myTurn: boolean; remaining: number }) {
+function ReactionBtn({ icon, onClick }: { icon: IconName; onClick: () => void }) {
   return (
-    <div>
-      <p className="text-xs text-white/40">{myTurn ? 'Твой ход' : 'Ход соперника'}</p>
-      <p className={['font-display text-2xl', myTurn ? 'text-sonar-400' : 'text-cyber-gold'].join(' ')}>
-        {remaining}s
-      </p>
-    </div>
+    <button onClick={onClick} className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-muted hover:text-main hover:border-main transition">
+      <Icon name={icon} size={20} />
+    </button>
   );
 }
 
-function ScoreCard({ title, value, max, accent }: { title: string; value: number; max: number; accent: string }) {
-  const pct = Math.min(100, (value / max) * 100);
+function SwitchBtn({ active, onClick, icon, children }: any) {
   return (
-    <div className="card p-3">
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-white/60">{title}</span>
-        <span className={accent}>{value}/{max}</span>
-      </div>
-      <div className="h-2 rounded-full bg-navy-800 overflow-hidden">
-        <div className={`h-full ${accent === 'text-cyber-red' ? 'bg-cyber-red' : 'bg-cyber-gold'}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      className={[
+        'flex-1 py-2 rounded-lg text-sm font-display uppercase tracking-wider transition flex items-center justify-center gap-2',
+        active ? 'bg-panel text-main' : 'text-muted hover:text-main',
+      ].join(' ')}
+    >
+      <Icon name={icon} size={16} /> {children}
+    </button>
   );
 }

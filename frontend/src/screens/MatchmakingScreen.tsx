@@ -5,13 +5,14 @@ import { useAuthStore } from '../stores/auth-store';
 import { MatchmakingAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgShare } from '../lib/telegram';
+import { Icon, IconName } from '../components/Icon';
 
-const PRESETS = [1, 5, 10, 25, 50];
+const PRESETS = [5, 10, 25, 50, 100];
 
 export default function MatchmakingScreen() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
-  const [wager, setWager] = useState(5);
+  const [wager, setWager] = useState(10);
   const [tab, setTab] = useState<'quick' | 'private'>('quick');
   const [searching, setSearching] = useState(false);
   const [lobbyCode, setLobbyCode] = useState('');
@@ -22,14 +23,9 @@ export default function MatchmakingScreen() {
 
   useEffect(() => {
     const sock = getSocket();
-    const onFound = (data: any) => {
-      tgHaptic('success');
-      navigate(`/placement/${data.matchId}`);
-    };
+    const onFound = (data: any) => { tgHaptic('success'); navigate(`/placement/${data.matchId}`); };
     sock.on('match:found', onFound);
-    return () => {
-      sock.off('match:found', onFound);
-    };
+    return () => { sock.off('match:found', onFound); };
   }, [navigate]);
 
   useEffect(() => {
@@ -39,21 +35,15 @@ export default function MatchmakingScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [searching]);
 
-  const startQuick = async () => {
-    if (!user || user.balance < wager) { setError('Недостаточно средств'); return; }
-    setError(null);
-    setSearching(true);
-    tgHaptic('medium');
-    try {
-      const sock = getSocket();
-      sock.emit('mm:join', { wagerAmount: wager, nonce: newNonce() }, (ack: any) => {
-        if (!ack?.ok) { setError(ack?.error ?? 'Ошибка'); setSearching(false); return; }
-        if (ack.matched && ack.matchId) navigate(`/placement/${ack.matchId}`);
-      });
-    } catch (e: any) {
-      setError(e?.message ?? 'Ошибка');
-      setSearching(false);
-    }
+  const lowFunds = !user || user.balance < wager;
+
+  const startQuick = () => {
+    if (lowFunds) { setError('Недостаточно средств'); return; }
+    setError(null); setSearching(true); tgHaptic('medium');
+    getSocket().emit('mm:join', { wagerAmount: wager, nonce: newNonce() }, (ack: any) => {
+      if (!ack?.ok) { setError(ack?.error ?? 'Ошибка'); setSearching(false); return; }
+      if (ack.matched && ack.matchId) navigate(`/placement/${ack.matchId}`);
+    });
   };
 
   const cancelSearch = async () => {
@@ -63,129 +53,115 @@ export default function MatchmakingScreen() {
   };
 
   const createPrivate = async () => {
-    if (!user || user.balance < wager) { setError('Недостаточно средств'); return; }
+    if (lowFunds) { setError('Недостаточно средств'); return; }
     setError(null);
     try {
       const l = await MatchmakingAPI.createLobby(wager);
-      setLobbyCode(l.code);
-      tgHaptic('success');
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? e?.message);
-    }
+      setLobbyCode(l.code); tgHaptic('success');
+    } catch (e: any) { setError(e?.response?.data?.message ?? e?.message); }
   };
 
-  const joinPrivate = async () => {
+  const joinPrivate = () => {
     if (!joinCode) return;
     setError(null);
-    try {
-      const sock = getSocket();
-      sock.emit('lobby:join', { code: joinCode.toUpperCase(), nonce: newNonce() }, (ack: any) => {
-        if (!ack?.ok) { setError(ack?.error ?? 'Ошибка'); return; }
-        navigate(`/placement/${ack.matchId}`);
-      });
-    } catch (e: any) {
-      setError(e?.message);
-    }
+    getSocket().emit('lobby:join', { code: joinCode.toUpperCase(), nonce: newNonce() }, (ack: any) => {
+      if (!ack?.ok) { setError(ack?.error ?? 'Лобби не найдено'); return; }
+      navigate(`/placement/${ack.matchId}`);
+    });
   };
 
   const shareInvite = () => {
     if (!lobbyCode) return;
-    const botUser = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
-    const url = `https://t.me/${botUser}?startapp=lobby_${lobbyCode}`;
-    tgShare(url, `⚓ Вызов на дуэль в Naval Clash! Ставка $${wager}. Код: ${lobbyCode}`);
+    const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
+    tgShare(`https://t.me/${bot}?startapp=lobby_${lobbyCode}`, `Вызываю на морскую дуэль. Ставка ${wager} ₽. Код: ${lobbyCode}`);
   };
+
+  if (searching) {
+    return (
+      <div className="max-w-md mx-auto pt-10">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card p-8 flex flex-col items-center gap-5">
+          <div className="relative w-20 h-20">
+            <span className="absolute inset-0 rounded-full border border-line" />
+            <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
+            <span className="absolute inset-0 flex items-center justify-center text-muted"><Icon name="compass" size={26} /></span>
+          </div>
+          <div className="text-center">
+            <p className="title text-main">Поиск соперника</p>
+            <p className="text-muted text-sm mt-1 tabular-nums">{elapsed} c · ставка {wager} ₽</p>
+          </div>
+          <button className="btn-secondary w-full" onClick={cancelSearch}>Отменить</button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <h2 className="font-display text-cyber-cyan tracking-widest text-sm">ПОИСК БОЯ</h2>
+      <h2 className="title text-main text-lg">Поиск боя</h2>
 
-      <div className="card p-1 flex">
-        <TabBtn active={tab === 'quick'}   onClick={() => setTab('quick')}>⚡ Быстрая</TabBtn>
-        <TabBtn active={tab === 'private'} onClick={() => setTab('private')}>🔒 Приватная</TabBtn>
+      <div className="card p-1 flex gap-1">
+        <TabBtn active={tab === 'quick'} onClick={() => setTab('quick')} icon="bolt">Быстрый</TabBtn>
+        <TabBtn active={tab === 'private'} onClick={() => setTab('private')} icon="lock">С другом</TabBtn>
       </div>
 
-      {/* Wager picker */}
       <div className="card p-5">
-        <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Ставка</label>
-        <div className="flex items-baseline gap-2 mb-3">
-          <span className="font-display text-3xl text-cyber-cyan">${wager}</span>
-          <span className="text-white/40 text-sm">за матч</span>
+        <p className="eyebrow mb-2">Ставка</p>
+        <div className="flex items-baseline gap-2 mb-4">
+          <span className="font-display text-4xl text-main tabular-nums">{wager}</span>
+          <span className="text-muted text-sm">₽ с каждого</span>
         </div>
-        <div className="grid grid-cols-5 gap-1.5 mb-3">
+        <div className="grid grid-cols-5 gap-1.5 mb-4">
           {PRESETS.map((p) => (
             <button
               key={p}
               onClick={() => setWager(p)}
               className={[
-                'py-2 rounded-lg text-sm font-semibold transition',
-                wager === p ? 'bg-cyber-cyan text-navy-950' : 'bg-navy-800 text-white/80',
+                'py-2 rounded-lg text-sm font-display tabular-nums transition border',
+                wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line',
               ].join(' ')}
             >
-              ${p}
+              {p}
             </button>
           ))}
         </div>
         <input
-          type="range" min={1} max={100} step={1} value={wager}
+          type="range" min={5} max={200} step={5} value={wager}
           onChange={(e) => setWager(Number(e.target.value))}
-          className="w-full accent-cyber-cyan"
+          className="w-full accent-danger"
         />
-        <div className="flex justify-between text-xs text-white/40 mt-1">
-          <span>$1</span><span>$100</span>
-        </div>
         <PrizeBreakdown wager={wager} />
       </div>
 
-      {error && <div className="card p-3 text-cyber-red text-sm">{error}</div>}
+      {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
 
-      {tab === 'quick' && (
-        <>
-          {!searching ? (
-            <button className="btn-primary w-full text-lg" onClick={startQuick}>
-              ⚔ Найти соперника
-            </button>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="card p-6 flex flex-col items-center gap-3"
-            >
-              <SonarSearchAnimation />
-              <p className="font-display text-cyber-cyan tracking-widest">ПОИСК СОПЕРНИКА…</p>
-              <p className="text-white/60">{elapsed}s · ставка ${wager}</p>
-              <button className="btn-danger mt-2" onClick={cancelSearch}>Отменить</button>
-            </motion.div>
-          )}
-        </>
-      )}
-
-      {tab === 'private' && (
+      {tab === 'quick' ? (
+        <button className="btn-primary w-full" onClick={startQuick} disabled={lowFunds}>
+          <Icon name="swords" size={18} /> Найти соперника
+        </button>
+      ) : (
         <div className="space-y-3">
           <div className="card p-5 space-y-3">
-            <h3 className="font-display text-cyber-cyan text-sm tracking-widest">СОЗДАТЬ ЛОББИ</h3>
+            <p className="eyebrow">Создать лобби</p>
             {!lobbyCode ? (
-              <button className="btn-primary w-full" onClick={createPrivate}>Создать инвайт</button>
+              <button className="btn-primary w-full" onClick={createPrivate} disabled={lowFunds}>Получить код</button>
             ) : (
-              <div className="text-center space-y-2">
-                <p className="text-white/60 text-xs">Код приглашения:</p>
-                <p className="font-display text-4xl tracking-[0.3em] text-cyber-cyan">{lobbyCode}</p>
-                <button className="btn-secondary w-full" onClick={shareInvite}>📨 Поделиться</button>
+              <div className="text-center space-y-3">
+                <p className="font-display text-4xl tracking-[0.3em] text-main">{lobbyCode}</p>
+                <button className="btn-secondary w-full" onClick={shareInvite}><Icon name="share" size={16} /> Отправить вызов</button>
               </div>
             )}
           </div>
 
           <div className="card p-5 space-y-3">
-            <h3 className="font-display text-cyber-cyan text-sm tracking-widest">ВВЕСТИ КОД</h3>
+            <p className="eyebrow">Ввести чужой код</p>
             <input
-              type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="ABCDEF"
+              placeholder="КОД"
               maxLength={10}
-              className="w-full px-4 py-3 rounded-xl bg-navy-800 border border-white/10 text-center font-display tracking-[0.3em] focus:border-cyber-cyan outline-none"
+              className="w-full px-4 py-3 rounded-lg bg-panel border border-line text-center font-display tracking-[0.3em] text-main focus:border-line outline-none"
             />
-            <button className="btn-primary w-full" onClick={joinPrivate} disabled={!joinCode}>
-              Войти в лобби
-            </button>
+            <button className="btn-primary w-full" onClick={joinPrivate} disabled={!joinCode}>Войти</button>
           </div>
         </div>
       )}
@@ -193,16 +169,16 @@ export default function MatchmakingScreen() {
   );
 }
 
-function TabBtn({ active, onClick, children }: any) {
+function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: IconName; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
       className={[
-        'flex-1 py-2.5 rounded-xl text-sm font-semibold transition',
-        active ? 'bg-cyber-cyan text-navy-950' : 'text-white/70',
+        'flex-1 py-2.5 rounded-lg text-sm font-display uppercase tracking-wider transition flex items-center justify-center gap-2',
+        active ? 'bg-panel text-main' : 'text-muted hover:text-main',
       ].join(' ')}
     >
-      {children}
+      <Icon name={icon} size={16} /> {children}
     </button>
   );
 }
@@ -212,27 +188,18 @@ function PrizeBreakdown({ wager }: { wager: number }) {
   const rake = +(pool * 0.05).toFixed(2);
   const win = +(pool - rake).toFixed(2);
   return (
-    <div className="mt-4 rounded-xl bg-navy-800/60 p-3 text-sm grid grid-cols-3 gap-2 text-center">
-      <div><div className="text-white/40 text-xs">Призовой</div><div className="text-white">${pool}</div></div>
-      <div><div className="text-white/40 text-xs">Комиссия 5%</div><div className="text-cyber-red">−${rake}</div></div>
-      <div><div className="text-white/40 text-xs">Победителю</div><div className="text-sonar-400">${win}</div></div>
+    <div className="mt-4 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
+      <Cell label="Банк" value={`${pool} ₽`} />
+      <Cell label="Комиссия" value={`−${rake} ₽`} accent />
+      <Cell label="Победителю" value={`${win} ₽`} />
     </div>
   );
 }
-
-function SonarSearchAnimation() {
+function Cell({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="relative w-40 h-40 rounded-full border-2 border-cyber-cyan/50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: 'conic-gradient(from 0deg, transparent 70%, rgba(34,211,238,0.4) 88%, transparent 100%)',
-          animation: 'radarSweep 2s linear infinite',
-        }}
-      />
-      <span className="absolute inset-6 rounded-full border border-cyber-cyan/40" />
-      <span className="absolute inset-12 rounded-full border border-cyber-cyan/30" />
-      <span className="font-display text-3xl">⚓</span>
+    <div className="bg-panel p-3 text-center">
+      <div className={['font-display tabular-nums', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
+      <div className="eyebrow mt-0.5">{label}</div>
     </div>
   );
 }

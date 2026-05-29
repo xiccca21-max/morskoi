@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Board } from '../components/Board';
+import { Ship } from '../components/Ship';
 import {
   autoPlaceLocal,
-  BOARD_SIZE,
   shipCells,
   ShipPlacement,
   SHIP_FLEET,
@@ -13,6 +13,7 @@ import {
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic } from '../lib/telegram';
 import { useMatchStore } from '../stores/match-store';
+import { Icon } from '../components/Icon';
 
 interface SlotShip {
   id: string;
@@ -25,12 +26,17 @@ function initialFleet(): SlotShip[] {
   const out: SlotShip[] = [];
   let i = 0;
   for (const f of SHIP_FLEET) {
-    for (let n = 0; n < f.count; n++) {
-      out.push({ id: `s_${i++}`, kind: f.kind, size: f.size });
-    }
+    for (let n = 0; n < f.count; n++) out.push({ id: `s_${i++}`, kind: f.kind, size: f.size });
   }
   return out;
 }
+
+const KIND_LABEL: Record<string, string> = {
+  battleship: 'Линкор',
+  cruiser: 'Крейсер',
+  destroyer: 'Эсминец',
+  submarine: 'Катер',
+};
 
 export default function PlacementScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -42,7 +48,8 @@ export default function PlacementScreen() {
   const [orientation, setOrientation] = useState<'H' | 'V'>('H');
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [deadline, setDeadline] = useState<number>(Date.now() + 30_000);
+  const [sent, setSent] = useState(false);
+  const [deadline] = useState<number>(Date.now() + 30_000);
   const [now, setNow] = useState(Date.now());
 
   const placedShips = useMemo(
@@ -56,52 +63,31 @@ export default function PlacementScreen() {
   }, []);
 
   useEffect(() => {
-    // Запрашиваем состояние матча
-    if (!matchId) return;
-    getSocket().emit('match:requestState', { matchId }, (ack: any) => {
-      if (ack?.state) {
-        // если уже разместился — сразу даём знать
-      }
-    });
+    if (matchId) getSocket().emit('match:requestState', { matchId });
   }, [matchId]);
 
-  // Авто-переход когда оба готовы
   useEffect(() => {
-    if (matchState?.gameStatus === 'IN_PROGRESS' && matchId) {
-      navigate(`/battle/${matchId}`);
-    }
+    if (matchState?.gameStatus === 'IN_PROGRESS' && matchId) navigate(`/battle/${matchId}`);
   }, [matchState?.gameStatus, matchId, navigate]);
 
   const selected = fleet.find((f) => f.id === selectedId) ?? fleet.find((f) => !f.placed) ?? null;
 
   const ghost = useMemo(() => {
     if (!selected || !hover) return { cells: [] as Array<[number, number]>, invalid: false };
-    const cand: ShipPlacement = {
-      id: selected.id,
-      kind: selected.kind,
-      size: selected.size,
-      x: hover.x,
-      y: hover.y,
-      orientation,
-    };
+    const cand: ShipPlacement = { id: selected.id, kind: selected.kind, size: selected.size, x: hover.x, y: hover.y, orientation };
     const cells = shipCells(cand);
     const others = placedShips.filter((s) => s.id !== selected.id);
-    const test = [...others, cand];
-    const v = validatePlacement(test);
+    const v = validatePlacement([...others, cand]);
     return { cells, invalid: !v.ok };
   }, [selected?.id, hover?.x, hover?.y, orientation, placedShips]);
 
   const onCellClick = (x: number, y: number) => {
     if (!selected) return;
-    const cand: ShipPlacement = {
-      id: selected.id, kind: selected.kind, size: selected.size,
-      x, y, orientation,
-    };
+    const cand: ShipPlacement = { id: selected.id, kind: selected.kind, size: selected.size, x, y, orientation };
     const others = placedShips.filter((s) => s.id !== selected.id);
     if (!validatePlacement([...others, cand]).ok) { tgHaptic('error'); return; }
     setFleet((f) => f.map((it) => (it.id === selected.id ? { ...it, placed: cand } : it)));
     tgHaptic('light');
-    // выбираем следующий неустановленный
     const next = fleet.find((it) => it.id !== selected.id && !it.placed);
     setSelectedId(next?.id ?? null);
   };
@@ -109,51 +95,50 @@ export default function PlacementScreen() {
   const removeShip = (id: string) => {
     setFleet((f) => f.map((it) => (it.id === id ? { ...it, placed: undefined } : it)));
     setSelectedId(id);
+    tgHaptic('light');
   };
 
   const autoPlace = () => {
     const ships = autoPlaceLocal();
-    const next = fleet.map((slot, idx) => {
+    setFleet((f) => f.map((slot, idx) => {
       const ship = ships[idx];
       return { ...slot, placed: ship ? { ...ship, id: slot.id, kind: slot.kind, size: slot.size } : undefined };
-    });
-    setFleet(next);
+    }));
     tgHaptic('medium');
   };
 
-  const reset = () => setFleet(initialFleet());
+  const reset = () => { setFleet(initialFleet()); setSelectedId(null); };
 
-  const submit = async () => {
+  const submit = () => {
     if (placedShips.length !== fleet.length) return;
     const v = validatePlacement(placedShips);
-    if (!v.ok) { alert(v.reason); return; }
+    if (!v.ok) { tgHaptic('error'); return; }
     setSubmitting(true);
-    getSocket().emit(
-      'game:placement',
-      { matchId, ships: placedShips, nonce: newNonce() },
-      (ack: any) => {
-        setSubmitting(false);
-        if (!ack?.ok) { tgHaptic('error'); alert(ack?.error ?? 'Ошибка'); return; }
-        tgHaptic('success');
-        // ждём пока сервер запустит бой через сокет-стейт
-      },
-    );
+    getSocket().emit('game:placement', { matchId, ships: placedShips, nonce: newNonce() }, (ack: any) => {
+      setSubmitting(false);
+      if (!ack?.ok) { tgHaptic('error'); return; }
+      tgHaptic('success'); setSent(true);
+    });
   };
 
   const allPlaced = placedShips.length === fleet.length;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
+  const fuse = Math.max(0, Math.min(100, (remaining / 30) * 100));
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="max-w-md mx-auto space-y-3">
       <header className="flex items-center justify-between">
-        <h2 className="font-display text-cyber-cyan tracking-widest text-sm">РАССТАНОВКА</h2>
-        <div className="text-sm">
-          <span className="text-white/40">Соперник: </span>
-          <span className={matchState?.opponentReady ? 'text-sonar-400' : 'text-cyber-gold'}>
-            {matchState?.opponentReady ? '✓ готов' : '… ожидает'}
-          </span>
-        </div>
+        <h2 className="title text-main text-base">Расставь флот</h2>
+        <span className={['text-xs font-display uppercase tracking-wider flex items-center gap-1.5', matchState?.opponentReady ? 'text-main' : 'text-muted'].join(' ')}>
+          {matchState?.opponentReady ? <Icon name="check" size={14} /> : null}
+          {matchState?.opponentReady ? 'соперник готов' : 'соперник готовится'}
+        </span>
       </header>
+
+      {/* Таймер */}
+      <div className="h-1 rounded-full bg-panel overflow-hidden">
+        <div className="h-full bg-danger transition-all" style={{ width: `${fuse}%` }} />
+      </div>
 
       <Board
         mode="placement"
@@ -165,62 +150,54 @@ export default function PlacementScreen() {
       />
 
       {/* Управление */}
-      <div className="card p-3 flex items-center justify-between gap-2">
+      <div className="flex gap-2">
         <button className="btn-secondary flex-1" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
-          🔄 {orientation === 'H' ? 'Горизонталь' : 'Вертикаль'}
+          <Icon name="rotate" size={16} /> {orientation === 'H' ? 'Поперёк' : 'Вдоль'}
         </button>
-        <button className="btn-secondary flex-1" onClick={autoPlace}>🎲 Авто</button>
-        <button className="btn-ghost flex-1" onClick={reset}>↺ Сброс</button>
+        <button className="btn-secondary flex-1" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
+        <button className="btn-ghost flex-1" onClick={reset}>Сброс</button>
       </div>
 
-      {/* Корабли */}
+      {/* Верфь */}
       <div className="card p-3">
-        <h3 className="text-xs uppercase tracking-widest text-white/60 mb-2">Флот</h3>
+        <p className="eyebrow mb-2">Верфь · выбери корабль</p>
         <div className="grid grid-cols-2 gap-2">
-          {fleet.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
-              className={[
-                'p-2 rounded-xl text-left border transition',
-                s.placed ? 'border-sonar-400/40 bg-sonar-500/10' : 'border-white/10 bg-navy-800/60',
-                selectedId === s.id && !s.placed ? 'ring-2 ring-cyber-cyan' : '',
-              ].join(' ')}
-            >
-              <div className="flex gap-0.5 mb-1">
-                {Array.from({ length: s.size }).map((_, i) => (
-                  <div key={i} className="w-3 h-3 rounded-sm bg-cyber-cyan/70" />
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs">{labelByKind(s.kind)}</span>
-                <span className="text-xs text-white/40">{s.placed ? '✓' : 'выбрать'}</span>
-              </div>
-            </button>
-          ))}
+          {fleet.map((s) => {
+            const isSel = selected?.id === s.id && !s.placed;
+            return (
+              <button
+                key={s.id}
+                onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
+                className={[
+                  'p-2 rounded-lg text-left border transition flex items-center gap-2',
+                  s.placed ? 'border-line bg-base opacity-45' : 'border-line bg-panel',
+                  isSel ? 'ring-1 ring-danger border-danger' : '',
+                ].join(' ')}
+              >
+                <div className="h-5 flex-1" style={{ minWidth: s.size * 12 }}>
+                  <Ship kind={s.kind} size={s.size} orientation="H" sunk={false} icon />
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-main">{KIND_LABEL[s.kind]}</div>
+                  <div className="eyebrow">{s.placed ? 'убрать' : `${s.size} кл.`}</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <motion.button
-        className="btn-primary w-full text-lg"
-        onClick={submit}
-        disabled={!allPlaced || submitting}
-        whileTap={{ scale: 0.97 }}
-      >
-        {submitting ? 'Отправка…' : allPlaced ? '⚓ В БОЙ' : `Расставьте все корабли (${placedShips.length}/${fleet.length})`}
-      </motion.button>
+      {sent ? (
+        <div className="card p-4 text-center text-main title text-sm flex items-center justify-center gap-2">
+          <Icon name="check" size={16} /> Флот на позиции · ждём соперника
+        </div>
+      ) : (
+        <motion.button className="btn-primary w-full" onClick={submit} disabled={!allPlaced || submitting} whileTap={{ scale: 0.98 }}>
+          {submitting ? 'Отправка…' : allPlaced ? 'К бою' : `Осталось расставить: ${fleet.length - placedShips.length}`}
+        </motion.button>
+      )}
 
-      <p className="text-center text-white/40 text-xs">⌛ {remaining}s</p>
+      <p className="text-center text-muted text-xs tabular-nums">До автостановки: {remaining} c</p>
     </div>
   );
-}
-
-function labelByKind(k: string) {
-  switch (k) {
-    case 'battleship': return 'Линкор (4)';
-    case 'cruiser':    return 'Крейсер (3)';
-    case 'destroyer':  return 'Эсминец (2)';
-    case 'submarine':  return 'Подлодка (1)';
-  }
-  return k;
 }

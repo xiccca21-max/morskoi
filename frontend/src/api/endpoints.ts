@@ -4,6 +4,9 @@ export const AuthAPI = {
   login: (initData: string) =>
     api.post<{ token: string; user: any; startParam?: string }>('/auth/telegram', { initData })
        .then(r => r.data),
+  devLogin: (nickname: string) =>
+    api.post<{ token: string; user: any }>('/auth/dev', { nickname })
+       .then(r => r.data),
 };
 
 export const UsersAPI = {

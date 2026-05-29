@@ -1,0 +1,4 @@
+# Amvera: https://amvera.ru — бесплатный тариф для тестов, HTTPS сам
+run:
+  containerPort: 4000
+  persistenceMount: /data

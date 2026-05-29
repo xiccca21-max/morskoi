@@ -1,0 +1,12 @@
+# Railway: New Project → Deploy from GitHub → этот репозиторий.
+# Variables и Volume — см. docs/QUICK_DEPLOY_RU.md
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

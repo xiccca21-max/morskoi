@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { tgShare } from '../lib/telegram';
+import { getRank, rankProgress } from '../lib/rank';
+import { Icon, IconName } from '../components/Icon';
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
@@ -9,48 +11,69 @@ export default function ProfileScreen() {
 
   const total = user.wins + user.losses;
   const wr = total ? Math.round((user.wins / total) * 100) : 0;
+  const rank = getRank(user.wins);
+  const progress = rankProgress(user.wins);
 
   const invite = () => {
-    const botUser = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
-    tgShare(`https://t.me/${botUser}`, '⚓ Сразимся в Naval Clash — PvP морской бой со ставками!');
+    const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
+    tgShare(`https://t.me/${bot}`, 'Вызываю на морскую дуэль со ставками.');
   };
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <section className="card p-6 flex items-center gap-4">
-        {user.avatar
-          ? <img src={user.avatar} className="w-16 h-16 rounded-full" alt="" />
-          : <div className="w-16 h-16 rounded-full bg-cyber-cyan/20 flex items-center justify-center font-display text-2xl">{user.firstName?.[0] ?? user.username?.[0] ?? '?'}</div>}
-        <div>
-          <h2 className="font-display text-xl">{user.firstName ?? user.username ?? 'Captain'}</h2>
-          {user.username && <p className="text-white/50 text-sm">@{user.username}</p>}
+      <section className="card p-6">
+        <div className="flex items-center gap-4">
+          {user.avatar ? (
+            <img src={user.avatar} className="w-14 h-14 rounded-full border border-line" alt="" />
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-panel border border-line flex items-center justify-center font-display text-xl text-main">
+              {user.firstName?.[0] ?? user.username?.[0] ?? '?'}
+            </div>
+          )}
+          <div className="flex-1">
+            <h2 className="font-display text-xl text-main">{user.firstName ?? user.username ?? 'Капитан'}</h2>
+            <div className="flex items-center gap-1.5 mt-0.5 text-muted">
+              <Icon name={rank.icon} size={16} />
+              <span className="title text-xs">{rank.title}</span>
+            </div>
+          </div>
+        </div>
+        <div className="h-1 rounded-full bg-panel mt-4 overflow-hidden">
+          <div className="h-full bg-main" style={{ width: `${progress}%` }} />
         </div>
       </section>
 
-      <section className="grid grid-cols-3 gap-2 text-center">
-        <Stat label="Победы"   value={user.wins} accent="text-sonar-400" />
-        <Stat label="Поражения" value={user.losses} accent="text-cyber-red" />
-        <Stat label="Winrate"  value={`${wr}%`} accent="text-cyber-cyan" />
+      <section className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
+        <Stat label="Победы" value={user.wins} />
+        <Stat label="Поражения" value={user.losses} accent />
+        <Stat label="Точность" value={`${wr}%`} />
       </section>
 
-      <section className="card p-5">
-        <h3 className="font-display text-cyber-cyan text-sm tracking-widest mb-2">ДЕЙСТВИЯ</h3>
-        <div className="space-y-2">
-          <button className="btn-secondary w-full" onClick={() => navigate('/wallet')}>💰 Кошелёк</button>
-          <button className="btn-secondary w-full" onClick={() => navigate('/history')}>📜 История боёв</button>
-          <button className="btn-secondary w-full" onClick={() => navigate('/settings')}>⚙ Настройки</button>
-          <button className="btn-primary w-full" onClick={invite}>📨 Пригласить друга</button>
-        </div>
+      <section className="card p-3 divide-y divide-line">
+        <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
+        <Row icon="scroll" label="Журнал боёв" onClick={() => navigate('/history')} />
+        <Row icon="gear" label="Настройки" onClick={() => navigate('/settings')} />
+        <Row icon="share" label="Позвать друга" onClick={invite} />
       </section>
     </div>
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: any; accent: string }) {
+function Stat({ label, value, accent }: { label: string; value: any; accent?: boolean }) {
   return (
-    <div className="card p-3">
-      <div className={`font-display text-2xl ${accent}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
+    <div className="bg-panel p-4 text-center">
+      <div className={['font-display text-2xl tabular-nums', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
+      <div className="eyebrow mt-0.5">{label}</div>
     </div>
+  );
+}
+
+function Row({ icon, label, onClick }: { icon: IconName; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-full flex items-center gap-3 py-3 px-1 text-main hover:text-main transition">
+      <Icon name={icon} size={18} className="text-muted" />
+      <span className="flex-1 text-left text-sm">{label}</span>
+      <Icon name="arrow-right" size={16} className="text-muted" />
+    </button>
   );
 }

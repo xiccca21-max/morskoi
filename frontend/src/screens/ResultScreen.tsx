@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { VictoryBurst } from '../components/Effects';
+import { Ship } from '../components/Ship';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
 import { GameAPI, WalletAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic } from '../lib/telegram';
+import { Icon, IconName } from '../components/Icon';
+import { playSound } from '../lib/audio';
 
 export default function ResultScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -26,17 +29,17 @@ export default function ResultScreen() {
 
   useEffect(() => {
     const sock = getSocket();
-    const onRematch = (e: any) => {
-      if (e.newMatchId) navigate(`/placement/${e.newMatchId}`);
-    };
+    const onRematch = (e: any) => { if (e.newMatchId) navigate(`/placement/${e.newMatchId}`); };
     sock.on('match:rematchStarted', onRematch);
     return () => { sock.off('match:rematchStarted', onRematch); };
   }, [navigate]);
 
   useEffect(() => {
     if (matchState?.winnerId && me?.id) {
-      applyMatchResult(matchState.winnerId === me.id);
-      tgHaptic(matchState.winnerId === me.id ? 'success' : 'error');
+      const isWin = matchState.winnerId === me.id;
+      applyMatchResult(isWin);
+      tgHaptic(isWin ? 'success' : 'error');
+      playSound(isWin ? 'win' : 'lose');
     }
   }, [matchState?.winnerId, me?.id]); // eslint-disable-line
 
@@ -47,7 +50,7 @@ export default function ResultScreen() {
     if (!matchId) return;
     setWaitingRematch(true);
     getSocket().emit('match:rematch', { matchId, nonce: newNonce() }, (ack: any) => {
-      if (!ack?.ok) { setWaitingRematch(false); alert(ack?.error); }
+      if (!ack?.ok) { setWaitingRematch(false); }
     });
   };
 
@@ -58,38 +61,45 @@ export default function ResultScreen() {
   return (
     <div className="max-w-md mx-auto space-y-5 pt-6">
       <motion.section
-        initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
         className="card p-8 text-center relative overflow-hidden"
       >
         {won && <VictoryBurst />}
-        <p className="font-display tracking-[0.4em] text-xs text-white/50">{
-          draw ? 'НИЧЬЯ' : won ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ'
-        }</p>
-        <p className="font-display text-5xl mt-2">
-          {draw ? '🤝' : won ? '🏆' : '💀'}
-        </p>
+
+        <div className={['mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-3 border border-line',
+          won ? 'bg-panel text-main' : draw ? 'bg-panel text-muted' : 'bg-panel text-danger'].join(' ')}>
+          <Icon name={(draw ? 'handshake' : won ? 'trophy' : 'skull') as IconName} size={30} />
+        </div>
+
+        <p className="eyebrow">{draw ? 'Ничья' : won ? 'Победа' : 'Поражение'}</p>
+
         {!draw && (
-          <p className="font-display text-2xl mt-3 text-cyber-cyan">
-            {won ? `+$${payout.toFixed(2)}` : `−$${matchState?.wagerAmount.toFixed(2) ?? ''}`}
+          <p className={['font-display text-4xl mt-2 tabular-nums', won ? 'text-main' : 'text-danger'].join(' ')}>
+            {won ? `+${payout.toFixed(0)}` : `−${matchState?.wagerAmount.toFixed(0) ?? ''}`} ₽
           </p>
         )}
-        <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-          <Stat label="Призовой" value={`$${pool.toFixed(2)}`} />
-          <Stat label="Комиссия" value={`$${rake.toFixed(2)}`} />
-          <Stat label="Выплата" value={won ? `$${payout.toFixed(2)}` : '—'} />
+
+        {/* Тонущий корабль при поражении */}
+        {!won && !draw && (
+          <div className="mx-auto w-24 mt-3 animate-sink"><Ship kind="cruiser" size={3} orientation="H" sunk /></div>
+        )}
+
+        <div className="rope my-5" />
+
+        <div className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
+          <Stat label="Банк" value={`${pool.toFixed(0)} ₽`} />
+          <Stat label="Комиссия" value={`${rake.toFixed(0)} ₽`} />
+          <Stat label="Добыча" value={won ? `${payout.toFixed(0)} ₽` : '—'} />
         </div>
       </motion.section>
 
       <div className="space-y-2">
-        <button
-          className="btn-primary w-full text-lg"
-          onClick={rematch}
-          disabled={waitingRematch}
-        >
-          {waitingRematch ? 'Ожидание соперника…' : '⚔ Реванш'}
+        <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch}>
+          {waitingRematch ? 'Ждём соперника…' : 'Реванш'}
         </button>
         <button className="btn-secondary w-full" onClick={() => navigate('/matchmaking')}>Новый бой</button>
-        <button className="btn-ghost w-full" onClick={() => navigate('/home')}>На главную</button>
+        <button className="btn-ghost w-full" onClick={() => navigate('/home')}>На палубу</button>
       </div>
     </div>
   );
@@ -97,9 +107,9 @@ export default function ResultScreen() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-navy-800/60 p-3">
-      <div className="text-cyber-cyan font-display">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
+    <div className="bg-panel p-3">
+      <div className="text-main font-display tabular-nums">{value}</div>
+      <div className="eyebrow mt-0.5">{label}</div>
     </div>
   );
 }

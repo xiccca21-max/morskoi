@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
-import { useEffect } from 'react';
+import { Icon, IconName } from './Icon';
+import { AnimatedNumber } from './AnimatedNumber';
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -10,7 +12,6 @@ export function Layout() {
   const navigate = useNavigate();
   const loc = useLocation();
 
-  // Авто-навигация при активном матче
   useEffect(() => {
     if (!match) return;
     const p = loc.pathname;
@@ -23,7 +24,7 @@ export function Layout() {
     }
   }, [match?.matchId, match?.gameStatus]); // eslint-disable-line
 
-  const hideBottomNav =
+  const hideNav =
     loc.pathname.startsWith('/placement') ||
     loc.pathname.startsWith('/battle') ||
     loc.pathname.startsWith('/result') ||
@@ -31,34 +32,37 @@ export function Layout() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
-      <header className="px-4 pt-3 pb-2 flex items-center justify-between sticky top-0 z-30 bg-navy-950/80 backdrop-blur border-b border-white/5">
-        <NavLink to="/home" className="font-display text-lg text-cyber-cyan tracking-widest">
-          NAVAL · CLASH
+      <header className="px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line">
+        <NavLink to="/home" className="flex items-center gap-2 text-main">
+          <Icon name="anchor" size={18} />
+          <span className="title text-[13px] leading-none">Морской Бой</span>
         </NavLink>
-        <NavLink to="/wallet" className="flex items-center gap-2 card px-3 py-1.5">
-          <span className="text-cyber-cyan">⚡</span>
-          <span className="font-semibold">${user?.balance?.toFixed(2) ?? '0.00'}</span>
+        <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main">
+          <Icon name="coins" size={15} className="text-muted" />
+          <span className="font-display text-sm tabular-nums">
+            <AnimatedNumber value={user?.balance ?? 0} formatter={(v) => v.toFixed(2)} /> ₽
+          </span>
         </NavLink>
       </header>
 
       <motion.main
         key={loc.pathname}
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="flex-1 px-4 py-4 pb-24"
+        transition={{ duration: 0.22 }}
+        className="flex-1 px-4 py-5 pb-24"
       >
         <Outlet />
       </motion.main>
 
-      {!hideBottomNav && (
-        <nav className="fixed bottom-0 inset-x-0 z-40 px-4 pb-3 pt-2 bg-navy-950/95 backdrop-blur border-t border-white/5">
-          <ul className="flex items-center justify-around text-xs">
-            <NavTab to="/home"        icon="⚓" label="Главная" />
-            <NavTab to="/matchmaking" icon="⚔" label="Игра" />
-            <NavTab to="/leaderboard" icon="🏆" label="Топ" />
-            <NavTab to="/history"     icon="📜" label="История" />
-            <NavTab to="/profile"     icon="👤" label="Профиль" />
+      {!hideNav && (
+        <nav className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line bg-panel">
+          <ul className="flex items-center justify-around">
+            <Tab to="/home" icon="grid" label="Палуба" />
+            <Tab to="/matchmaking" icon="swords" label="В бой" />
+            <Tab to="/leaderboard" icon="trophy" label="Топ" />
+            <Tab to="/history" icon="scroll" label="Журнал" />
+            <Tab to="/profile" icon="user" label="Каюта" />
           </ul>
         </nav>
       )}
@@ -66,20 +70,25 @@ export function Layout() {
   );
 }
 
-function NavTab({ to, icon, label }: { to: string; icon: string; label: string }) {
+function Tab({ to, icon, label }: { to: string; icon: IconName; label: string }) {
   return (
-    <li>
+    <li className="flex-1">
       <NavLink
         to={to}
         className={({ isActive }) =>
           [
-            'flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition',
-            isActive ? 'text-cyber-cyan bg-cyber-cyan/10 shadow-glow' : 'text-white/60 hover:text-white',
+            'flex flex-col items-center gap-1 py-1.5 rounded-lg transition text-[10px] font-display uppercase tracking-wider',
+            isActive ? 'text-main' : 'text-muted hover:text-main',
           ].join(' ')
         }
       >
-        <span className="text-base">{icon}</span>
-        <span>{label}</span>
+        {({ isActive }) => (
+          <>
+            <Icon name={icon} size={20} />
+            <span>{label}</span>
+            <span className={['h-0.5 w-5 rounded-full transition', isActive ? 'bg-danger' : 'bg-transparent'].join(' ')} />
+          </>
+        )}
       </NavLink>
     </li>
   );
