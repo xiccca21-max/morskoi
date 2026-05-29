@@ -410,7 +410,7 @@ function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick:
       onClick={onClick}
       className={[
         'flex-1 py-2.5 rounded-lg text-sm font-display uppercase tracking-wider transition flex items-center justify-center gap-2',
-        active ? 'bg-panel text-main' : 'text-muted hover:text-main',
+        active ? 'bg-danger text-white shadow-[0_4px_12px_rgba(225,87,75,0.35)]' : 'text-muted hover:text-main',
       ].join(' ')}
     >
       <Icon name={icon} size={16} /> {children}
