@@ -2,6 +2,26 @@ import { useEffect, useState } from 'react';
 import { HistoryAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
+import { toast } from '../stores/toast-store';
+
+function shortId(id: string) { return id.slice(-8).toUpperCase(); }
+
+function CopyId({ id }: { id: string }) {
+  const copy = () => {
+    navigator.clipboard.writeText(id).catch(() => {});
+    toast(`ID скопирован: ${shortId(id)}`, 'info', 'check');
+  };
+  return (
+    <button
+      onClick={copy}
+      className="flex items-center gap-1 text-muted hover:text-main transition"
+      title={id}
+    >
+      <span className="font-mono text-[10px] tracking-wide">#{shortId(id)}</span>
+      <Icon name="check" size={10} />
+    </button>
+  );
+}
 
 export default function HistoryScreen() {
   const [items, setItems] = useState<any[]>([]);
@@ -26,21 +46,28 @@ export default function HistoryScreen() {
         {items.map((m) => {
           const win = m.result === 'win';
           const loss = m.result === 'loss';
+          const resultLabel = win ? 'Победа' : loss ? 'Поражение' : m.result === 'cancelled' ? 'Отменён' : 'Ничья';
           return (
             <li key={m.id} className="card p-4 flex items-center gap-3">
               <div className={[
-                'w-9 h-9 rounded-lg flex items-center justify-center border',
+                'w-9 h-9 rounded-lg flex items-center justify-center border shrink-0',
                 win ? 'text-main border-line'
                   : loss ? 'text-danger border-danger'
                     : 'text-muted border-line',
               ].join(' ')}>
                 <Icon name={win ? 'trophy' : loss ? 'skull' : 'handshake'} size={18} />
               </div>
-              <div className="flex-1">
-                <div className="text-sm text-main">против {m.opponent?.name ?? 'неизвестного'}</div>
-                <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString() : '—'}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={['text-xs font-display uppercase tracking-wide', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
+                    {resultLabel}
+                  </span>
+                  <CopyId id={m.id} />
+                </div>
+                <div className="text-sm text-main truncate">против {m.opponent?.name ?? 'неизвестного'}</div>
+                <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString('ru-RU') : '—'}</div>
               </div>
-              <div className={['font-display tabular-nums', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
+              <div className={['font-display tabular-nums shrink-0', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
                 {win ? `+${(m.prizePool - m.rakeAmount).toFixed(0)} ₽`
                   : loss ? `−${m.wagerAmount.toFixed(0)} ₽`
                     : `${m.wagerAmount.toFixed(0)} ₽`}

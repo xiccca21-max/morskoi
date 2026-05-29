@@ -7,6 +7,28 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { ConfirmDialog } from '../components/Modal';
 import { toast } from '../stores/toast-store';
 
+// Последние 8 символов ID для отображения
+function shortId(id: string) { return id.slice(-8).toUpperCase(); }
+
+// Псевдо-детерминированный «платёжный» ID для депозитов/выводов
+// (пока нет реальной платёжки, показываем sha-like из tx.id)
+function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
+
+const GAME_TYPES = new Set(['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE']);
+
+function CopyId({ label, value }: { label: string; value: string }) {
+  const copy = () => {
+    navigator.clipboard.writeText(value).catch(() => {});
+    toast(`ID скопирован`, 'info', 'check');
+  };
+  return (
+    <button onClick={copy} className="flex items-center gap-1 text-muted hover:text-main transition" title={value}>
+      <span className="font-mono text-[10px]">{label}</span>
+      <Icon name="check" size={10} />
+    </button>
+  );
+}
+
 const MIN_AMOUNT = 1;
 const MAX_AMOUNT = 100000;
 
@@ -114,21 +136,25 @@ export default function WalletScreen() {
         <ul className="divide-y divide-line">
           {txs.map((t) => {
             const plus = ['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type);
-            const isGame = ['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE'].includes(t.type);
-            const refId = isGame
-              ? (t.matchId ? `#${t.matchId.slice(-8).toUpperCase()}` : null)
-              : `#${payRef(t.id)}`;
+            const isGame = GAME_TYPES.has(t.type);
+            const idLabel = isGame && t.matchId
+              ? `#${shortId(t.matchId)}`
+              : `#${payId(t.id)}`;
+            const idFull = isGame && t.matchId ? t.matchId : t.id;
             return (
-              <li key={t.id} className="py-2.5 space-y-0.5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-main">{txLabel(t.type)}</span>
-                  <span className={['tabular-nums font-display', plus ? 'text-main' : 'text-danger'].join(' ')}>
+              <li key={t.id} className="py-3 space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-main text-sm">{txLabel(t.type)}</span>
+                  <span className={['tabular-nums font-display text-sm', plus ? 'text-main' : 'text-danger'].join(' ')}>
                     {plus ? '+' : '−'}{Number(t.amount).toFixed(2)} ₽
                   </span>
                 </div>
-                {refId && (
-                  <p className="text-[10px] text-muted font-mono tracking-wide">{refId}</p>
-                )}
+                <div className="flex items-center justify-between">
+                  <CopyId label={idLabel} value={idFull} />
+                  <span className="text-muted text-[10px] tabular-nums">
+                    {new Date(t.createdAt).toLocaleString('ru-RU')}
+                  </span>
+                </div>
               </li>
             );
           })}
@@ -136,15 +162,6 @@ export default function WalletScreen() {
       </section>
     </div>
   );
-}
-
-/** Детерминированный «номер» платёжной операции из id транзакции. */
-function payRef(id: string): string {
-  // Берём буквы/цифры из id, мешаем, форматируем как PAY-XXXX-XXXX
-  const clean = id.replace(/[^a-z0-9]/gi, '').toUpperCase();
-  const a = clean.slice(0, 4).padEnd(4, '0');
-  const b = clean.slice(4, 8).padEnd(4, '0');
-  return `PAY-${a}-${b}`;
 }
 
 function txLabel(t: string) {
