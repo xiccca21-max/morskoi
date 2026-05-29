@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AttackCell, BOARD_SIZE, ShipPlacement } from '../lib/game-types';
 import { Ship } from './Ship';
+import { Smoke } from './Effects';
 
 type Mode = 'own' | 'enemy' | 'placement';
 
@@ -110,7 +111,7 @@ export function Board({
                     key={s.id}
                     initial={{ opacity: 0, scale: 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className={s.sunk && mode !== 'enemy' ? 'absolute animate-sink' : 'absolute'}
+                    className="absolute"
                     style={{
                       left: `${s.x * cellPct}%`,
                       top: `${s.y * cellPct}%`,
@@ -121,6 +122,7 @@ export function Board({
                     }}
                   >
                     <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} sunk={s.sunk} />
+                    {s.sunk && <Smoke seed={s.x + s.y} />}
                   </motion.div>
                 );
               })}

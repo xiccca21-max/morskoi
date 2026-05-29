@@ -30,6 +30,51 @@ export function Ship({ kind, size, orientation, sunk = false, icon = false, clas
   // палубные блоки — «вырезы» цветом фона, чтобы читались на корпусе в любой теме
   const deck = 'var(--c-base)';
 
+  // ===== Потопленный корабль: разорванный на две накренённые части корпус =====
+  if (sunk) {
+    const brk = L * 0.5;          // точка разлома
+    const gap = Math.min(26, L * 0.07);
+    const stern = 14;
+    const bow = L - 6;
+    // Левая часть кормы — кренится носовой кромкой вниз (в разлом)
+    const left = [
+      `M ${P(stern, 24)}`,
+      `Q ${P(stern, 50)} ${P(stern, 76)}`,
+      `L ${P(brk - gap, 88)}`,         // у разлома осела вниз
+      `L ${P(brk - gap - 8, 60)}`,     // рваный край
+      `L ${P(brk - gap - 2, 44)}`,
+      `L ${P(brk - gap - 12, 30)}`,
+      'Z',
+    ].join(' ');
+    // Правая часть с носом — задрана у разлома, нос торчит вверх
+    const right = [
+      `M ${P(brk + gap, 30)}`,
+      `L ${P(brk + gap + 10, 52)}`,    // рваный край
+      `L ${P(brk + gap + 2, 66)}`,
+      `L ${P(brk + gap + 14, 80)}`,
+      `L ${P(bow - 34, 80)}`,
+      `Q ${P(bow, 66)} ${P(bow, 50)}`, // нос
+      `Q ${P(bow, 36)} ${P(bow - 34, 26)}`,
+      'Z',
+    ].join(' ');
+    // Пробоины
+    const holes = [pt(brk - gap - 18, 52), pt(brk + gap + 22, 48)];
+    return (
+      <svg
+        viewBox={viewBox}
+        preserveAspectRatio="none"
+        className={className}
+        style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible' }}
+      >
+        <path d={left} fill={hull} stroke="var(--c-line)" strokeWidth={3} strokeLinejoin="round" />
+        <path d={right} fill={hull} stroke="var(--c-line)" strokeWidth={3} strokeLinejoin="round" />
+        {holes.map(([hx, hy], i) => (
+          <circle key={i} cx={hx} cy={hy} r={7} fill="var(--c-base)" opacity={0.85} />
+        ))}
+      </svg>
+    );
+  }
+
   // Корпус: корма скруглена, нос заострён
   const bowTip = L - 6;
   const bowBase = L - 40;

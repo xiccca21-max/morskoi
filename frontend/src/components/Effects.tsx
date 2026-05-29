@@ -92,6 +92,35 @@ export function Splash({ keyId }: { keyId: number }) {
   );
 }
 
+/** Постоянный дым над обломками потопленного корабля. */
+export function Smoke({ seed = 0 }: { seed?: number }) {
+  const puffs = [0, 1, 2];
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-end justify-center overflow-visible">
+      {puffs.map((i) => (
+        <motion.span
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            bottom: '40%',
+            width: 12 + i * 3,
+            height: 12 + i * 3,
+            background: 'radial-gradient(circle, rgba(70,70,70,0.55), rgba(70,70,70,0) 70%)',
+          }}
+          initial={{ y: 6, x: 0, opacity: 0, scale: 0.5 }}
+          animate={{ y: -34 - i * 6, x: (i % 2 ? 1 : -1) * (4 + i * 2), opacity: [0, 0.6, 0], scale: 1.7 }}
+          transition={{
+            duration: 2.4 + i * 0.4,
+            repeat: Infinity,
+            ease: 'easeOut',
+            delay: (seed % 3) * 0.3 + i * 0.5,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /** Сдержанный салют при победе — частицы. */
 export function VictoryBurst() {
   return (
