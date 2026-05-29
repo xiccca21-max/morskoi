@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
 import { HistoryAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
+import { SkeletonList } from '../components/Skeleton';
 
 export default function HistoryScreen() {
   const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { HistoryAPI.list(50).then(setItems).catch(() => {}); }, []);
+  useEffect(() => {
+    HistoryAPI.list(50).then(setItems).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="max-w-md mx-auto space-y-3">
       <h2 className="title text-main text-lg">Журнал боёв</h2>
-      {items.length === 0 && (
+      {loading && <SkeletonList rows={5} />}
+      {!loading && items.length === 0 && (
         <div className="card p-8 flex flex-col items-center gap-3 text-center">
           <Icon name="scroll" size={32} className="text-muted" />
           <p className="text-main text-sm">Журнал пуст</p>

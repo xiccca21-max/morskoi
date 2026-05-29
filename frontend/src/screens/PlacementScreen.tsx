@@ -11,7 +11,7 @@ import {
   validatePlacement,
 } from '../lib/game-types';
 import { getSocket, newNonce } from '../api/socket';
-import { tgHaptic, tgVerticalSwipes } from '../lib/telegram';
+import { tgHaptic, tgVerticalSwipes, tgMainButton, isTelegram } from '../lib/telegram';
 import { useMatchStore } from '../stores/match-store';
 import { Icon } from '../components/Icon';
 
@@ -131,6 +131,21 @@ export default function PlacementScreen() {
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
   const fuse = Math.max(0, Math.min(100, (remaining / 30) * 100));
 
+  // Нативная нижняя кнопка Telegram дублирует CTA «К бою»
+  const useNative = isTelegram();
+  useEffect(() => {
+    if (!useNative) return;
+    if (sent) {
+      return tgMainButton({ text: 'Ждём соперника', onClick: () => {}, active: false, progress: true });
+    }
+    return tgMainButton({
+      text: allPlaced ? 'К бою' : `Осталось: ${fleet.length - placedShips.length}`,
+      onClick: submit,
+      active: allPlaced && !submitting,
+      progress: submitting,
+    });
+  }, [useNative, allPlaced, submitting, sent, placedShips.length, fleet.length]); // eslint-disable-line
+
   return (
     <div className="max-w-md mx-auto space-y-3">
       <header className="flex items-center justify-between">
@@ -197,11 +212,11 @@ export default function PlacementScreen() {
         <div className="card p-4 text-center text-main title text-sm flex items-center justify-center gap-2">
           <Icon name="check" size={16} /> Флот на позиции · ждём соперника
         </div>
-      ) : (
+      ) : !useNative ? (
         <motion.button className="btn-primary w-full" onClick={submit} disabled={!allPlaced || submitting} whileTap={{ scale: 0.98 }}>
           {submitting ? 'Отправка…' : allPlaced ? 'К бою' : `Осталось расставить: ${fleet.length - placedShips.length}`}
         </motion.button>
-      )}
+      ) : null}
 
       <p className="text-center text-muted text-xs tabular-nums">До автостановки: {remaining} c</p>
     </div>

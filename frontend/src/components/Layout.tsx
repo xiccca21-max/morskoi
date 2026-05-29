@@ -34,7 +34,10 @@ export function Layout() {
   return (
     <div className="min-h-[100dvh] flex flex-col">
       <Toaster />
-      <header className="px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line">
+      <header
+        className="px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line"
+        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
+      >
         <NavLink to="/home" className="flex items-center gap-2 text-main">
           <Icon name="anchor" size={18} />
           <span className="title text-[13px] leading-none">Морской Бой</span>
@@ -52,13 +55,17 @@ export function Layout() {
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22 }}
-        className="flex-1 px-4 py-5 pb-24"
+        className="flex-1 px-4 py-5"
+        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
       >
         <Outlet />
       </motion.main>
 
       {!hideNav && (
-        <nav className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line bg-panel">
+        <nav
+          className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line bg-panel"
+          style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
+        >
           <ul className="flex items-center justify-around">
             <Tab to="/home" icon="grid" label="Палуба" />
             <Tab to="/matchmaking" icon="swords" label="В бой" />

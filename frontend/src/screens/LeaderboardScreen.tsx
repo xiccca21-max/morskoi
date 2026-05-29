@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { LeaderboardAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
+import { SkeletonList } from '../components/Skeleton';
 
 export default function LeaderboardScreen() {
   const [tab, setTab] = useState<'wins' | 'earnings'>('wins');
   const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { LeaderboardAPI.top(tab, 50).then(setItems).catch(() => {}); }, [tab]);
+  useEffect(() => {
+    setLoading(true);
+    LeaderboardAPI.top(tab, 50).then(setItems).catch(() => {}).finally(() => setLoading(false));
+  }, [tab]);
 
   return (
     <div className="max-w-md mx-auto space-y-3">
@@ -15,8 +20,9 @@ export default function LeaderboardScreen() {
         <Tab active={tab === 'wins'} onClick={() => setTab('wins')}>Победы</Tab>
         <Tab active={tab === 'earnings'} onClick={() => setTab('earnings')}>Выигрыш</Tab>
       </div>
+      {loading && <SkeletonList rows={6} />}
       <ul className="space-y-1.5">
-        {items.length === 0 && (
+        {!loading && items.length === 0 && (
           <li className="card p-8 flex flex-col items-center gap-3 text-center">
             <Icon name="trophy" size={32} className="text-muted" />
             <p className="text-main text-sm">Рейтинг пуст</p>

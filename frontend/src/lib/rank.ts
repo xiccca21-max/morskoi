@@ -28,3 +28,17 @@ export function rankProgress(wins: number): number {
   if (!r.next) return 100;
   return Math.min(100, Math.round(((wins - r.min) / (r.next - r.min)) * 100));
 }
+
+/** Следующее звание (или null, если уже максимум). */
+export function nextRank(wins: number): Rank | null {
+  const cur = getRank(wins);
+  const idx = RANKS.findIndex((r) => r.title === cur.title);
+  return RANKS[idx + 1] ?? null;
+}
+
+/** Сколько побед осталось до следующего звания. */
+export function winsToNext(wins: number): number {
+  const cur = getRank(wins);
+  if (!cur.next) return 0;
+  return Math.max(0, cur.next - wins);
+}

@@ -11,6 +11,55 @@ export function getTelegramWebApp() {
   return typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
 }
 
+/** Запущены ли мы внутри настоящего Telegram-клиента. */
+export function isTelegram(): boolean {
+  const tg = getTelegramWebApp();
+  return !!(tg && tg.initData);
+}
+
+interface MainButtonOpts {
+  text: string;
+  onClick: () => void;
+  active?: boolean;
+  progress?: boolean;
+}
+
+/**
+ * Управление нативной нижней кнопкой Telegram (MainButton).
+ * Возвращает cleanup, который прячет кнопку и снимает обработчик.
+ */
+export function tgMainButton(opts: MainButtonOpts | null) {
+  const tg = getTelegramWebApp();
+  const mb = tg?.MainButton;
+  if (!mb) return () => {};
+  let handler: (() => void) | null = null;
+  try {
+    if (!opts) {
+      mb.hide();
+    } else {
+      mb.setText(opts.text.toUpperCase());
+      if (opts.active === false) mb.disable();
+      else mb.enable();
+      if (opts.progress) mb.showProgress?.(false);
+      else mb.hideProgress?.();
+      handler = opts.onClick;
+      mb.onClick(handler);
+      mb.show();
+    }
+  } catch {
+    /* ignore */
+  }
+  return () => {
+    try {
+      if (handler) mb.offClick(handler);
+      mb.hideProgress?.();
+      mb.hide();
+    } catch {
+      /* ignore */
+    }
+  };
+}
+
 export function getInitData(): string {
   const tg = getTelegramWebApp();
   if (tg?.initData) return tg.initData as string;
@@ -152,4 +201,10 @@ export function tgShare(url: string, text: string) {
 export function tgUserName(): string | undefined {
   const tg = getTelegramWebApp();
   return tg?.initDataUnsafe?.user?.username ?? tg?.initDataUnsafe?.user?.first_name;
+}
+
+/** URL аватарки из Telegram (если доступен). */
+export function tgPhotoUrl(): string | undefined {
+  const tg = getTelegramWebApp();
+  return tg?.initDataUnsafe?.user?.photo_url;
 }

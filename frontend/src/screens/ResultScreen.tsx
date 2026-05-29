@@ -9,6 +9,7 @@ import { GameAPI, WalletAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
+import { Skeleton } from '../components/Skeleton';
 import { playSound } from '../lib/audio';
 
 export default function ResultScreen() {
@@ -57,6 +58,20 @@ export default function ResultScreen() {
   const pool = matchState?.prizePool ?? 0;
   const rake = matchState?.rakeAmount ?? 0;
   const payout = +(pool - rake).toFixed(2);
+
+  if (!matchState || matchState.matchId !== matchId) {
+    return (
+      <div className="max-w-md mx-auto space-y-5 pt-6">
+        <div className="card p-8 flex flex-col items-center gap-4">
+          <Skeleton className="w-16 h-16 rounded-full" />
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-12 w-full mt-2" />
+        </div>
+        <Skeleton className="h-12 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto space-y-5 pt-6">

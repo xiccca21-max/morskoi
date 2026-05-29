@@ -121,21 +121,51 @@ export function Smoke({ seed = 0 }: { seed?: number }) {
   );
 }
 
-/** Сдержанный салют при победе — частицы. */
+const CONFETTI_COLORS = ['#FFCE6B', '#C8453B', '#4AF626', '#6BB6FF', '#FFFFFF', '#FF8A3B'];
+
+/** Праздничный салют при победе: вспышка + радиальный взрыв + падающее конфетти. */
 export function VictoryBurst() {
+  const burst = Array.from({ length: 40 });
+  const confetti = Array.from({ length: 36 });
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {Array.from({ length: 28 }).map((_, i) => {
-        const ang = (i / 28) * Math.PI * 2;
-        const dist = 110 + Math.random() * 80;
+      {/* Золотая вспышка */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0.9 }}
+        animate={{ scale: 2.4, opacity: 0 }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+        className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(255,206,107,0.9), transparent 70%)' }}
+      />
+      {/* Радиальный взрыв из центра */}
+      {burst.map((_, i) => {
+        const ang = (i / burst.length) * Math.PI * 2;
+        const dist = 120 + Math.random() * 90;
+        const c = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
         return (
           <motion.span
-            key={i}
-            className="absolute left-1/2 top-1/2 rounded-[1px]"
-            style={{ width: 3, height: 8, background: i % 4 === 0 ? '#C8453B' : '#C2C6CD' }}
+            key={`b${i}`}
+            className="absolute left-1/2 top-1/3 rounded-[1px]"
+            style={{ width: 4, height: 9, background: c }}
             initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
-            animate={{ x: Math.cos(ang) * dist, y: Math.sin(ang) * dist + 30, opacity: 0, rotate: Math.random() * 360 }}
-            transition={{ duration: 1.5, ease: 'easeOut', delay: Math.random() * 0.2 }}
+            animate={{ x: Math.cos(ang) * dist, y: Math.sin(ang) * dist + 20, opacity: 0, rotate: Math.random() * 540 }}
+            transition={{ duration: 1.4, ease: 'easeOut', delay: Math.random() * 0.15 }}
+          />
+        );
+      })}
+      {/* Падающее конфетти сверху */}
+      {confetti.map((_, i) => {
+        const left = Math.random() * 100;
+        const c = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+        const delay = Math.random() * 0.6;
+        return (
+          <motion.span
+            key={`c${i}`}
+            className="absolute top-0 rounded-[1px]"
+            style={{ left: `${left}%`, width: 5, height: 11, background: c }}
+            initial={{ y: -20, opacity: 0, rotate: 0 }}
+            animate={{ y: 320, opacity: [0, 1, 1, 0], rotate: Math.random() * 720 - 360 }}
+            transition={{ duration: 1.8 + Math.random(), ease: 'easeIn', delay }}
           />
         );
       })}

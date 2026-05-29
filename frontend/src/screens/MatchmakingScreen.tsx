@@ -2,17 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
+import { useSettingsStore } from '../stores/settings-store';
 import { MatchmakingAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
-import { tgHaptic } from '../lib/telegram';
+import { tgHaptic, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 
 const PRESETS = [5, 10, 25, 50, 100];
 
 export default function MatchmakingScreen() {
   const user = useAuthStore((s) => s.user);
+  const lastWager = useSettingsStore((s) => s.lastWager);
+  const setLastWager = useSettingsStore((s) => s.setLastWager);
   const navigate = useNavigate();
-  const [wager, setWager] = useState(10);
+  const [wager, setWagerRaw] = useState(lastWager);
+  const WAGER_MIN = 5;
+  const WAGER_MAX = 200;
+  const setWager = (v: number) => {
+    const clamped = Math.max(WAGER_MIN, Math.min(WAGER_MAX, Math.round(v)));
+    setWagerRaw(clamped);
+    setLastWager(clamped);
+  };
   const [tab, setTab] = useState<'quick' | 'private'>('quick');
   const [searching, setSearching] = useState(false);
   const [joinCode, setJoinCode] = useState('');
@@ -35,6 +45,18 @@ export default function MatchmakingScreen() {
   }, [searching]);
 
   const lowFunds = !user || user.balance < wager;
+  const useNative = isTelegram();
+
+  // Нативная кнопка Telegram для быстрого боя
+  useEffect(() => {
+    if (!useNative) return;
+    if (searching || tab !== 'quick') return tgMainButton(null);
+    return tgMainButton({
+      text: 'Найти соперника',
+      onClick: startQuick,
+      active: !lowFunds,
+    });
+  }, [useNative, searching, tab, lowFunds, wager]); // eslint-disable-line
 
   const startQuick = () => {
     if (lowFunds) { setError('Недостаточно средств'); return; }
@@ -97,9 +119,27 @@ export default function MatchmakingScreen() {
 
       <div className="card p-5">
         <p className="eyebrow mb-2">Ставка</p>
-        <div className="flex items-baseline gap-2 mb-4">
-          <span className="font-display text-4xl text-main tabular-nums">{wager}</span>
-          <span className="text-muted text-sm">₽ с каждого</span>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <button
+            className="btn-ghost w-11 h-11 p-0 shrink-0"
+            onClick={() => setWager(wager - 5)}
+            disabled={wager <= WAGER_MIN}
+            aria-label="Уменьшить ставку"
+          >
+            <Icon name="minus" size={18} />
+          </button>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-display text-4xl text-main tabular-nums">{wager}</span>
+            <span className="text-muted text-sm">₽</span>
+          </div>
+          <button
+            className="btn-ghost w-11 h-11 p-0 shrink-0"
+            onClick={() => setWager(wager + 5)}
+            disabled={wager >= WAGER_MAX}
+            aria-label="Увеличить ставку"
+          >
+            <Icon name="plus" size={18} />
+          </button>
         </div>
         <div className="grid grid-cols-5 gap-1.5 mb-4">
           {PRESETS.map((p) => (
@@ -132,9 +172,11 @@ export default function MatchmakingScreen() {
       )}
 
       {tab === 'quick' ? (
-        <button className="btn-primary w-full" onClick={startQuick} disabled={lowFunds}>
-          <Icon name="swords" size={18} /> Найти соперника
-        </button>
+        !useNative && (
+          <button className="btn-primary w-full" onClick={startQuick} disabled={lowFunds}>
+            <Icon name="swords" size={18} /> Найти соперника
+          </button>
+        )
       ) : (
         <div className="space-y-3">
           <div className="card p-5 space-y-3">

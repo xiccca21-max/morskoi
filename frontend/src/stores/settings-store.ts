@@ -5,9 +5,11 @@ interface SettingsState {
   sound: boolean;
   haptics: boolean;
   onboardingDone: boolean;
+  lastWager: number;
   setSound: (v: boolean) => void;
   setHaptics: (v: boolean) => void;
   setOnboardingDone: (v: boolean) => void;
+  setLastWager: (v: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -16,9 +18,11 @@ export const useSettingsStore = create<SettingsState>()(
       sound: true,
       haptics: true,
       onboardingDone: false,
+      lastWager: 10,
       setSound: (v) => set({ sound: v }),
       setHaptics: (v) => set({ haptics: v }),
       setOnboardingDone: (v) => set({ onboardingDone: v }),
+      setLastWager: (v) => set({ lastWager: v }),
     }),
     { name: 'settings-storage' },
   ),
