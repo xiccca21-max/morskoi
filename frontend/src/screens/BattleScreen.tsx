@@ -12,6 +12,7 @@ import { SHIP_FLEET, ShipKind } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
+import { toast } from '../stores/toast-store';
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const coord = (x: number, y: number) => `${LETTERS[x] ?? '?'}${y + 1}`;
@@ -91,7 +92,7 @@ export default function BattleScreen() {
   useEffect(() => {
     const sock = getSocket();
     const onReaction = (data: any) => {
-      playSound('click'); // тихий звук при приходе
+      playSound('click');
       setReactions((prev) => [...prev, { id: Date.now(), icon: data.reaction as IconName, isMine: data.by === me?.id }]);
       setTimeout(() => {
         setReactions((prev) => prev.slice(1));
@@ -99,6 +100,24 @@ export default function BattleScreen() {
     };
     sock.on('match:reaction', onReaction);
     return () => { sock.off('match:reaction', onReaction); };
+  }, [me?.id]);
+
+  // Авто-передача хода по таймауту
+  useEffect(() => {
+    const sock = getSocket();
+    const onTimeout = (data: any) => {
+      const timedOutMe = data.timedOut === me?.id;
+      const missed = data.missed ?? 1;
+      const max = 3; // AFK_FORFEIT_TIMEOUTS
+      if (timedOutMe) {
+        tgHaptic('error');
+        toast(`Ход пропущен — ${missed} из ${max}. Ещё ${max - missed} — поражение`, 'error', 'skull');
+      } else {
+        toast('Соперник пропустил ход', 'info', 'clock');
+      }
+    };
+    sock.on('match:turnTimeout', onTimeout);
+    return () => { sock.off('match:turnTimeout', onTimeout); };
   }, [me?.id]);
 
   const myTurn = state?.currentTurn === me?.id;

@@ -66,11 +66,32 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   async notifyMatchFound(p1Id: string, p2Id: string, wager: number) {
-    const text = `⚔ Соперник найден! Ставка: $${wager}. Открой Mini App и расставь корабли (30 сек).`;
+    const text = `⚔️ Соперник найден! Ставка: ${wager} ₽. Открой Mini App и расставь корабли (30 сек).`;
     await Promise.all([this.notifyUser(p1Id, text), this.notifyUser(p2Id, text)]);
   }
 
   async notifyPayout(userId: string, amount: number) {
-    await this.notifyUser(userId, `🏆 Победа! Выплата: $${amount.toFixed(2)}`);
+    await this.notifyUser(userId, `🏆 Победа! Выплата: ${amount.toFixed(0)} ₽`);
+  }
+
+  /** Уведомление создателю открытого лобби — кто-то принял его вызов. */
+  async notifyLobbyJoined(hostId: string, joinerName: string, wager: number) {
+    const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
+    const text =
+      `🚢 <b>${joinerName}</b> принял твой вызов!\n` +
+      `Ставка: <b>${wager} ₽</b>\n` +
+      `Открывай игру и расставляй корабли — бой уже начался!`;
+    const user = await this.prisma.user.findUnique({ where: { id: hostId } });
+    if (!user) return;
+    try {
+      await this.bot?.sendMessage(Number(user.telegramId), text, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [[{ text: '🎮 Открыть бой', web_app: { url } }]],
+        },
+      });
+    } catch (e: any) {
+      this.logger.warn(`notifyLobbyJoined ${hostId} failed: ${e?.message}`);
+    }
   }
 }
