@@ -154,8 +154,9 @@ export default function MatchmakingScreen() {
 
       {/* Bottom-sheet: выбор ставки */}
       <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Ставка боя" icon="coins">
-        <div className={['transition', overBalance ? 'rounded-xl ring-1 ring-danger' : ''].join(' ')}>
-          <div className="flex items-center justify-between mb-3">
+        {/* Поле ввода — красная обводка только здесь при превышении баланса */}
+        <div className={['rounded-xl transition p-0.5', overBalance ? 'ring-1 ring-danger' : ''].join(' ')}>
+          <div className="flex items-center justify-between mb-3 px-0.5">
             <p className="eyebrow">Укажи сумму</p>
             {overBalance && (
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-danger text-xs font-display">
@@ -173,7 +174,7 @@ export default function MatchmakingScreen() {
             >
               <Icon name="minus" size={26} />
             </button>
-            <div className="flex items-baseline gap-1.5">
+            <div className="flex items-baseline gap-1.5 min-w-0">
               <input
                 type="number"
                 inputMode="numeric"
@@ -190,7 +191,7 @@ export default function MatchmakingScreen() {
                 }}
                 className={['w-28 text-center bg-transparent outline-none font-display text-4xl tabular-nums', overBalance ? 'text-danger' : 'text-main'].join(' ')}
               />
-              <span className={['text-sm', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
+              <span className={['text-sm shrink-0', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
             </div>
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
@@ -223,11 +224,17 @@ export default function MatchmakingScreen() {
           <PrizeBreakdown wager={wager} />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <button className="btn-ghost" onClick={() => setShowCreateModal(false)}>Отмена</button>
-          <button className="btn-primary" onClick={tab === 'browse' ? createPublic : createPrivate}>
-            <Icon name="swords" size={15} /> Создать за {wager} ₽
+        {/* Кнопки — отдельно от блока с обводкой */}
+        <div className="mt-4 space-y-2">
+          <button
+            className="btn-primary w-full"
+            style={{ border: 'none' }}
+            onClick={tab === 'browse' ? createPublic : createPrivate}
+          >
+            <Icon name="swords" size={18} className="shrink-0" />
+            <span className="truncate">Создать за {wager} ₽</span>
           </button>
+          <button className="btn-ghost w-full" onClick={() => setShowCreateModal(false)}>Отмена</button>
         </div>
       </Modal>
 
