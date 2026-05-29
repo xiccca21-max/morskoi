@@ -10,7 +10,46 @@ import { Icon, IconName } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
 import { Modal } from '../components/Modal';
 import { getRank } from '../lib/rank';
+import type { Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
+
+const ALL_RANKS: Rank[] = [
+  { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
+  { title: 'Матрос',  icon: 'ship',    min: 3,  next: 8  },
+  { title: 'Боцман',  icon: 'compass', min: 8,  next: 15 },
+  { title: 'Штурман', icon: 'wheel',   min: 15, next: 30 },
+  { title: 'Капитан', icon: 'medal',   min: 30, next: 60 },
+  { title: 'Адмирал', icon: 'crown',   min: 60             },
+];
+
+function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose: () => void; highlightTitle?: string }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Система званий" icon="medal">
+      <p className="text-muted text-xs mb-4 leading-relaxed">
+        Звание растёт с каждой победой. Чем выше звание — тем опытнее капитан.
+      </p>
+      <ul className="space-y-2">
+        {ALL_RANKS.map((r) => {
+          const isHighlight = r.title === highlightTitle;
+          return (
+            <li key={r.title} className={['flex items-center gap-3 rounded-lg px-3 py-2', isHighlight ? 'bg-danger/10 border border-danger' : 'bg-panel'].join(' ')}>
+              <Icon name={r.icon} size={18} className={isHighlight ? 'text-danger' : 'text-muted'} />
+              <div className="flex-1">
+                <span className={['font-display text-sm', isHighlight ? 'text-danger' : 'text-main'].join(' ')}>
+                  {r.title}
+                  {isHighlight && <span className="ml-2 text-[10px] bg-danger text-white rounded px-1.5 py-0.5 uppercase tracking-wide">Этот игрок</span>}
+                </span>
+              </div>
+              <span className="text-muted text-xs tabular-nums">
+                {r.min === 0 ? 'с 0 побед' : `с ${r.min}`}{r.next ? ` → ${r.next}` : ' · Макс'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Modal>
+  );
+}
 
 const PRESETS = [5, 10, 25, 50, 100];
 const WAGER_MIN = 1;
@@ -45,6 +84,7 @@ export default function MatchmakingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showFundsModal, setShowFundsModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [ranksForPlayer, setRanksForPlayer] = useState<string | undefined>(undefined);
 
   // Браузер открытых боёв
   const [matches, setMatches] = useState<OpenMatch[]>([]);
@@ -238,6 +278,9 @@ export default function MatchmakingScreen() {
         </div>
       </Modal>
 
+      {/* Модалька: система званий */}
+      <RanksModal open={ranksForPlayer !== undefined} onClose={() => setRanksForPlayer(undefined)} highlightTitle={ranksForPlayer} />
+
       {/* Модалька «Недостаточно средств» */}
       <Modal open={showFundsModal} onClose={() => setShowFundsModal(false)} title="Недостаточно средств" icon="coins">
         <p className="text-main text-sm mb-5">
@@ -349,7 +392,7 @@ export default function MatchmakingScreen() {
                 {[...matches]
                   .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
                   .map((m) => (
-                    <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} />
+                    <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
                   ))}
               </AnimatePresence>
             </div>
@@ -382,7 +425,7 @@ export default function MatchmakingScreen() {
   );
 }
 
-function MatchRow({ m, busy, onAccept, onCancel }: { m: OpenMatch; busy: boolean; onAccept: () => void; onCancel: () => void }) {
+function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; busy: boolean; onAccept: () => void; onCancel: () => void; onShowRank: () => void }) {
   const name = m.host.firstName || m.host.username || 'Капитан';
   const rank = getRank(m.host.wins);
   const initial = name.charAt(0).toUpperCase();
@@ -396,14 +439,16 @@ function MatchRow({ m, busy, onAccept, onCancel }: { m: OpenMatch; busy: boolean
     >
       <div className="w-10 h-10 rounded-lg bg-panel border border-line flex items-center justify-center overflow-hidden shrink-0">
         {m.host.avatar
-          ? <img src={m.host.avatar} alt="" className="w-full h-full object-cover" />
+          ? <img src={m.host.avatar} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           : <span className="font-display text-main">{initial}</span>}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-main text-sm font-display truncate">{name}</p>
-        <p className="text-muted text-xs flex items-center gap-1">
-          <Icon name={rank.icon} size={12} /> {rank.title} · {m.host.wins}W
-        </p>
+        <button onClick={onShowRank} className="flex items-center gap-1 text-muted text-xs hover:text-main transition">
+          <Icon name={rank.icon} size={12} />
+          <span>{rank.title} · {m.host.wins}W</span>
+          <span className="text-danger text-[10px] font-display underline ml-0.5">?</span>
+        </button>
       </div>
       <div className="text-right shrink-0">
         <div className="font-display text-main tabular-nums leading-none">{m.wagerAmount} ₽</div>
