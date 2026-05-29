@@ -100,15 +100,28 @@ export default function ResultScreen() {
       >
         {won && <VictoryBurst />}
 
-        <div className={['mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-3 border border-line',
-          won ? 'bg-panel text-main' : draw ? 'bg-panel text-muted' : 'bg-panel text-danger'].join(' ')}>
-          <Icon name={(draw ? 'handshake' : won ? 'trophy' : 'skull') as IconName} size={30} />
-        </div>
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.05 }}
+          className={[
+            'mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 border-4',
+            won
+              ? 'bg-success/10 text-success border-success'
+              : draw
+              ? 'bg-panel text-muted border-line'
+              : 'bg-danger/10 text-danger border-danger',
+          ].join(' ')}
+        >
+          <Icon name={(draw ? 'handshake' : won ? 'trophy' : 'skull') as IconName} size={36} />
+        </motion.div>
 
-        <p className="eyebrow">{draw ? 'Ничья' : won ? 'Победа' : 'Поражение'}</p>
+        <p className={['font-display text-2xl tracking-wide', won ? 'text-success' : draw ? 'text-muted' : 'text-danger'].join(' ')}>
+          {draw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}
+        </p>
 
         {!draw && (
-          <p className={['font-display text-4xl mt-2 tabular-nums', won ? 'text-main' : 'text-danger'].join(' ')}>
+          <p className={['font-display text-4xl mt-1 tabular-nums', won ? 'text-success' : 'text-danger'].join(' ')}>
             {won ? `+${payout.toFixed(0)}` : `−${matchState?.wagerAmount.toFixed(0) ?? ''}`} ₽
           </p>
         )}

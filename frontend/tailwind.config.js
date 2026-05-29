@@ -10,6 +10,7 @@ export default {
         muted: 'var(--c-muted)',
         accent: 'var(--c-accent)',
         danger: 'var(--c-danger)',
+        success: 'var(--c-success)',
         line: 'var(--c-line)',
         water: 'var(--c-water)',
       },

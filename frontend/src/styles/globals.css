@@ -9,6 +9,7 @@
   --c-muted: #444444;
   --c-accent: #FF4911;
   --c-danger: #FF0000;
+  --c-success: #16A34A;
   --c-line: #000000;
   --c-water: rgba(0,0,0,0.05);
   --radius-card: 0px;
@@ -28,6 +29,7 @@
   --c-muted: #1F7A12;
   --c-accent: #4AF626;
   --c-danger: #FF003C;
+  --c-success: #4AF626;
   --c-line: #1F7A12;
   --c-water: rgba(74, 246, 38, 0.08);
   --radius-card: 0px;
@@ -47,6 +49,7 @@
   --c-muted: #8CB4DE;
   --c-accent: #FFFFFF;
   --c-danger: #FF6B00;
+  --c-success: #34D399;
   --c-line: #8CB4DE;
   --c-water: rgba(255, 255, 255, 0.05);
   --radius-card: 4px;
