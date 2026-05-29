@@ -13,7 +13,6 @@ import { getRank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
 
 const PRESETS = [5, 10, 25, 50, 100];
-const WAGER_FILTERS = [null, 5, 10, 25, 50, 100] as const;
 const WAGER_MIN = 1;
 const WAGER_ABS_MAX = 10_000; // сервер проверит баланс, здесь просто верхний ввод
 
@@ -51,7 +50,9 @@ export default function MatchmakingScreen() {
   const [matches, setMatches] = useState<OpenMatch[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [query, setQuery] = useState('');
-  const [filterWager, setFilterWager] = useState<number | null>(null);
+  const [filterMin, setFilterMin] = useState('');
+  const [filterMax, setFilterMax] = useState('');
+  const [sortAsc, setSortAsc] = useState(true); // true = от меньшего к большему
   const [myOpen, setMyOpen] = useState<{ code: string; wager: number } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -66,18 +67,18 @@ export default function MatchmakingScreen() {
     try {
       const list = await MatchmakingAPI.listOpen({
         q: query || undefined,
-        min: filterWager ?? undefined,
-        max: filterWager ?? undefined,
+        min: filterMin !== '' ? Number(filterMin) : undefined,
+        max: filterMax !== '' ? Number(filterMax) : undefined,
       });
       setMatches(list);
       const mine = list.find((m) => m.isMine);
       setMyOpen(mine ? { code: mine.code, wager: mine.wagerAmount } : null);
     } catch {
-      /* список не критичен — молча игнорируем сетевые сбои */
+      /* список не критичен */
     } finally {
       setLoadingList(false);
     }
-  }, [query, filterWager]);
+  }, [query, filterMin, filterMax]);
 
   // Загрузка + автообновление списка пока открыт таб «Поиск матча»
   useEffect(() => {
@@ -253,7 +254,8 @@ export default function MatchmakingScreen() {
           )}
 
           {/* Фильтры */}
-          <div className="card p-3 space-y-3">
+          <div className="card p-3 space-y-2">
+            {/* Поиск по нику */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-panel border border-line">
               <Icon name="target" size={15} className="text-muted shrink-0" />
               <input
@@ -264,16 +266,46 @@ export default function MatchmakingScreen() {
               />
               {query && <button onClick={() => setQuery('')} className="text-muted"><Icon name="minus" size={14} /></button>}
             </div>
-            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1">
-              {WAGER_FILTERS.map((f) => (
-                <button
-                  key={f ?? 'all'}
-                  onClick={() => setFilterWager(f)}
-                  className={['px-3 py-1.5 rounded-lg text-xs font-display tabular-nums whitespace-nowrap transition border', filterWager === f ? 'bg-main text-panel border-main' : 'bg-panel text-muted border-line'].join(' ')}
+
+            {/* Диапазон ставки + сортировка */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg bg-panel border border-line">
+                <span className="text-muted text-xs shrink-0">от</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={filterMin}
+                  onChange={(e) => setFilterMin(e.target.value)}
+                  placeholder="0"
+                  className="w-full bg-transparent outline-none text-main text-sm tabular-nums placeholder:text-muted"
+                />
+              </div>
+              <span className="text-muted text-xs shrink-0">—</span>
+              <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg bg-panel border border-line">
+                <span className="text-muted text-xs shrink-0">до</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={filterMax}
+                  onChange={(e) => setFilterMax(e.target.value)}
+                  placeholder="∞"
+                  className="w-full bg-transparent outline-none text-main text-sm tabular-nums placeholder:text-muted"
+                />
+              </div>
+              {/* Кнопка сортировки */}
+              <button
+                onClick={() => setSortAsc((v) => !v)}
+                className="shrink-0 w-10 h-10 rounded-lg border border-line bg-panel flex items-center justify-center transition hover:border-main"
+                title={sortAsc ? 'Сначала дешевле' : 'Сначала дороже'}
+              >
+                <motion.span
+                  animate={{ rotate: sortAsc ? 0 : 180 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                  className="flex items-center justify-center"
                 >
-                  {f == null ? 'Любая' : `${f} ₽`}
-                </button>
-              ))}
+                  <Icon name="arrow-right" size={16} className="rotate-90 text-main" />
+                </motion.span>
+              </button>
             </div>
           </div>
 
@@ -289,9 +321,11 @@ export default function MatchmakingScreen() {
           ) : (
             <div className="space-y-2">
               <AnimatePresence initial={false}>
-                {matches.map((m) => (
-                  <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} />
-                ))}
+                {[...matches]
+                  .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
+                  .map((m) => (
+                    <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} />
+                  ))}
               </AnimatePresence>
             </div>
           )}
