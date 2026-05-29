@@ -64,11 +64,30 @@ export class TelegramBotService implements OnModuleInit {
       const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
       const param = (match?.[1] ?? '').trim();
       const launchUrl = param ? `${url}?startapp=${encodeURIComponent(param)}` : url;
-      await this.bot!.sendMessage(msg.chat.id, '⚓ Добро пожаловать в Naval Clash!\nPvP «Морской бой» с реальными ставками.', {
-        reply_markup: {
-          inline_keyboard: [[{ text: '🎮 Открыть игру', web_app: { url: launchUrl } }]],
-        },
-      });
+      const photoUrl = `${url}/bot-welcome.jpg`;
+      const caption =
+        '⚓ <b>Naval Clash — морской бой с реальными ставками</b>\n\n' +
+        '🚢 Расставь флот, вызови соперника и потопи его корабли\n' +
+        '💰 Делай ставки и забирай выигрыш прямо в Telegram\n' +
+        '🏆 Расти в звании: от Юнги до Адмирала\n\n' +
+        'Нажми кнопку ниже — и в бой! 👇';
+      try {
+        await this.bot!.sendPhoto(msg.chat.id, photoUrl, {
+          caption,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url: launchUrl } }]],
+          },
+        });
+      } catch {
+        // Фото недоступно — fallback на текстовое сообщение
+        await this.bot!.sendMessage(msg.chat.id, caption, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url: launchUrl } }]],
+          },
+        });
+      }
     });
   }
 
