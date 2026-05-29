@@ -66,16 +66,45 @@ export function Layout() {
           className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line bg-panel"
           style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
         >
-          <ul className="flex items-center justify-around">
+          <ul className="flex items-end justify-around">
             <Tab to="/home" icon="grid" label="Палуба" />
             <Tab to="/matchmaking" icon="swords" label="В бой" />
-            <Tab to="/leaderboard" icon="trophy" label="Топ" />
+            <BalanceTab balance={user?.balance ?? 0} />
             <Tab to="/history" icon="scroll" label="Журнал" />
             <Tab to="/profile" icon="user" label="Каюта" />
           </ul>
         </nav>
       )}
     </div>
+  );
+}
+
+function BalanceTab({ balance }: { balance: number }) {
+  return (
+    <li className="flex-1 flex justify-center">
+      <NavLink to="/wallet" aria-label="Баланс" className="flex flex-col items-center gap-1 -mt-8">
+        {({ isActive }) => (
+          <>
+            <motion.div
+              whileTap={{ scale: 0.92 }}
+              className={[
+                'w-16 h-16 rounded-full flex flex-col items-center justify-center text-white border-4 border-panel',
+                'bg-danger shadow-[0_6px_18px_rgba(225,87,75,0.5)]',
+                isActive ? 'ring-2 ring-danger ring-offset-2 ring-offset-panel' : '',
+              ].join(' ')}
+            >
+              <Icon name="coins" size={18} />
+              <span className="font-display text-[11px] leading-none tabular-nums mt-0.5">
+                <AnimatedNumber value={balance} formatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0))} />
+              </span>
+            </motion.div>
+            <span className={['text-[10px] font-display uppercase tracking-wider', isActive ? 'text-main' : 'text-muted'].join(' ')}>
+              Баланс
+            </span>
+          </>
+        )}
+      </NavLink>
+    </li>
   );
 }
 
