@@ -240,15 +240,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       await this.notifyMatchFound(r.matchId);
 
       // Пуш-уведомление создателю лобби: кто-то принял его вызов
-      const match = await this.prisma.match.findUnique({ where: { id: r.matchId } });
-      if (match) {
-        const joiner = await this.prisma.user.findUnique({ where: { id: s.data.userId } });
-        const joinerName = joiner?.username ?? joiner?.firstName ?? 'Соперник';
-        const hostId = match.player1Id === s.data.userId ? match.player2Id : match.player1Id;
-        if (hostId) {
-          this.botService.notifyLobbyJoined(hostId, joinerName, Number(match.wagerAmount)).catch(() => {});
-        }
-      }
+      // r.hostId приходит напрямую из lobby.join — надёжнее чем парсить match.player1/2
+      const joiner = await this.prisma.user.findUnique({ where: { id: s.data.userId } });
+      const joinerName = joiner?.username ?? joiner?.firstName ?? 'Соперник';
+      const wagerMatch = await this.prisma.match.findUnique({ where: { id: r.matchId } });
+      const wager = wagerMatch ? Number(wagerMatch.wagerAmount) : 0;
+      this.botService.notifyLobbyJoined(r.hostId, joinerName, wager).catch((e) =>
+        this.logger.warn(`notifyLobbyJoined failed: ${e?.message}`),
+      );
 
       return { ok: true, matchId: r.matchId };
     } catch (e: any) {

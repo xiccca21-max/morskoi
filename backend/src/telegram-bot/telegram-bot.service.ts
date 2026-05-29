@@ -76,22 +76,32 @@ export class TelegramBotService implements OnModuleInit {
 
   /** Уведомление создателю открытого лобби — кто-то принял его вызов. */
   async notifyLobbyJoined(hostId: string, joinerName: string, wager: number) {
-    const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
+    if (!this.bot) {
+      this.logger.warn('notifyLobbyJoined: bot not initialised');
+      return;
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: hostId } });
+    if (!user) {
+      this.logger.warn(`notifyLobbyJoined: host ${hostId} not found`);
+      return;
+    }
+    const url = process.env.TELEGRAM_WEBAPP_URL;
     const text =
       `🚢 <b>${joinerName}</b> принял твой вызов!\n` +
       `Ставка: <b>${wager} ₽</b>\n` +
       `Открывай игру и расставляй корабли — бой уже начался!`;
-    const user = await this.prisma.user.findUnique({ where: { id: hostId } });
-    if (!user) return;
     try {
-      await this.bot?.sendMessage(Number(user.telegramId), text, {
+      await this.bot.sendMessage(Number(user.telegramId), text, {
         parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [[{ text: '🎮 Открыть бой', web_app: { url } }]],
-        },
+        // Кнопка только если URL мини-приложения настроен
+        ...(url
+          ? { reply_markup: { inline_keyboard: [[{ text: '🎮 Открыть бой', web_app: { url } }]] } }
+          : {}),
       });
+      this.logger.log(`notifyLobbyJoined sent to tgId=${user.telegramId}`);
     } catch (e: any) {
-      this.logger.warn(`notifyLobbyJoined ${hostId} failed: ${e?.message}`);
+      // 403 = пользователь не запускал бота — это нормально
+      this.logger.warn(`notifyLobbyJoined tgId=${user.telegramId} failed: ${e?.message}`);
     }
   }
 }
