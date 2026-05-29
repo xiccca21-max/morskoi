@@ -110,13 +110,27 @@ export default function App() {
       if (s.authenticated) {
         const sock = getSocket();
         let wasConnected = false;
+        // Дедупликация тостов: не показываем новый, пока предыдущий ещё виден
+        let connState: 'connected' | 'disconnected' | null = null;
+        let toastTimer: ReturnType<typeof setTimeout> | null = null;
+        const showOnce = (msg: string, kind: 'success' | 'error', icon?: string, newState?: typeof connState) => {
+          if (newState && newState === connState) return; // состояние не изменилось
+          if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+          if (newState) connState = newState;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          toast(msg, kind, icon as any);
+          // блокируем повторный тост на время показа (2.6s)
+          toastTimer = setTimeout(() => { toastTimer = null; }, 2700);
+        };
+
         sock.on('connect_error', (e) => console.warn('socket connect_error', e.message));
         sock.on('connect', () => {
-          if (wasConnected) toast('Соединение восстановлено', 'success', 'wave');
+          if (wasConnected) showOnce('Соединение восстановлено', 'success', 'wave', 'connected');
           wasConnected = true;
+          connState = 'connected';
         });
         sock.on('disconnect', (reason: string) => {
-          if (reason !== 'io client disconnect') toast('Соединение потеряно. Переподключаемся…', 'error');
+          if (reason !== 'io client disconnect') showOnce('Соединение потеряно. Переподключаемся…', 'error', undefined, 'disconnected');
         });
         sock.on('auth:error', () => {
           setAuthToken(null);
