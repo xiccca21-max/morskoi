@@ -165,8 +165,13 @@ export default function MatchmakingScreen() {
           </div>
 
           <div className="flex items-center justify-between gap-3 mb-4">
-            <button className="btn-ghost w-11 h-11 p-0 shrink-0" onClick={() => setWager(wager - 5)} disabled={wager <= WAGER_MIN} aria-label="-5">
-              <Icon name="minus" size={18} />
+            <button
+              className="shrink-0 w-14 h-14 rounded-2xl bg-panel border-2 border-line flex items-center justify-center text-main transition active:scale-95 disabled:opacity-30"
+              onClick={() => setWager(wager - 5)}
+              disabled={wager <= WAGER_MIN}
+              aria-label="-5"
+            >
+              <Icon name="minus" size={26} />
             </button>
             <div className="flex items-baseline gap-1.5">
               <input
@@ -187,8 +192,13 @@ export default function MatchmakingScreen() {
               />
               <span className={['text-sm', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
             </div>
-            <button className="btn-ghost w-11 h-11 p-0 shrink-0" onClick={() => setWager(wager + 5)} disabled={wager >= WAGER_ABS_MAX} aria-label="+5">
-              <Icon name="plus" size={18} />
+            <button
+              className="shrink-0 w-14 h-14 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
+              onClick={() => setWager(wager + 5)}
+              disabled={wager >= WAGER_ABS_MAX}
+              aria-label="+5"
+            >
+              <Icon name="plus" size={26} />
             </button>
           </div>
 
