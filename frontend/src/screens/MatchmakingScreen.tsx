@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { MatchmakingAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
-import { tgHaptic, tgShare } from '../lib/telegram';
+import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 
 const PRESETS = [5, 10, 25, 50, 100];
@@ -15,7 +15,6 @@ export default function MatchmakingScreen() {
   const [wager, setWager] = useState(10);
   const [tab, setTab] = useState<'quick' | 'private'>('quick');
   const [searching, setSearching] = useState(false);
-  const [lobbyCode, setLobbyCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -57,23 +56,15 @@ export default function MatchmakingScreen() {
     setError(null);
     try {
       const l = await MatchmakingAPI.createLobby(wager);
-      setLobbyCode(l.code); tgHaptic('success');
+      tgHaptic('success');
+      navigate(`/lobby/${l.code}`);
     } catch (e: any) { setError(e?.response?.data?.message ?? e?.message); }
   };
 
   const joinPrivate = () => {
     if (!joinCode) return;
     setError(null);
-    getSocket().emit('lobby:join', { code: joinCode.toUpperCase(), nonce: newNonce() }, (ack: any) => {
-      if (!ack?.ok) { setError(ack?.error ?? 'Лобби не найдено'); return; }
-      navigate(`/placement/${ack.matchId}`);
-    });
-  };
-
-  const shareInvite = () => {
-    if (!lobbyCode) return;
-    const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
-    tgShare(`https://t.me/${bot}?startapp=lobby_${lobbyCode}`, `Вызываю на морскую дуэль. Ставка ${wager} ₽. Код: ${lobbyCode}`);
+    navigate(`/lobby/${joinCode.toUpperCase()}`);
   };
 
   if (searching) {
@@ -134,6 +125,12 @@ export default function MatchmakingScreen() {
 
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
 
+      {lowFunds && (
+        <button className="btn-secondary w-full" onClick={() => navigate('/wallet')}>
+          <Icon name="coins" size={16} /> Пополнить баланс
+        </button>
+      )}
+
       {tab === 'quick' ? (
         <button className="btn-primary w-full" onClick={startQuick} disabled={lowFunds}>
           <Icon name="swords" size={18} /> Найти соперника
@@ -142,14 +139,10 @@ export default function MatchmakingScreen() {
         <div className="space-y-3">
           <div className="card p-5 space-y-3">
             <p className="eyebrow">Создать лобби</p>
-            {!lobbyCode ? (
-              <button className="btn-primary w-full" onClick={createPrivate} disabled={lowFunds}>Получить код</button>
-            ) : (
-              <div className="text-center space-y-3">
-                <p className="font-display text-4xl tracking-[0.3em] text-main">{lobbyCode}</p>
-                <button className="btn-secondary w-full" onClick={shareInvite}><Icon name="share" size={16} /> Отправить вызов</button>
-              </div>
-            )}
+            <p className="text-muted text-xs">Получите код и ссылку-приглашение для друга. Бой начнётся, как только он войдёт.</p>
+            <button className="btn-primary w-full" onClick={createPrivate} disabled={lowFunds}>
+              <Icon name="lock" size={16} /> Создать и пригласить
+            </button>
           </div>
 
           <div className="card p-5 space-y-3">
@@ -161,7 +154,7 @@ export default function MatchmakingScreen() {
               maxLength={10}
               className="w-full px-4 py-3 rounded-lg bg-panel border border-line text-center font-display tracking-[0.3em] text-main focus:border-line outline-none"
             />
-            <button className="btn-primary w-full" onClick={joinPrivate} disabled={!joinCode}>Войти</button>
+            <button className="btn-primary w-full" onClick={joinPrivate} disabled={!joinCode}>Открыть лобби</button>
           </div>
         </div>
       )}

@@ -107,6 +107,13 @@ export class GameService {
       }
       const board = buildPrivateBoard(finalShips);
 
+      // Защита от повторной расстановки: нельзя переставлять уже зафиксированный флот.
+      const ownBoardJson = isP1 ? match.gameState.player1Board : match.gameState.player2Board;
+      const ownBoard = J.parse<PrivateBoard>(ownBoardJson as any, { ships: [], attacksReceived: [], placed: false });
+      if (ownBoard.placed === true) {
+        throw new BadRequestException('Флот уже расставлен');
+      }
+
       const otherBoardJson = isP1 ? match.gameState.player2Board : match.gameState.player1Board;
       const otherBoard = J.parse<PrivateBoard>(otherBoardJson as any, { ships: [], attacksReceived: [], placed: false });
 

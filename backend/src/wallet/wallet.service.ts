@@ -127,6 +127,15 @@ export class WalletService {
     return this.redis.withLock(`wallet:${ordered[0]}`, 5000, async () => {
       return this.redis.withLock(`wallet:${ordered[1]}`, 5000, async () => {
         return this.prisma.$transaction(async (tx) => {
+          // Идемпотентность: если матч уже рассчитан — не платим повторно.
+          const current = await tx.match.findUnique({
+            where: { id: matchId },
+            select: { status: true, winnerId: true, rakeAmount: true, prizePool: true },
+          });
+          if (current?.status === 'FINISHED') {
+            return { winnerPayout: Number(current.prizePool) - Number(current.rakeAmount), rake: Number(current.rakeAmount), alreadySettled: true };
+          }
+
           if (winnerId === null) {
             // refund обоим
             await tx.user.update({
@@ -142,6 +151,10 @@ export class WalletService {
                 { userId: p1Id, matchId, type: TxType.WAGER_REFUND, amount: wagerAmount },
                 { userId: p2Id, matchId, type: TxType.WAGER_REFUND, amount: wagerAmount },
               ],
+            });
+            await tx.match.update({
+              where: { id: matchId },
+              data: { winnerId: null, endedAt: new Date(), status: 'FINISHED' },
             });
             return { winnerPayout: 0, rake: 0 };
           }

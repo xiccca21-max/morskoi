@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { tgReady, getInitData } from './lib/telegram';
+import { useEffect, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { tgReady, getInitData, getStartParam, setHapticsGate } from './lib/telegram';
+import { readSettings } from './stores/settings-store';
 import { AuthAPI, UsersAPI } from './api/endpoints';
 import { loadToken, setAuthToken } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
@@ -38,11 +39,18 @@ export default function App() {
   const setMatchState = useMatchStore((s) => s.setState);
   const setLastAttack = useMatchStore((s) => s.setLastAttack);
   const [authError, setAuthError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const deepLinkHandled = useRef(false);
 
   const theme = useThemeStore((s) => s.theme);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Вибрация подчиняется пользовательской настройке
+  useEffect(() => {
+    setHapticsGate(() => readSettings().haptics);
+  }, []);
 
   // Глобальный слушатель кликов по кнопкам
   useEffect(() => {
@@ -127,6 +135,17 @@ export default function App() {
 
   const authenticated = useAuthStore((s) => s.authenticated);
   const ready = useAuthStore((s) => s.ready);
+
+  // Диплинк-приглашение: ?startapp=lobby_CODE → открыть лобби
+  useEffect(() => {
+    if (!ready || !authenticated || deepLinkHandled.current) return;
+    deepLinkHandled.current = true;
+    const sp = getStartParam();
+    if (sp && sp.startsWith('lobby_')) {
+      const code = sp.slice('lobby_'.length).toUpperCase();
+      if (code) navigate(`/lobby/${code}`);
+    }
+  }, [ready, authenticated, navigate]);
 
   if (authError && !authenticated) {
     return <DevLoginScreen />;

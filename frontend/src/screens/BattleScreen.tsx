@@ -7,9 +7,10 @@ import { Explosion, Splash } from '../components/Effects';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic, tgNotify, tgVibrate } from '../lib/telegram';
+import { tgHaptic, tgNotify, tgVibrate, tgBackButton } from '../lib/telegram';
 import { SHIP_FLEET, ShipKind } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
+import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
@@ -35,9 +36,15 @@ export default function BattleScreen() {
   const [view, setView] = useState<'enemy' | 'own'>('enemy');
   const [reactions, setReactions] = useState<Array<{ id: number; icon: IconName; isMine: boolean }>>([]);
 
-  const [surrenderConfirm, setSurrenderConfirm] = useState(false);
+  const [showSurrender, setShowSurrender] = useState(false);
 
   useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
+
+  // Нативная кнопка «Назад» в Telegram = попытка покинуть бой (с предупреждением)
+  useEffect(() => {
+    const cleanup = tgBackButton(true, () => setShowSurrender(true));
+    return cleanup;
+  }, []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
 
   useEffect(() => {
@@ -120,14 +127,11 @@ export default function BattleScreen() {
     getSocket().emit('game:attack', { matchId, x, y, nonce: newNonce() });
   };
 
-  const surrender = () => {
+  const doSurrender = () => {
     if (!matchId) return;
-    if (!surrenderConfirm) {
-      setSurrenderConfirm(true);
-      setTimeout(() => setSurrenderConfirm(false), 3000);
-      return;
-    }
+    tgHaptic('warning');
     getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
+    setShowSurrender(false);
   };
 
   const sendReaction = (icon: IconName) => {
@@ -154,12 +158,12 @@ export default function BattleScreen() {
           </div>
           <p className="font-display text-xl text-main mt-0.5 tabular-nums">{remaining}c</p>
         </div>
-        <button 
-          onClick={surrender} 
-          className={['btn-ghost text-xs py-2 px-2.5 transition', surrenderConfirm ? 'bg-danger text-white border-danger' : ''].join(' ')} 
+        <button
+          onClick={() => setShowSurrender(true)}
+          className="btn-ghost text-xs py-2 px-2.5 transition"
           title="Сдаться"
         >
-          <Icon name={surrenderConfirm ? "skull" : "flag"} size={16} />
+          <Icon name="flag" size={16} />
         </button>
       </div>
 
@@ -262,6 +266,23 @@ export default function BattleScreen() {
           ))}
         </AnimatePresence>
       </div>
+
+      <ConfirmDialog
+        open={showSurrender}
+        title="Покинуть бой?"
+        icon="flag"
+        danger
+        message={
+          <>
+            Если вы сдадитесь или выйдете, бой засчитывается сопернику.
+            Ваша ставка <span className="text-danger font-display">{state.wagerAmount} ₽</span> сгорит без возврата.
+          </>
+        }
+        confirmLabel="Сдаться"
+        cancelLabel="Вернуться в бой"
+        onConfirm={doSurrender}
+        onCancel={() => setShowSurrender(false)}
+      />
     </div>
   );
 }

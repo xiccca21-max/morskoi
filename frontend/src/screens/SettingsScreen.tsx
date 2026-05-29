@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { setAuthToken } from '../api/http';
 import { useAuthStore } from '../stores/auth-store';
-import { useThemeStore, THEMES, Theme } from '../stores/theme-store';
+import { useThemeStore, THEMES } from '../stores/theme-store';
+import { useSettingsStore } from '../stores/settings-store';
 import { Icon } from '../components/Icon';
+import { ConfirmDialog } from '../components/Modal';
 
 export default function SettingsScreen() {
   const setUser = useAuthStore((s) => s.setUser);
   const { theme, setTheme } = useThemeStore();
-  const [haptics, setHaptics] = useState(true);
-  const [sound, setSound] = useState(true);
+  const { sound, haptics, setSound, setHaptics } = useSettingsStore();
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const logout = () => {
     setAuthToken(null);
@@ -49,7 +51,18 @@ export default function SettingsScreen() {
         </p>
       </section>
 
-      <button className="btn-danger w-full" onClick={logout}><Icon name="logout" size={16} /> Выйти</button>
+      <button className="btn-danger w-full" onClick={() => setConfirmLogout(true)}><Icon name="logout" size={16} /> Выйти</button>
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Выйти из аккаунта?"
+        icon="logout"
+        danger
+        message="Вы выйдете из профиля. В следующий раз войдите снова через Telegram."
+        confirmLabel="Выйти"
+        onConfirm={logout}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </div>
   );
 }

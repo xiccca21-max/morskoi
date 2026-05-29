@@ -18,6 +18,51 @@ export function getInitData(): string {
   return '';
 }
 
+/** start_param из Telegram (?startapp=...) — например `lobby_AB12CD`. */
+export function getStartParam(): string | undefined {
+  const tg = getTelegramWebApp();
+  const p = tg?.initDataUnsafe?.start_param;
+  if (p) return p as string;
+  // Фолбэк для обычного браузера: ?startapp=... или ?tgWebAppStartParam=...
+  try {
+    const q = new URLSearchParams(window.location.search);
+    return q.get('startapp') ?? q.get('tgWebAppStartParam') ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+let hapticsAllowed = () => true;
+/** Позволяет gate-ить вибрацию по настройкам пользователя. */
+export function setHapticsGate(fn: () => boolean) {
+  hapticsAllowed = fn;
+}
+
+/** Управление нативной кнопкой «Назад» в Telegram. */
+export function tgBackButton(show: boolean, onClick?: () => void) {
+  const tg = getTelegramWebApp();
+  const bb = tg?.BackButton;
+  if (!bb) return () => {};
+  try {
+    if (show) {
+      if (onClick) bb.onClick(onClick);
+      bb.show();
+    } else {
+      bb.hide();
+    }
+  } catch {
+    /* ignore */
+  }
+  return () => {
+    try {
+      if (onClick) bb.offClick(onClick);
+      bb.hide();
+    } catch {
+      /* ignore */
+    }
+  };
+}
+
 export function tgReady() {
   const tg = getTelegramWebApp();
   if (!tg) return;
@@ -33,6 +78,7 @@ export function tgReady() {
 
 /** Вибрация телефона паттерном (мс): [вибро, пауза, вибро, ...]. Фолбэк для обычных браузеров. */
 export function tgVibrate(pattern: number | number[]) {
+  if (!hapticsAllowed()) return;
   try {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       navigator.vibrate(pattern);
@@ -43,6 +89,7 @@ export function tgVibrate(pattern: number | number[]) {
 }
 
 export function tgHaptic(kind: 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'warning' = 'light') {
+  if (!hapticsAllowed()) return;
   const tg = getTelegramWebApp();
   try {
     if (kind === 'success' || kind === 'error' || kind === 'warning') {

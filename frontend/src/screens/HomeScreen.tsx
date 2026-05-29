@@ -5,6 +5,7 @@ import { useMatchStore } from '../stores/match-store';
 import { tgHaptic } from '../lib/telegram';
 import { getRank, rankProgress } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
+import { Onboarding } from '../components/Onboarding';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export default function HomeScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
+      <Onboarding />
       {/* Каюта капитана */}
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
         <div className="flex items-center justify-between">
