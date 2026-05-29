@@ -114,12 +114,21 @@ export default function WalletScreen() {
         <ul className="divide-y divide-line">
           {txs.map((t) => {
             const plus = ['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type);
+            const isGame = ['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE'].includes(t.type);
+            const refId = isGame
+              ? (t.matchId ? `#${t.matchId.slice(-8).toUpperCase()}` : null)
+              : `#${payRef(t.id)}`;
             return (
-              <li key={t.id} className="flex items-center justify-between text-sm py-2.5">
-                <span className="text-main">{txLabel(t.type)}</span>
-                <span className={['tabular-nums font-display', plus ? 'text-main' : 'text-danger'].join(' ')}>
-                  {plus ? '+' : '−'}{Number(t.amount).toFixed(2)} ₽
-                </span>
+              <li key={t.id} className="py-2.5 space-y-0.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-main">{txLabel(t.type)}</span>
+                  <span className={['tabular-nums font-display', plus ? 'text-main' : 'text-danger'].join(' ')}>
+                    {plus ? '+' : '−'}{Number(t.amount).toFixed(2)} ₽
+                  </span>
+                </div>
+                {refId && (
+                  <p className="text-[10px] text-muted font-mono tracking-wide">{refId}</p>
+                )}
               </li>
             );
           })}
@@ -127,6 +136,15 @@ export default function WalletScreen() {
       </section>
     </div>
   );
+}
+
+/** Детерминированный «номер» платёжной операции из id транзакции. */
+function payRef(id: string): string {
+  // Берём буквы/цифры из id, мешаем, форматируем как PAY-XXXX-XXXX
+  const clean = id.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  const a = clean.slice(0, 4).padEnd(4, '0');
+  const b = clean.slice(4, 8).padEnd(4, '0');
+  return `PAY-${a}-${b}`;
 }
 
 function txLabel(t: string) {

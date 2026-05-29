@@ -125,6 +125,12 @@ export default function ResultScreen() {
           <Stat label="Комиссия" value={`${rake.toFixed(0)} ₽`} />
           <Stat label="Добыча" value={won ? `${payout.toFixed(0)} ₽` : '—'} />
         </div>
+
+        {matchId && (
+          <p className="text-[10px] text-muted font-mono tracking-wide mt-3">
+            Игра #{matchId.slice(-8).toUpperCase()}
+          </p>
+        )}
       </motion.section>
 
       <div className="space-y-2">

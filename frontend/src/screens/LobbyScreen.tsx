@@ -106,6 +106,11 @@ export default function LobbyScreen() {
       <div className="card p-6 text-center">
         <p className="eyebrow">Код приглашения</p>
         <p className="font-display text-5xl tracking-[0.3em] text-main mt-2">{lobby.code}</p>
+        {lobby.matchId && (
+          <p className="text-[10px] text-muted font-mono tracking-wide mt-1">
+            Игра #{lobby.matchId.slice(-8).toUpperCase()}
+          </p>
+        )}
         <div className="rope my-4" />
         <div className="grid grid-cols-2 gap-px bg-line rounded-lg overflow-hidden">
           <div className="bg-panel p-3">

@@ -177,6 +177,7 @@ export default function BattleScreen() {
         <div>
           <p className="eyebrow">Банк</p>
           <p className="font-display text-main text-lg leading-none tabular-nums">{state.prizePool.toFixed(0)} ₽</p>
+          {matchId && <p className="text-[9px] text-muted font-mono mt-0.5">#{matchId.slice(-8).toUpperCase()}</p>}
         </div>
         <div className="text-center flex-1 px-3">
           <p className={['eyebrow flex items-center justify-center gap-1.5', myTurn ? 'text-main' : 'text-muted'].join(' ')}>
