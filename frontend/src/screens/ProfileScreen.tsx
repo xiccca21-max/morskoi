@@ -1,13 +1,27 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { tgShare, tgPhotoUrl, tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { getRank, rankProgress, nextRank, winsToNext } from '../lib/rank';
+import type { Rank } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
+import { Modal } from '../components/Modal';
+
+const ALL_RANKS: Rank[] = [
+  { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
+  { title: 'Матрос',  icon: 'ship',    min: 3,  next: 8  },
+  { title: 'Боцман',  icon: 'compass', min: 8,  next: 15 },
+  { title: 'Штурман', icon: 'wheel',   min: 15, next: 30 },
+  { title: 'Капитан', icon: 'medal',   min: 30, next: 60 },
+  { title: 'Адмирал', icon: 'crown',   min: 60             },
+];
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const [showRanks, setShowRanks] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   if (!user) return null;
 
   const total = user.wins + user.losses;
@@ -16,7 +30,7 @@ export default function ProfileScreen() {
   const progress = rankProgress(user.wins);
   const next = nextRank(user.wins);
   const toNext = winsToNext(user.wins);
-  const avatarUrl = user.avatar ?? tgPhotoUrl();
+  const avatarUrl = !avatarFailed ? (user.avatar ?? tgPhotoUrl()) : undefined;
 
   const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -39,7 +53,12 @@ export default function ProfileScreen() {
       <section className="card p-6">
         <div className="flex items-center gap-4">
           {avatarUrl ? (
-            <img src={avatarUrl} className="w-14 h-14 rounded-full border border-line object-cover" alt="" />
+            <img
+              src={avatarUrl}
+              className="w-14 h-14 rounded-full border border-line object-cover"
+              alt=""
+              onError={() => setAvatarFailed(true)}
+            />
           ) : (
             <div className="w-14 h-14 rounded-full bg-panel border border-line flex items-center justify-center font-display text-xl text-main">
               {user.firstName?.[0] ?? user.username?.[0] ?? '?'}
@@ -60,7 +79,15 @@ export default function ProfileScreen() {
           <span className="flex items-center gap-1.5 text-muted">
             {next ? <><Icon name={next.icon} size={13} /> до звания «{next.title}»</> : 'Высшее звание'}
           </span>
-          <span className="text-muted tabular-nums">{next ? `${user.wins}/${rank.next}` : '∞'}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-muted tabular-nums">{next ? `${user.wins}/${rank.next}` : '∞'}</span>
+            <button
+              onClick={() => setShowRanks(true)}
+              className="text-[10px] text-danger font-display uppercase tracking-wide hover:underline"
+            >
+              Подробнее
+            </button>
+          </div>
         </div>
         <div className="h-1 rounded-full bg-panel overflow-hidden">
           <div className="h-full bg-main transition-all" style={{ width: `${progress}%` }} />
@@ -68,7 +95,41 @@ export default function ProfileScreen() {
         {next && (
           <p className="text-muted text-xs mt-2">Ещё {toNext} {plural(toNext)} до следующего звания</p>
         )}
+
       </section>
+
+      {/* Модаль: система званий */}
+      <Modal open={showRanks} onClose={() => setShowRanks(false)} title="Система званий" icon="medal">
+        <p className="text-muted text-xs mb-4 leading-relaxed">
+          Звание растёт с каждой победой. Чем выше звание — тем статуснее профиль в таблице лидеров.
+        </p>
+        <ul className="space-y-2">
+          {ALL_RANKS.map((r) => {
+            const isCurrent = r.title === rank.title;
+            return (
+              <li
+                key={r.title}
+                className={['flex items-center gap-3 rounded-lg px-3 py-2 transition', isCurrent ? 'bg-danger/10 border border-danger' : 'bg-panel'].join(' ')}
+              >
+                <Icon name={r.icon} size={18} className={isCurrent ? 'text-danger' : 'text-muted'} />
+                <div className="flex-1">
+                  <span className={['font-display text-sm', isCurrent ? 'text-danger' : 'text-main'].join(' ')}>
+                    {r.title}
+                    {isCurrent && <span className="ml-2 text-[10px] bg-danger text-white rounded px-1.5 py-0.5 uppercase tracking-wide">Сейчас</span>}
+                  </span>
+                </div>
+                <span className="text-muted text-xs tabular-nums">
+                  {r.min === 0 ? 'с 0 побед' : `с ${r.min}`}
+                  {r.next ? ` → ${r.next}` : ' · Максимум'}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-muted text-[11px] mt-4 leading-relaxed">
+          Победы считаются только в платных матчах. Отменённые и ничейные бои не влияют на рейтинг.
+        </p>
+      </Modal>
 
       <section className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
         <Stat label="Победы" value={user.wins} />

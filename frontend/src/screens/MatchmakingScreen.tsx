@@ -249,13 +249,21 @@ export default function MatchmakingScreen() {
         <div className="space-y-3">
           {/* Создать / статус своего боя */}
           {myOpen ? (
-            <div className="card p-4 border-danger flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-danger animate-pulse shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-main text-sm font-display">Ваш бой в списке · {myOpen.wager} ₽</p>
-                <p className="text-muted text-xs">Ждём соперника…</p>
+            <div className="card p-4 border-danger space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="w-2 h-2 rounded-full bg-danger animate-pulse shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-main text-sm font-display">Ваш бой в списке · {myOpen.wager} ₽</p>
+                  <p className="text-muted text-xs">Ждём соперника…</p>
+                </div>
+                <button className="btn-ghost px-3 py-2" onClick={cancelPublic}>Снять</button>
               </div>
-              <button className="btn-ghost px-3 py-2" onClick={cancelPublic}>Снять</button>
+              <div className="flex items-start gap-2 bg-panel rounded-lg px-3 py-2">
+                <Icon name="info" size={13} className="text-muted shrink-0 mt-0.5" />
+                <p className="text-muted text-[11px] leading-relaxed">
+                  Как только соперник примет бой — ты автоматически перейдёшь к расстановке кораблей, даже если свернул приложение.
+                </p>
+              </div>
             </div>
           ) : (
             <button className="btn-primary w-full" onClick={openCreateModal}>

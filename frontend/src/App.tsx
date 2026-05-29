@@ -157,6 +157,15 @@ export default function App() {
             }
           }
         });
+        sock.on('match:turnTimeout', (e: any) => {
+          const myId = useAuthStore.getState().user?.id;
+          const missed: number = e?.missed ?? 1;
+          if (e?.timedOut === myId) {
+            toast(`Твой ход пропущен (${missed}/3)`, 'error', 'clock');
+          } else {
+            toast(`Соперник пропустил ход (${missed}/3)`, 'info', 'clock');
+          }
+        });
         sock.on('wallet:update', (b: number) => updateBalance(b));
       }
     });
