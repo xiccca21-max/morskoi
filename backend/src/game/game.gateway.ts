@@ -298,6 +298,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const s = this.requireAuth(client);
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
+      if (body.x < 0 || body.x > 9 || body.y < 0 || body.y > 9) {
+        return { ok: false, error: 'Invalid coordinates' };
+      }
       const r = await this.game.attack(body.matchId, s.data.userId, body.x, body.y);
       // Игрок активен — сбрасываем его счётчик пропусков
       const afk = this.afkCounters.get(body.matchId);
@@ -331,6 +334,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           prizePool: match ? Number(match.prizePool) : 0,
           rakeAmount: match ? Number(match.rakeAmount) : 0,
         });
+        // Обновить баланс обоих игроков через сокет
+        if (match) {
+          const pool = Number(match.prizePool);
+          const rake = Number(match.rakeAmount);
+          for (const uid of [match.player1Id, match.player2Id].filter(Boolean) as string[]) {
+            const u = await this.prisma.user.findUnique({ where: { id: uid }, select: { balance: true } });
+            if (u) this.server.to(`user:${uid}`).emit('wallet:update', Number(u.balance));
+          }
+          // Пуш уведомление для обоих
+          if (r.winnerId && match.player1Id && match.player2Id) {
+            this.botService.notifyMatchFound(match.player1Id, match.player2Id, Number(match.wagerAmount)).catch(() => {});
+          }
+          void pool; void rake;
+        }
       }
       return { ok: true, result: r.result };
     } catch (e: any) {

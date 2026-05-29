@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { TxType, TxStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 
 /**
  * WalletService — атомарные операции с балансом.
@@ -15,6 +16,7 @@ export class WalletService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly botService: TelegramBotService,
   ) {}
 
   async getBalance(userId: string): Promise<number> {
@@ -187,6 +189,11 @@ export class WalletService {
           await tx.match.update({
             where: { id: matchId },
             data: { rakeAmount: rake, prizePool: pool, winnerId, endedAt: new Date(), status: 'FINISHED' },
+          });
+
+          // Пуш победителю после транзакции
+          setImmediate(() => {
+            this.botService.notifyPayout(winnerId, winnerPayout).catch(() => {});
           });
 
           return { winnerPayout, rake };

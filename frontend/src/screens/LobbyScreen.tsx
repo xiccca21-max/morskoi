@@ -140,7 +140,10 @@ export default function LobbyScreen() {
               <Icon name={copied ? 'check' : 'scroll'} size={16} /> {copied ? 'Скопировано' : 'Копировать'}
             </button>
           </div>
-          <button className="btn-ghost w-full" onClick={() => navigate('/matchmaking')}>Отменить</button>
+          <button className="btn-ghost w-full" onClick={async () => {
+            try { await MatchmakingAPI.cancelOpen(); } catch {}
+            navigate('/matchmaking');
+          }}>Отменить</button>
         </>
       ) : (
         <>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, getInitData, getStartParam, setHapticsGate } from './lib/telegram';
-import { readSettings } from './stores/settings-store';
+import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI } from './api/endpoints';
 import { loadToken, setAuthToken } from './api/http';
@@ -44,6 +44,13 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
+
+  // Подписка на изменения haptics в настройках → обновляем gate без перезагрузки
+  useEffect(() => {
+    return useSettingsStore.subscribe((s) => {
+      setHapticsGate(() => s.haptics);
+    });
+  }, []);
 
   // Разблокировать AudioContext при первом касании (браузер требует user gesture)
   useEffect(() => {
@@ -115,78 +122,68 @@ export default function App() {
     };
   }, [setReady, setUser]);
 
-  // Подключение к сокету после логина + глобальные обработчики
+  // Подключение к сокету после логина + глобальные обработчики (регистрируем один раз)
+  const authenticated = useAuthStore((s) => s.authenticated);
   useEffect(() => {
-    const unsub = useAuthStore.subscribe((s) => {
-      if (s.authenticated) {
-        const sock = getSocket();
-        let wasConnected = false;
-        // Дедупликация тостов: не показываем новый, пока предыдущий ещё виден
-        let connState: 'connected' | 'disconnected' | null = null;
-        let toastTimer: ReturnType<typeof setTimeout> | null = null;
-        const showOnce = (msg: string, kind: 'success' | 'error', icon?: string, newState?: typeof connState) => {
-          if (newState && newState === connState) return; // состояние не изменилось
-          if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
-          if (newState) connState = newState;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          toast(msg, kind, icon as any);
-          // блокируем повторный тост на время показа (2.6s)
-          toastTimer = setTimeout(() => { toastTimer = null; }, 2700);
-        };
+    if (!authenticated) return;
+    const sock = getSocket();
+    let wasConnected = false;
+    let connState: 'connected' | 'disconnected' | null = null;
+    let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-        sock.on('connect_error', (e) => console.warn('socket connect_error', e.message));
-        sock.on('connect', () => {
-          if (wasConnected) showOnce('Соединение восстановлено', 'success', 'wave', 'connected');
-          wasConnected = true;
-          connState = 'connected';
-        });
-        sock.on('disconnect', (reason: string) => {
-          if (reason !== 'io client disconnect') showOnce('Соединение потеряно. Переподключаемся…', 'error', undefined, 'disconnected');
-        });
-        sock.on('auth:error', () => {
-          setAuthToken(null);
-          window.location.reload();
-        });
+    const showOnce = (msg: string, kind: 'success' | 'error', icon?: string, newState?: typeof connState) => {
+      if (newState && newState === connState) return;
+      if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+      if (newState) connState = newState;
+      toast(msg, kind, icon as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      toastTimer = setTimeout(() => { toastTimer = null; }, 2700);
+    };
 
-        sock.on('match:state', (state) => {
-          setMatchState(state);
-        });
-        sock.on('match:attack', (a) => {
-          setLastAttack({ ...a, ts: Date.now() });
-        });
-        sock.on('match:found', () => {
-          // экран матчмейкинга сам подхватит из state
-        });
-        sock.on('match:finished', (e: any) => {
-          // ResultScreen покажется автоматически по статусу
-          if (e?.reason === 'afk') {
-            const myId = useAuthStore.getState().user?.id;
-            if (e.forfeitedBy && e.forfeitedBy === myId) {
-              toast('Поражение: слишком много пропущенных ходов', 'error', 'skull');
-            } else {
-              toast('Соперник покинул бой — победа за вами!', 'success', 'trophy');
-            }
-          }
-        });
-        sock.on('match:turnTimeout', (e: any) => {
-          const myId = useAuthStore.getState().user?.id;
-          const missed: number = e?.missed ?? 1;
-          if (e?.timedOut === myId) {
-            toast(`Твой ход пропущен (${missed}/3)`, 'error', 'clock');
-          } else {
-            toast(`Соперник пропустил ход (${missed}/3)`, 'info', 'clock');
-          }
-        });
-        sock.on('wallet:update', (b: number) => updateBalance(b));
+    const onConnectError = (e: Error) => console.warn('socket connect_error', e.message);
+    const onConnect = () => {
+      if (wasConnected) showOnce('Соединение восстановлено', 'success', 'wave', 'connected');
+      wasConnected = true;
+      connState = 'connected';
+    };
+    const onDisconnect = (reason: string) => {
+      if (reason !== 'io client disconnect') showOnce('Соединение потеряно. Переподключаемся…', 'error', undefined, 'disconnected');
+    };
+    const onAuthError = () => { setAuthToken(null); window.location.reload(); };
+    const onState = (state: any) => setMatchState(state); // eslint-disable-line @typescript-eslint/no-explicit-any
+    const onAttack = (a: any) => setLastAttack({ ...a, ts: Date.now() }); // eslint-disable-line @typescript-eslint/no-explicit-any
+    const onFinished = (e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (e?.reason === 'afk') {
+        const myId = useAuthStore.getState().user?.id;
+        if (e.forfeitedBy === myId) toast('Поражение: слишком много пропущенных ходов', 'error', 'skull');
+        else toast('Соперник покинул бой — победа за вами!', 'success', 'trophy');
       }
-    });
+    };
+    // match:turnTimeout обрабатывается только в BattleScreen чтобы избежать дублирования
+    const onWalletUpdate = (b: number) => updateBalance(b);
+
+    sock.on('connect_error', onConnectError);
+    sock.on('connect', onConnect);
+    sock.on('disconnect', onDisconnect);
+    sock.on('auth:error', onAuthError);
+    sock.on('match:state', onState);
+    sock.on('match:attack', onAttack);
+    sock.on('match:finished', onFinished);
+    sock.on('wallet:update', onWalletUpdate);
+
     return () => {
-      unsub();
+      sock.off('connect_error', onConnectError);
+      sock.off('connect', onConnect);
+      sock.off('disconnect', onDisconnect);
+      sock.off('auth:error', onAuthError);
+      sock.off('match:state', onState);
+      sock.off('match:attack', onAttack);
+      sock.off('match:finished', onFinished);
+      sock.off('wallet:update', onWalletUpdate);
+      if (toastTimer) clearTimeout(toastTimer);
       closeSocket();
     };
-  }, [setMatchState, setLastAttack, updateBalance]);
+  }, [authenticated, setMatchState, setLastAttack, updateBalance]);
 
-  const authenticated = useAuthStore((s) => s.authenticated);
   const ready = useAuthStore((s) => s.ready);
 
   // Диплинк-приглашение: ?startapp=lobby_CODE → открыть лобби

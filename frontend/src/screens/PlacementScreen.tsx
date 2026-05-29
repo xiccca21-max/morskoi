@@ -12,6 +12,7 @@ import {
 } from '../lib/game-types';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVerticalSwipes, tgMainButton, isTelegram } from '../lib/telegram';
+import { toast as showToast } from '../stores/toast-store';
 import { useMatchStore } from '../stores/match-store';
 import { Icon } from '../components/Icon';
 import { playSound } from '../lib/audio';
@@ -135,7 +136,11 @@ export default function PlacementScreen() {
     setSubmitting(true);
     getSocket().emit('game:placement', { matchId, ships: placedShips, nonce: newNonce() }, (ack: any) => {
       setSubmitting(false);
-      if (!ack?.ok) { tgHaptic('error'); return; }
+      if (!ack?.ok) {
+        tgHaptic('error');
+        showToast(ack?.error ?? 'Ошибка расстановки', 'error');
+        return;
+      }
       tgHaptic('success'); setSent(true);
     });
   };

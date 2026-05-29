@@ -19,7 +19,7 @@ export class LobbyService {
 
   async create(hostId: string, wagerAmount: number, isPublic = false) {
     const min = Number(process.env.MIN_WAGER ?? 1);
-    const max = Number(process.env.MAX_WAGER ?? 1000);
+    const max = Number(process.env.MAX_WAGER ?? 10000);
     if (wagerAmount < min || wagerAmount > max) {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);
     }

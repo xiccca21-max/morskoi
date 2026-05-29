@@ -13,6 +13,7 @@ interface MatchStoreState {
     ts: number;
   } | null;
   setLastAttack: (a: MatchStoreState['lastAttack']) => void;
+  clear: () => void;
 }
 
 export const useMatchStore = create<MatchStoreState>((set) => ({
@@ -20,4 +21,5 @@ export const useMatchStore = create<MatchStoreState>((set) => ({
   setState: (s) => set({ state: s }),
   lastAttack: null,
   setLastAttack: (a) => set({ lastAttack: a }),
+  clear: () => set({ state: null, lastAttack: null }),
 }));

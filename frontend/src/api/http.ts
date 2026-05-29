@@ -39,3 +39,16 @@ export function loadToken(): string | null {
 export function getToken() {
   return _token;
 }
+
+// Автоматический выход при истёкшем токене
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err?.response?.status === 401 || err?.response?.status === 403) {
+      setAuthToken(null);
+      // Мягкая перезагрузка — даём App.tsx поймать отсутствие токена
+      window.location.reload();
+    }
+    return Promise.reject(err);
+  },
+);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { VictoryBurst } from '../components/Effects';
@@ -17,6 +17,7 @@ export default function ResultScreen() {
   const navigate = useNavigate();
   const matchState = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
+  const clearMatch = useMatchStore((s) => s.clear);
   const me = useAuthStore((s) => s.user);
   const updateBalance = useAuthStore((s) => s.updateBalance);
   const applyMatchResult = useAuthStore((s) => s.applyMatchResult);
@@ -35,14 +36,16 @@ export default function ResultScreen() {
     return () => { sock.off('match:rematchStarted', onRematch); };
   }, [navigate]);
 
+  const resultApplied = useRef(false);
   useEffect(() => {
-    if (matchState?.winnerId && me?.id) {
+    if (matchState?.winnerId && me?.id && matchState.matchId === matchId && !resultApplied.current) {
+      resultApplied.current = true;
       const isWin = matchState.winnerId === me.id;
       applyMatchResult(isWin);
       tgHaptic(isWin ? 'success' : 'error');
       playSound(isWin ? 'win' : 'lose');
     }
-  }, [matchState?.winnerId, me?.id]); // eslint-disable-line
+  }, [matchState?.winnerId, me?.id, matchState?.matchId, matchId]); // eslint-disable-line
 
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;
@@ -152,11 +155,11 @@ export default function ResultScreen() {
             {waitingRematch ? 'Ждём соперника…' : 'Реванш'}
           </button>
         )}
-        <button className="btn-secondary w-full" onClick={() => navigate('/matchmaking')}>Новый бой</button>
+        <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking'); }}>Новый бой</button>
         {won && (
           <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Похвастаться</button>
         )}
-        <button className="btn-ghost w-full" onClick={() => navigate('/home')}>На палубу</button>
+        <button className="btn-ghost w-full" onClick={() => { clearMatch(); navigate('/home'); }}>На палубу</button>
       </div>
     </div>
   );
