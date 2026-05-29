@@ -5,6 +5,7 @@ import { MatchmakingAPI } from '../api/endpoints';
 import { tgShare, tgHaptic } from '../lib/telegram';
 import { getSocket, newNonce } from '../api/socket';
 import { useAuthStore } from '../stores/auth-store';
+import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
@@ -57,6 +58,7 @@ export default function LobbyScreen() {
       await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       tgHaptic('success');
+      toast('Ссылка-приглашение скопирована', 'success', 'share');
       setTimeout(() => setCopied(false), 1800);
     } catch {
       /* ignore */

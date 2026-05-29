@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { Icon, IconName } from './Icon';
 import { AnimatedNumber } from './AnimatedNumber';
+import { Toaster } from './Toaster';
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -32,6 +33,7 @@ export function Layout() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
+      <Toaster />
       <header className="px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line">
         <NavLink to="/home" className="flex items-center gap-2 text-main">
           <Icon name="anchor" size={18} />

@@ -63,6 +63,28 @@ export function tgBackButton(show: boolean, onClick?: () => void) {
   };
 }
 
+/** Подтверждение закрытия мини-аппа (чтобы не выйти случайно во время боя). */
+export function tgClosingConfirmation(enable: boolean) {
+  const tg = getTelegramWebApp();
+  try {
+    if (enable) tg?.enableClosingConfirmation?.();
+    else tg?.disableClosingConfirmation?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Блокировка вертикального свайпа (свайп вниз закрывает аппку — мешает в бою). */
+export function tgVerticalSwipes(enable: boolean) {
+  const tg = getTelegramWebApp();
+  try {
+    if (enable) tg?.enableVerticalSwipes?.();
+    else tg?.disableVerticalSwipes?.();
+  } catch {
+    /* ignore */
+  }
+}
+
 export function tgReady() {
   const tg = getTelegramWebApp();
   if (!tg) return;

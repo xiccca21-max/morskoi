@@ -5,6 +5,7 @@ import { tgHaptic } from '../lib/telegram';
 import { Icon } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { ConfirmDialog } from '../components/Modal';
+import { toast } from '../stores/toast-store';
 
 const MIN_AMOUNT = 1;
 const MAX_AMOUNT = 100000;
@@ -29,6 +30,7 @@ export default function WalletScreen() {
     try {
       const r = await WalletAPI.deposit(amount);
       updateBalance(r.balance); tgHaptic('success');
+      toast(`Баланс пополнен на ${amount} ₽`, 'success', 'plus');
       WalletAPI.txs().then(setTxs);
     } catch (e: any) {
       tgHaptic('error'); setError(e?.response?.data?.message ?? e?.message ?? 'Не удалось пополнить');
@@ -47,6 +49,7 @@ export default function WalletScreen() {
     try {
       const r = await WalletAPI.withdraw(amount);
       updateBalance(r.balance); tgHaptic('success');
+      toast(`Выведено ${amount} ₽`, 'success', 'minus');
       WalletAPI.txs().then(setTxs);
       setConfirmWithdraw(false);
     } catch (e: any) {

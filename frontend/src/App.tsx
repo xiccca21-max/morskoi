@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, getInitData, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings } from './stores/settings-store';
+import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI } from './api/endpoints';
 import { loadToken, setAuthToken } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
@@ -106,7 +107,15 @@ export default function App() {
     const unsub = useAuthStore.subscribe((s) => {
       if (s.authenticated) {
         const sock = getSocket();
+        let wasConnected = false;
         sock.on('connect_error', (e) => console.warn('socket connect_error', e.message));
+        sock.on('connect', () => {
+          if (wasConnected) toast('Соединение восстановлено', 'success', 'wave');
+          wasConnected = true;
+        });
+        sock.on('disconnect', (reason: string) => {
+          if (reason !== 'io client disconnect') toast('Соединение потеряно. Переподключаемся…', 'error');
+        });
         sock.on('auth:error', () => {
           setAuthToken(null);
           window.location.reload();

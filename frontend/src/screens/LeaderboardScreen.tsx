@@ -16,7 +16,13 @@ export default function LeaderboardScreen() {
         <Tab active={tab === 'earnings'} onClick={() => setTab('earnings')}>Выигрыш</Tab>
       </div>
       <ul className="space-y-1.5">
-        {items.length === 0 && <li className="card p-6 text-center text-muted">Пока пусто — стань первым</li>}
+        {items.length === 0 && (
+          <li className="card p-8 flex flex-col items-center gap-3 text-center">
+            <Icon name="trophy" size={32} className="text-muted" />
+            <p className="text-main text-sm">Рейтинг пуст</p>
+            <p className="text-muted text-xs">Выигрывайте бои и станьте первым капитаном</p>
+          </li>
+        )}
         {items.map((u) => {
           const top = u.rank <= 3;
           return (

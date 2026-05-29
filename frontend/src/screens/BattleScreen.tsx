@@ -7,7 +7,7 @@ import { Explosion, Splash } from '../components/Effects';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic, tgNotify, tgVibrate, tgBackButton } from '../lib/telegram';
+import { tgHaptic, tgNotify, tgVibrate, tgBackButton, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
 import { SHIP_FLEET, ShipKind } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
@@ -40,10 +40,17 @@ export default function BattleScreen() {
 
   useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
 
-  // Нативная кнопка «Назад» в Telegram = попытка покинуть бой (с предупреждением)
+  // Нативная кнопка «Назад» = попытка покинуть бой (с предупреждением);
+  // блокируем случайный выход свайпом/закрытием во время боя.
   useEffect(() => {
     const cleanup = tgBackButton(true, () => setShowSurrender(true));
-    return cleanup;
+    tgClosingConfirmation(true);
+    tgVerticalSwipes(false);
+    return () => {
+      cleanup();
+      tgClosingConfirmation(false);
+      tgVerticalSwipes(true);
+    };
   }, []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
 

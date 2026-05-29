@@ -10,7 +10,13 @@ export default function HistoryScreen() {
   return (
     <div className="max-w-md mx-auto space-y-3">
       <h2 className="title text-main text-lg">Журнал боёв</h2>
-      {items.length === 0 && <div className="card p-6 text-center text-muted">Ещё ни одного боя</div>}
+      {items.length === 0 && (
+        <div className="card p-8 flex flex-col items-center gap-3 text-center">
+          <Icon name="scroll" size={32} className="text-muted" />
+          <p className="text-main text-sm">Журнал пуст</p>
+          <p className="text-muted text-xs">Сыграйте первый бой — он появится здесь</p>
+        </div>
+      )}
       <ul className="space-y-2">
         {items.map((m) => {
           const win = m.result === 'win';

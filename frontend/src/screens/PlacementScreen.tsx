@@ -11,7 +11,7 @@ import {
   validatePlacement,
 } from '../lib/game-types';
 import { getSocket, newNonce } from '../api/socket';
-import { tgHaptic } from '../lib/telegram';
+import { tgHaptic, tgVerticalSwipes } from '../lib/telegram';
 import { useMatchStore } from '../stores/match-store';
 import { Icon } from '../components/Icon';
 
@@ -60,6 +60,12 @@ export default function PlacementScreen() {
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
+  }, []);
+
+  // Не закрывать аппку случайным свайпом во время расстановки
+  useEffect(() => {
+    tgVerticalSwipes(false);
+    return () => tgVerticalSwipes(true);
   }, []);
 
   useEffect(() => {
