@@ -8,7 +8,7 @@ function getCtx() {
   return ctx;
 }
 
-export function playSound(type: 'click' | 'boom' | 'splash' | 'win' | 'lose') {
+export function playSound(type: 'click' | 'boom' | 'splash' | 'win' | 'lose' | 'place' | 'turn') {
   // Проверяем настройку (сохранена в localStorage)
   const settings = JSON.parse(localStorage.getItem('settings-storage') || '{}');
   if (settings?.state?.sound === false) return;
@@ -94,6 +94,38 @@ export function playSound(type: 'click' | 'boom' | 'splash' | 'win' | 'lose') {
       gain.connect(c.destination);
       osc.start(t + i * 0.1);
       osc.stop(t + i * 0.1 + 0.3);
+    });
+  }
+
+  else if (type === 'place') {
+    // Глухой «стук» постановки корабля
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(90, t + 0.08);
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.start(t);
+    osc.stop(t + 0.1);
+  }
+
+  else if (type === 'turn') {
+    // Лёгкий двойной «пинг» — твой ход
+    [660, 880].forEach((freq, i) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + i * 0.1);
+      gain.gain.setValueAtTime(0.0001, t + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.08, t + i * 0.1 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.1 + 0.18);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(t + i * 0.1);
+      osc.stop(t + i * 0.1 + 0.18);
     });
   }
 

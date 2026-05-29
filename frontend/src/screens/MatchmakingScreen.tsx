@@ -10,6 +10,14 @@ import { Icon, IconName } from '../components/Icon';
 
 const PRESETS = [5, 10, 25, 50, 100];
 
+const SEARCH_TIPS = [
+  'Совет: ставьте корабли вплотную к краям — их сложнее найти.',
+  'Совет: не размещайте флот линией по диагонали — это предсказуемо.',
+  'Совет: после попадания соперник бьёт по соседним клеткам — путайте его.',
+  'Совет: пропуск 3 ходов подряд = поражение и потеря ставки.',
+  'Совет: победы повышают ваш ранг и место в таблице лидеров.',
+];
+
 export default function MatchmakingScreen() {
   const user = useAuthStore((s) => s.user);
   const lastWager = useSettingsStore((s) => s.lastWager);
@@ -102,6 +110,14 @@ export default function MatchmakingScreen() {
             <p className="title text-main">Поиск соперника</p>
             <p className="text-muted text-sm mt-1 tabular-nums">{elapsed} c · ставка {wager} ₽</p>
           </div>
+          <motion.p
+            key={Math.floor(elapsed / 4) % SEARCH_TIPS.length}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-muted text-xs text-center px-2 min-h-[2rem]"
+          >
+            {SEARCH_TIPS[Math.floor(elapsed / 4) % SEARCH_TIPS.length]}
+          </motion.p>
           <button className="btn-secondary w-full" onClick={cancelSearch}>Отменить</button>
         </motion.div>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../components/Board';
@@ -37,8 +37,20 @@ export default function BattleScreen() {
   const [reactions, setReactions] = useState<Array<{ id: number; icon: IconName; isMine: boolean }>>([]);
 
   const [showSurrender, setShowSurrender] = useState(false);
+  const [connected, setConnected] = useState(true);
 
   useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
+
+  // Отслеживаем соединение, чтобы показать оверлей переподключения
+  useEffect(() => {
+    const sock = getSocket();
+    setConnected(sock.connected);
+    const on = () => { setConnected(true); if (matchId) sock.emit('match:requestState', { matchId }); };
+    const off = () => setConnected(false);
+    sock.on('connect', on);
+    sock.on('disconnect', off);
+    return () => { sock.off('connect', on); sock.off('disconnect', off); };
+  }, [matchId]);
 
   // Нативная кнопка «Назад» = попытка покинуть бой (с предупреждением);
   // блокируем случайный выход свайпом/закрытием во время боя.
@@ -92,6 +104,16 @@ export default function BattleScreen() {
   const myTurn = state?.currentTurn === me?.id;
   const deadline = state?.turnDeadline ? new Date(state.turnDeadline).getTime() : 0;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
+
+  // Сигнал, когда наступает твой ход
+  const prevTurnRef = useRef(myTurn);
+  useEffect(() => {
+    if (myTurn && !prevTurnRef.current && state?.gameStatus === 'IN_PROGRESS') {
+      playSound('turn');
+      tgHaptic('light');
+    }
+    prevTurnRef.current = myTurn;
+  }, [myTurn, state?.gameStatus]);
   const fuse = Math.max(0, Math.min(100, (remaining / 20) * 100));
 
   const enemyAttacks = state?.enemy.view.attacks ?? [];
@@ -157,7 +179,14 @@ export default function BattleScreen() {
           <p className="font-display text-main text-lg leading-none tabular-nums">{state.prizePool.toFixed(0)} ₽</p>
         </div>
         <div className="text-center flex-1 px-3">
-          <p className={['eyebrow', myTurn ? 'text-main' : 'text-muted'].join(' ')}>
+          <p className={['eyebrow flex items-center justify-center gap-1.5', myTurn ? 'text-main' : 'text-muted'].join(' ')}>
+            {myTurn && (
+              <motion.span
+                className="inline-block w-1.5 h-1.5 rounded-full bg-danger"
+                animate={{ scale: [1, 1.6, 1], opacity: [1, 0.4, 1] }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
             {myTurn ? 'Твой залп' : 'Ход соперника'}
           </p>
           <div className="h-1 rounded-full bg-panel overflow-hidden mt-1.5">
@@ -202,6 +231,23 @@ export default function BattleScreen() {
         ) : (
           <Board mode="own" ships={ownShips as any} attacks={ownAttacks} disabled />
         )}
+
+        <AnimatePresence>
+          {!connected && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-[2px] rounded"
+            >
+              <span className="relative w-10 h-10">
+                <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
+              </span>
+              <p className="text-white text-sm font-display">Переподключаемся…</p>
+              <p className="text-white/70 text-xs">Бой сохранён, не закрывайте приложение</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Трекер вражеского флота */}

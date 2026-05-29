@@ -130,8 +130,16 @@ export default function App() {
         sock.on('match:found', () => {
           // экран матчмейкинга сам подхватит из state
         });
-        sock.on('match:finished', () => {
+        sock.on('match:finished', (e: any) => {
           // ResultScreen покажется автоматически по статусу
+          if (e?.reason === 'afk') {
+            const myId = useAuthStore.getState().user?.id;
+            if (e.forfeitedBy && e.forfeitedBy === myId) {
+              toast('Поражение: слишком много пропущенных ходов', 'error', 'skull');
+            } else {
+              toast('Соперник покинул бой — победа за вами!', 'success', 'trophy');
+            }
+          }
         });
         sock.on('wallet:update', (b: number) => updateBalance(b));
       }

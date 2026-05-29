@@ -14,6 +14,7 @@ import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVerticalSwipes, tgMainButton, isTelegram } from '../lib/telegram';
 import { useMatchStore } from '../stores/match-store';
 import { Icon } from '../components/Icon';
+import { playSound } from '../lib/audio';
 
 interface SlotShip {
   id: string;
@@ -94,6 +95,7 @@ export default function PlacementScreen() {
     if (!validatePlacement([...others, cand]).ok) { tgHaptic('error'); return; }
     setFleet((f) => f.map((it) => (it.id === selected.id ? { ...it, placed: cand } : it)));
     tgHaptic('light');
+    playSound('place');
     const next = fleet.find((it) => it.id !== selected.id && !it.placed);
     setSelectedId(next?.id ?? null);
   };

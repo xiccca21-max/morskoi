@@ -105,7 +105,12 @@ export default function WalletScreen() {
 
       <section className="card p-5">
         <p className="eyebrow mb-3">История операций</p>
-        {txs.length === 0 && <p className="text-muted text-sm">Пусто</p>}
+        {txs.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <Icon name="scroll" size={26} className="text-muted" />
+            <p className="text-muted text-sm">Операций пока нет</p>
+          </div>
+        )}
         <ul className="divide-y divide-line">
           {txs.map((t) => {
             const plus = ['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type);

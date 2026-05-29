@@ -7,7 +7,7 @@ import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
 import { GameAPI, WalletAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
-import { tgHaptic } from '../lib/telegram';
+import { tgHaptic, tgShare, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Skeleton } from '../components/Skeleton';
 import { playSound } from '../lib/audio';
@@ -46,6 +46,7 @@ export default function ResultScreen() {
 
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;
+  const useNative = isTelegram();
 
   const rematch = () => {
     if (!matchId) return;
@@ -54,6 +55,23 @@ export default function ResultScreen() {
       if (!ack?.ok) { setWaitingRematch(false); }
     });
   };
+
+  const shareResult = () => {
+    const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
+    const payout = +(((matchState?.prizePool ?? 0) - (matchState?.rakeAmount ?? 0))).toFixed(0);
+    tgShare(`https://t.me/${bot}`, `Только что выиграл ${payout} ₽ в морской дуэли! Сразись со мной 🚢`);
+  };
+
+  // Нативная кнопка Telegram = Реванш
+  useEffect(() => {
+    if (!useNative) return;
+    return tgMainButton({
+      text: waitingRematch ? 'Ждём соперника' : 'Реванш',
+      onClick: rematch,
+      progress: waitingRematch,
+      active: !waitingRematch,
+    });
+  }, [useNative, waitingRematch]); // eslint-disable-line
 
   const pool = matchState?.prizePool ?? 0;
   const rake = matchState?.rakeAmount ?? 0;
@@ -110,10 +128,15 @@ export default function ResultScreen() {
       </motion.section>
 
       <div className="space-y-2">
-        <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch}>
-          {waitingRematch ? 'Ждём соперника…' : 'Реванш'}
-        </button>
+        {!useNative && (
+          <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch}>
+            {waitingRematch ? 'Ждём соперника…' : 'Реванш'}
+          </button>
+        )}
         <button className="btn-secondary w-full" onClick={() => navigate('/matchmaking')}>Новый бой</button>
+        {won && (
+          <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Похвастаться</button>
+        )}
         <button className="btn-ghost w-full" onClick={() => navigate('/home')}>На палубу</button>
       </div>
     </div>

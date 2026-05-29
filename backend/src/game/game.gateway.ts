@@ -45,6 +45,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private userSockets = new Map<string, string>();
   // Таймауты ходов: matchId → NodeJS.Timeout
   private turnTimers = new Map<string, NodeJS.Timeout>();
+  // Счётчик подряд пропущенных ходов (AFK/дисконнект): matchId → { userId, count }
+  private afkCounters = new Map<string, { userId: string; count: number }>();
 
   constructor(
     private readonly auth: AuthService,
@@ -132,15 +134,46 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const t = setTimeout(async () => {
       try {
         const r = await this.game.handleTurnTimeout(matchId);
-        if (r) {
-          this.server.to(`match:${matchId}`).emit('match:turnTimeout', r);
+        if (!r || !r.timedOut) return;
+        const timedOut = r.timedOut;
+
+        // Анти-AFK: если один и тот же игрок пропускает ходы подряд — засчитываем поражение.
+        const maxMissed = Number(process.env.AFK_FORFEIT_TIMEOUTS ?? 3);
+        const prev = this.afkCounters.get(matchId);
+        const count = prev && prev.userId === timedOut ? prev.count + 1 : 1;
+        this.afkCounters.set(matchId, { userId: timedOut, count });
+
+        if (count >= maxMissed) {
+          this.afkCounters.delete(matchId);
+          const res = await this.game.surrender(matchId, timedOut);
+          this.clearTurnTimer(matchId);
+          this.server.to(`match:${matchId}`).emit('match:finished', {
+            matchId,
+            winnerId: res.winnerId,
+            forfeitedBy: timedOut,
+            reason: 'afk',
+          });
           await this.broadcastStateToBothPlayers(matchId);
+          return;
         }
+
+        this.server.to(`match:${matchId}`).emit('match:turnTimeout', { ...r, missed: count });
+        await this.broadcastStateToBothPlayers(matchId);
+
+        // Перепланируем следующий тайм-аут (иначе при двойном AFK ходы не идут)
+        const gs = await this.prisma.gameState.findUnique({ where: { matchId } });
+        if (gs?.gameStatus === 'IN_PROGRESS') this.scheduleTurnTimeout(matchId, gs.turnDeadline ?? null);
       } catch (e: any) {
         this.logger.warn(`turn timeout error: ${e?.message}`);
       }
     }, ms + 250);
     this.turnTimers.set(matchId, t);
+  }
+
+  private clearTurnTimer(matchId: string) {
+    const t = this.turnTimers.get(matchId);
+    if (t) clearTimeout(t);
+    this.turnTimers.delete(matchId);
   }
 
   // ============= Matchmaking =============
@@ -253,6 +286,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.game.attack(body.matchId, s.data.userId, body.x, body.y);
+      // Игрок активен — сбрасываем его счётчик пропусков
+      const afk = this.afkCounters.get(body.matchId);
+      if (afk?.userId === s.data.userId) this.afkCounters.delete(body.matchId);
       // публичный ивент атаки (без раскрытия скрытых данных)
       this.server.to(`match:${body.matchId}`).emit('match:attack', {
         by: s.data.userId,
@@ -273,9 +309,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         const gs = await this.prisma.gameState.findUnique({ where: { matchId: body.matchId } });
         this.scheduleTurnTimeout(body.matchId, gs?.turnDeadline ?? null);
       } else if (r.gameStatus === 'FINISHED') {
-        const t = this.turnTimers.get(body.matchId);
-        if (t) clearTimeout(t);
-        this.turnTimers.delete(body.matchId);
+        this.clearTurnTimer(body.matchId);
+        this.afkCounters.delete(body.matchId);
         const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
         this.server.to(`match:${body.matchId}`).emit('match:finished', {
           matchId: body.matchId,
@@ -307,9 +342,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         surrenderedBy: s.data.userId,
       });
       await this.broadcastStateToBothPlayers(body.matchId);
-      const t = this.turnTimers.get(body.matchId);
-      if (t) clearTimeout(t);
-      this.turnTimers.delete(body.matchId);
+      this.clearTurnTimer(body.matchId);
+      this.afkCounters.delete(body.matchId);
       return { ok: true };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'surrender error' };
