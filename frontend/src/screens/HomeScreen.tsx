@@ -82,18 +82,9 @@ export default function HomeScreen() {
       <div className="grid grid-cols-2 gap-3">
         <Tile icon="coins" title="Казна" sub="Пополнить / вывести" onClick={() => navigate('/wallet')} />
         <Tile icon="trophy" title="Топ" sub="Лучшие капитаны" onClick={() => navigate('/leaderboard')} />
+        <Tile icon="compass" title="Как это работает" sub="Пошаговое объяснение" onClick={() => navigate('/how-it-works')} />
+        <Tile icon="scroll" title="Правила" sub="Флот, ходы, штрафы" onClick={() => navigate('/rules')} />
       </div>
-
-      {/* Правила */}
-      <section className="card p-5">
-        <p className="eyebrow mb-3">Как это работает</p>
-        <ol className="text-sm text-main space-y-2.5">
-          <Rule n={1}>Выбери ставку и найди соперника</Rule>
-          <Rule n={2}>Оба ставят равную сумму в общий банк</Rule>
-          <Rule n={3}>Расставь флот и топи корабли врага</Rule>
-          <Rule n={4}>Победитель забирает 95% банка, 5% — комиссия</Rule>
-        </ol>
-      </section>
     </div>
   );
 }
@@ -117,11 +108,3 @@ function Tile({ icon, title, sub, onClick }: { icon: IconName; title: string; su
   );
 }
 
-function Rule({ n, children }: { n: number; children: React.ReactNode }) {
-  return (
-    <li className="flex gap-3">
-      <span className="shrink-0 w-5 h-5 rounded-full border border-line text-[11px] font-display flex items-center justify-center text-muted">{n}</span>
-      <span>{children}</span>
-    </li>
-  );
-}

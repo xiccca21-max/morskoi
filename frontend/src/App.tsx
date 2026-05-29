@@ -24,6 +24,8 @@ import HistoryScreen from './screens/HistoryScreen';
 import LeaderboardScreen from './screens/LeaderboardScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import HowItWorksScreen from './screens/HowItWorksScreen';
+import RulesScreen from './screens/RulesScreen';
 import { Layout } from './components/Layout';
 
 function Protected({ children }: { children: JSX.Element }) {
@@ -186,6 +188,8 @@ export default function App() {
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
+        <Route path="/how-it-works" element={<HowItWorksScreen />} />
+        <Route path="/rules" element={<RulesScreen />} />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
