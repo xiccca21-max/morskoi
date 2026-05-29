@@ -44,7 +44,22 @@ export function Board({
     [ghostCells],
   );
 
+  // Клетки, занятые потопленными кораблями — на них рисуем обломки, а не крест
+  const sunkCellSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const sh of ships) {
+      if (!sh.sunk) continue;
+      for (let i = 0; i < sh.size; i++) {
+        const x = sh.orientation === 'H' ? sh.x + i : sh.x;
+        const y = sh.orientation === 'V' ? sh.y + i : sh.y;
+        s.add(`${x}:${y}`);
+      }
+    }
+    return s;
+  }, [ships]);
+
   const showShips = mode === 'own' || mode === 'placement' || ships.length > 0;
+  const sunkShips = useMemo(() => ships.filter((s) => s.sunk), [ships]);
   const cellPct = 100 / BOARD_SIZE;
 
   return (
@@ -101,9 +116,9 @@ export function Board({
               ))}
             </svg>
 
-            {/* Корабли (свои / расстановка) */}
+            {/* Целые корабли (свои / расстановка) — под слоем клеток */}
             {showShips &&
-              ships.map((s) => {
+              ships.filter((s) => !s.sunk).map((s) => {
                 const w = s.orientation === 'H' ? s.size * cellPct : cellPct;
                 const h = s.orientation === 'V' ? s.size * cellPct : cellPct;
                 return (
@@ -121,8 +136,7 @@ export function Board({
                       zIndex: 5,
                     }}
                   >
-                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} sunk={s.sunk} />
-                    {s.sunk && <Smoke seed={s.x + s.y} />}
+                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} />
                   </motion.div>
                 );
               })}
@@ -149,6 +163,7 @@ export function Board({
                 if (isGhost) cls += ghostInvalid ? ' cell-ghost-bad' : ' cell-ghost';
                 if (isClickable) cls += ' cell-aim';
 
+                const onSunk = sunkCellSet.has(key);
                 return (
                   <div
                     key={key}
@@ -157,12 +172,38 @@ export function Board({
                     onMouseEnter={() => onCellEnter?.(x, y)}
                     onTouchStart={() => onCellEnter?.(x, y)}
                   >
-                    {att && <Marker hit={att.hit} sunk={!!att.sunkShipId} />}
+                    {att && !onSunk && <Marker hit={att.hit} sunk={false} />}
                     {isHighlight && isClickable && <Crosshair />}
                   </div>
                 );
               })}
             </div>
+
+            {/* Верхний слой: обломки потопленных + дым (поверх клеток и крестов) */}
+            {sunkShips.map((s) => {
+              const w = s.orientation === 'H' ? s.size * cellPct : cellPct;
+              const h = s.orientation === 'V' ? s.size * cellPct : cellPct;
+              return (
+                <motion.div
+                  key={`wreck-${s.id}`}
+                  initial={{ opacity: 0, scale: 0.7, rotate: -4 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 16 }}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${s.x * cellPct}%`,
+                    top: `${s.y * cellPct}%`,
+                    width: `${w}%`,
+                    height: `${h}%`,
+                    padding: '2%',
+                    zIndex: 20,
+                  }}
+                >
+                  <Ship kind={s.kind} size={s.size} orientation={s.orientation} sunk />
+                  <Smoke seed={s.x + s.y} />
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>
