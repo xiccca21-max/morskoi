@@ -45,6 +45,7 @@ export default function MatchmakingScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showFundsModal, setShowFundsModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Браузер открытых боёв
   const [matches, setMatches] = useState<OpenMatch[]>([]);
@@ -87,7 +88,11 @@ export default function MatchmakingScreen() {
     return () => clearInterval(t);
   }, [tab, fetchList]);
 
+  // Открываем выбор ставки (browse)
+  const openCreateModal = () => { setShowCreateModal(true); tgHaptic('light'); };
+
   const createPublic = async () => {
+    setShowCreateModal(false);
     if (overBalance) { tgVibrate(60); setShowFundsModal(true); return; }
     setError(null);
     try {
@@ -119,6 +124,7 @@ export default function MatchmakingScreen() {
   };
 
   const createPrivate = async () => {
+    setShowCreateModal(false);
     if (overBalance) { tgVibrate(60); setShowFundsModal(true); return; }
     setError(null);
     try {
@@ -143,118 +149,86 @@ export default function MatchmakingScreen() {
         <TabBtn active={tab === 'private'} onClick={() => setTab('private')} icon="lock">С другом</TabBtn>
       </div>
 
-      {/* Ставка */}
-      <div className={['card p-5 transition', overBalance ? 'border-danger' : ''].join(' ')}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="eyebrow">{tab === 'browse' ? 'Ставка вашего боя' : 'Ставка'}</p>
-          {overBalance && (
-            <motion.span
-              initial={{ opacity: 0, x: 6 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-danger text-xs font-display"
-            >
-              Недостаточно средств
-            </motion.span>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <button
-            className="btn-ghost w-11 h-11 p-0 shrink-0"
-            onClick={() => setWager(wager - 5)}
-            disabled={wager <= WAGER_MIN}
-            aria-label="Уменьшить ставку"
-          >
-            <Icon name="minus" size={18} />
-          </button>
-
-          {/* Редактируемое поле суммы */}
-          <div className="flex items-baseline gap-1.5">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={rawInput}
-              onChange={(e) => {
-                setRawInput(e.target.value);
-                const n = Number(e.target.value);
-                if (!isNaN(n) && n > 0) setLastWager(Math.min(WAGER_ABS_MAX, n));
-              }}
-              onBlur={() => {
-                // при потере фокуса нормализуем
-                const n = Math.max(WAGER_MIN, Math.min(WAGER_ABS_MAX, Number(rawInput) || WAGER_MIN));
-                setRawInput(String(n));
-                setLastWager(n);
-              }}
-              className={[
-                'w-28 text-center bg-transparent outline-none font-display text-4xl tabular-nums',
-                overBalance ? 'text-danger' : 'text-main',
-              ].join(' ')}
-            />
-            <span className={['text-sm', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
-          </div>
-
-          <button
-            className="btn-ghost w-11 h-11 p-0 shrink-0"
-            onClick={() => setWager(wager + 5)}
-            disabled={wager >= WAGER_ABS_MAX}
-            aria-label="Увеличить ставку"
-          >
-            <Icon name="plus" size={18} />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-5 gap-1.5 mb-4">
-          {PRESETS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setWager(p)}
-              className={[
-                'py-2 rounded-lg text-sm font-display tabular-nums transition border',
-                wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line',
-              ].join(' ')}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-
-        {/* Слайдер до баланса */}
-        <input
-          type="range"
-          min={WAGER_MIN}
-          max={Math.max(balance, wager, 200)}
-          step={1}
-          value={Math.min(wager, Math.max(balance, wager, 200))}
-          onChange={(e) => setWager(Number(e.target.value))}
-          className="w-full accent-danger"
-        />
-        <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums">
-          <span>{WAGER_MIN} ₽</span>
-          <span>Баланс: {balance.toFixed(0)} ₽</span>
-        </div>
-
-        <PrizeBreakdown wager={wager} />
-      </div>
-
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
 
+      {/* Bottom-sheet: выбор ставки */}
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Ставка боя" icon="coins">
+        <div className={['transition', overBalance ? 'rounded-xl ring-1 ring-danger' : ''].join(' ')}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="eyebrow">Укажи сумму</p>
+            {overBalance && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-danger text-xs font-display">
+                Превышает баланс
+              </motion.span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <button className="btn-ghost w-11 h-11 p-0 shrink-0" onClick={() => setWager(wager - 5)} disabled={wager <= WAGER_MIN} aria-label="-5">
+              <Icon name="minus" size={18} />
+            </button>
+            <div className="flex items-baseline gap-1.5">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={rawInput}
+                onChange={(e) => {
+                  setRawInput(e.target.value);
+                  const n = Number(e.target.value);
+                  if (!isNaN(n) && n > 0) setLastWager(Math.min(WAGER_ABS_MAX, n));
+                }}
+                onBlur={() => {
+                  const n = Math.max(WAGER_MIN, Math.min(WAGER_ABS_MAX, Number(rawInput) || WAGER_MIN));
+                  setRawInput(String(n));
+                  setLastWager(n);
+                }}
+                className={['w-28 text-center bg-transparent outline-none font-display text-4xl tabular-nums', overBalance ? 'text-danger' : 'text-main'].join(' ')}
+              />
+              <span className={['text-sm', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
+            </div>
+            <button className="btn-ghost w-11 h-11 p-0 shrink-0" onClick={() => setWager(wager + 5)} disabled={wager >= WAGER_ABS_MAX} aria-label="+5">
+              <Icon name="plus" size={18} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-5 gap-1.5 mb-4">
+            {PRESETS.map((p) => (
+              <button key={p} onClick={() => setWager(p)}
+                className={['py-2 rounded-lg text-sm font-display tabular-nums transition border', wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line'].join(' ')}>
+                {p}
+              </button>
+            ))}
+          </div>
+
+          <input type="range" min={WAGER_MIN} max={Math.max(balance, wager, 200)} step={1}
+            value={Math.min(wager, Math.max(balance, wager, 200))}
+            onChange={(e) => setWager(Number(e.target.value))}
+            className="w-full accent-danger" />
+          <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums mb-4">
+            <span>{WAGER_MIN} ₽</span>
+            <span>Баланс: {balance.toFixed(0)} ₽</span>
+          </div>
+
+          <PrizeBreakdown wager={wager} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button className="btn-ghost" onClick={() => setShowCreateModal(false)}>Отмена</button>
+          <button className="btn-primary" onClick={tab === 'browse' ? createPublic : createPrivate}>
+            <Icon name="swords" size={15} /> Создать за {wager} ₽
+          </button>
+        </div>
+      </Modal>
+
       {/* Модалька «Недостаточно средств» */}
-      <Modal
-        open={showFundsModal}
-        onClose={() => setShowFundsModal(false)}
-        title="Недостаточно средств"
-        icon="coins"
-      >
+      <Modal open={showFundsModal} onClose={() => setShowFundsModal(false)} title="Недостаточно средств" icon="coins">
         <p className="text-main text-sm mb-5">
           Ставка <strong>{wager} ₽</strong> превышает ваш баланс ({balance.toFixed(0)} ₽).
           Пополните счёт, чтобы создать этот бой.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <button className="btn-ghost" onClick={() => setShowFundsModal(false)}>Отмена</button>
-          <button
-            className="btn-primary"
-            onClick={() => { setShowFundsModal(false); navigate('/wallet'); }}
-          >
+          <button className="btn-primary" onClick={() => { setShowFundsModal(false); navigate('/wallet'); }}>
             <Icon name="coins" size={15} /> Пополнить
           </button>
         </div>
@@ -273,8 +247,8 @@ export default function MatchmakingScreen() {
               <button className="btn-ghost px-3 py-2" onClick={cancelPublic}>Снять</button>
             </div>
           ) : (
-            <button className="btn-primary w-full" onClick={createPublic}>
-              <Icon name="plus" size={18} /> Создать бой за {wager} ₽
+            <button className="btn-primary w-full" onClick={openCreateModal}>
+              <Icon name="plus" size={18} /> Создать бой
             </button>
           )}
 
@@ -327,7 +301,7 @@ export default function MatchmakingScreen() {
           <div className="card p-5 space-y-3">
             <p className="eyebrow">Создать лобби</p>
             <p className="text-muted text-xs">Получите код и ссылку-приглашение для друга. Бой начнётся, как только он войдёт.</p>
-            <button className="btn-primary w-full" onClick={createPrivate}>
+            <button className="btn-primary w-full" onClick={openCreateModal}>
               <Icon name="lock" size={16} /> Создать и пригласить
             </button>
           </div>
