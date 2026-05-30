@@ -87,7 +87,15 @@ export class TelegramBotService implements OnModuleInit {
       await fetch(`${this.apiRoot}/bot${token}/deleteWebhook`, {
         method: 'POST',
       }).catch(() => undefined);
-      this.bot = new TelegramBot(token, { polling: true, baseApiUrl: this.apiRoot });
+      // Короткий long-polling таймаут: через прокси (Cloudflare Worker) длинные
+      // висящие соединения рвутся с "socket hang up". 10с — баланс стабильности.
+      this.bot = new TelegramBot(token, {
+        baseApiUrl: this.apiRoot,
+        polling: {
+          interval: 1000,
+          params: { timeout: 10 },
+        },
+      });
       this.bot.on('polling_error', (e: any) =>
         this.logger.warn(`polling_error: ${e?.code || ''} ${e?.message || e}`),
       );
