@@ -4,10 +4,24 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import * as express from 'express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: false, rawBody: true });
+
+  // Security-заголовки. CSP и COEP выключены: ломали бы SPA, инлайн-скрипт
+  // админки и загрузку из Telegram. Остальные защиты (X-Frame, noSniff и т.д.) активны.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false,
+    }),
+  );
+
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const isDev = process.env.NODE_ENV !== 'production';
   const origins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(',');

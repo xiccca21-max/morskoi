@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { IsNumber, IsPositive, IsString, IsIn, IsOptional } from 'class-validator';
+import { Throttle } from '@nestjs/throttler';
+import { IsNumber, IsPositive, IsString, IsIn, IsOptional, Max, MaxLength } from 'class-validator';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -8,6 +9,7 @@ import type { JwtPayload } from '../auth/auth.service';
 class WithdrawDto {
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000)
   amount!: number;
 
   // Вывод только через @CryptoBot: TON или USDT (CRYPTO)
@@ -17,6 +19,7 @@ class WithdrawDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(128)
   destination?: string;
 }
 
@@ -45,6 +48,7 @@ export class WalletController {
 
   /** Создаёт заявку на вывод. Средства холдятся сразу, выплата — после обработки. */
   @Post('withdraw')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   withdraw(@CurrentUser() u: JwtPayload, @Body() dto: WithdrawDto) {
     return this.wallet.requestWithdrawal(u.sub, dto.amount, dto.method, dto.destination ?? '');
   }

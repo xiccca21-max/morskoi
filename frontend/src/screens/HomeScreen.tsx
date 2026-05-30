@@ -26,6 +26,15 @@ export default function HomeScreen() {
   const losses = user?.losses ?? 0;
   const total = wins + losses;
   const wr = total ? Math.round((wins / total) * 100) : 0;
+  const balance = user?.balance ?? 0;
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 6) return 'Доброй ночи';
+    if (h < 12) return 'Доброе утро';
+    if (h < 18) return 'Добрый день';
+    return 'Добрый вечер';
+  })();
 
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
 
@@ -34,8 +43,9 @@ export default function HomeScreen() {
       <Onboarding />
       {/* Каюта капитана */}
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
-        <h2 className="font-display text-2xl text-main leading-tight">
-          {user?.firstName ?? user?.username ?? 'без имени'}
+        <p className="eyebrow">{greeting}</p>
+        <h2 className="font-display text-2xl text-main leading-tight mt-0.5">
+          {user?.nickname ?? user?.firstName ?? user?.username ?? 'без имени'}
         </h2>
 
         <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
@@ -51,6 +61,17 @@ export default function HomeScreen() {
           className="btn-danger w-full"
         >
           <Icon name="swords" size={18} /> Вернуться в бой
+        </button>
+      )}
+
+      {balance <= 0 && !activeMatch && (
+        <button
+          onClick={() => { tgHaptic('light'); navigate('/wallet'); }}
+          className="w-full card card-press p-3 flex items-center gap-3 border-danger text-left"
+        >
+          <Icon name="coins" size={18} className="text-danger shrink-0" />
+          <span className="flex-1 text-main text-sm">Баланс пуст — пополни, чтобы играть на ставку</span>
+          <Icon name="arrow-right" size={16} className="text-danger shrink-0" />
         </button>
       )}
 
@@ -90,7 +111,7 @@ function Stat({ label, value, accent }: { label: string; value: any; accent?: bo
 function Tile({ icon, title, sub, onClick }: { icon: IconName; title: string; sub: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="card card-press p-4 text-left hover:border-line transition">
-      <Icon name={icon} size={22} className="text-muted" />
+      <Icon name={icon} size={22} className="text-danger" />
       <div className="font-display text-main mt-2">{title}</div>
       <div className="text-[11px] text-muted">{sub}</div>
     </button>

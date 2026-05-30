@@ -39,6 +39,7 @@ export default function BattleScreen() {
 
   const [showSurrender, setShowSurrender] = useState(false);
   const [connected, setConnected] = useState(true);
+  const [reactionCooldown, setReactionCooldown] = useState(false);
 
   useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
 
@@ -208,8 +209,10 @@ export default function BattleScreen() {
   };
 
   const sendReaction = (icon: IconName) => {
-    if (!matchId) return;
+    if (!matchId || reactionCooldown) return;
     getSocket().emit('match:reaction', { matchId, reaction: icon, nonce: newNonce() });
+    setReactionCooldown(true);
+    setTimeout(() => setReactionCooldown(false), 1200);
   };
 
   if (!state) return <div className="card p-6 text-center text-muted max-w-md mx-auto">Выходим на позицию…</div>;
@@ -341,10 +344,10 @@ export default function BattleScreen() {
 
       {/* Дразнилки (Реакции) */}
       <div className="flex items-center justify-center gap-2 pt-2">
-        <ReactionBtn icon="skull" onClick={() => sendReaction('skull')} />
-        <ReactionBtn icon="crown" onClick={() => sendReaction('crown')} />
-        <ReactionBtn icon="flag" onClick={() => sendReaction('flag')} />
-        <ReactionBtn icon="wave" onClick={() => sendReaction('wave')} />
+        <ReactionBtn icon="skull" disabled={reactionCooldown} onClick={() => sendReaction('skull')} />
+        <ReactionBtn icon="crown" disabled={reactionCooldown} onClick={() => sendReaction('crown')} />
+        <ReactionBtn icon="flag" disabled={reactionCooldown} onClick={() => sendReaction('flag')} />
+        <ReactionBtn icon="wave" disabled={reactionCooldown} onClick={() => sendReaction('wave')} />
       </div>
 
       {/* Всплывающие анимации реакций поверх поля */}
@@ -385,9 +388,13 @@ export default function BattleScreen() {
   );
 }
 
-function ReactionBtn({ icon, onClick }: { icon: IconName; onClick: () => void }) {
+function ReactionBtn({ icon, onClick, disabled }: { icon: IconName; onClick: () => void; disabled?: boolean }) {
   return (
-    <button onClick={onClick} className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-muted hover:text-main hover:border-main transition">
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-muted hover:text-main hover:border-main transition disabled:opacity-40 active:scale-90"
+    >
       <Icon name={icon} size={20} />
     </button>
   );

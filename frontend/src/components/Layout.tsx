@@ -14,6 +14,11 @@ export function Layout() {
   const navigate = useNavigate();
   const loc = useLocation();
 
+  // При смене экрана прокручиваем наверх — иначе новый экран открывается «в середине».
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [loc.pathname]);
+
   useEffect(() => {
     if (!match) return;
     const p = loc.pathname;

@@ -140,8 +140,8 @@ export function tgReady() {
   try {
     tg.ready();
     tg.expand();
-    tg.setHeaderColor?.('#000000');
-    tg.setBackgroundColor?.('#000000');
+    // Цвета шапки/фона выставляются в App.tsx по активной теме —
+    // здесь не хардкодим, чтобы на светлой теме не было чёрной вспышки.
   } catch {
     /* ignore */
   }

@@ -53,7 +53,8 @@ export default function ProfileScreen() {
 
   const shareProfile = () => {
     tgHaptic('success');
-    toast('Профиль готов к отправке', 'success', 'share');
+    const link = `https://t.me/${bot}`;
+    tgShare(link, `${displayName} — ${rank.title} в «Морском Бою»: ${user.wins} побед, точность ${wr}%. Сразись со мной на ставку!`);
   };
 
   const openNick = () => { setNick(user.nickname ?? ''); setShowNick(true); };
@@ -96,6 +97,8 @@ export default function ProfileScreen() {
               src={avatarUrl}
               className="w-14 h-14 rounded-full border border-line object-cover"
               alt=""
+              loading="lazy"
+              referrerPolicy="no-referrer"
               onError={() => setAvatarFailed(true)}
             />
           ) : (
@@ -197,7 +200,9 @@ export default function ProfileScreen() {
 
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
+        <Row icon="trophy" label="Рейтинг капитанов" onClick={() => navigate('/leaderboard')} />
         <Row icon="scroll" label="Журнал боёв" onClick={() => navigate('/history')} />
+        <Row icon="compass" label="Как это работает" onClick={() => navigate('/how-it-works')} />
         <Row icon="gear" label="Настройки" onClick={() => navigate('/settings')} />
         <Row icon="shield" label="Поддержка" onClick={() => tgOpenLink(supportUrl)} />
       </section>

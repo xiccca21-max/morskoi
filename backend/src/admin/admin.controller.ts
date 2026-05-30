@@ -1,15 +1,18 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsNumber, IsOptional, IsString, IsIn } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, IsIn, Min, Max, MaxLength } from 'class-validator';
 import { AdminService } from './admin.service';
 import { PaymentsService } from '../payments/payments.service';
 import { AdminKeyGuard } from '../payments/admin-key.guard';
 
 class CreditDto {
   @IsNumber()
+  @Min(-1_000_000)
+  @Max(1_000_000)
   amount!: number; // + начислить, − списать
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   reason?: string;
 
   @IsOptional()

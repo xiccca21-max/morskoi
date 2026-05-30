@@ -31,9 +31,35 @@ export default function HistoryScreen() {
     HistoryAPI.list(50).then(setItems).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const wins = items.filter((m) => m.result === 'win').length;
+  const losses = items.filter((m) => m.result === 'loss').length;
+  const net = items.reduce((acc, m) => {
+    if (m.result === 'win') return acc + (m.prizePool - m.rakeAmount);
+    if (m.result === 'loss') return acc - m.wagerAmount;
+    return acc;
+  }, 0);
+
   return (
     <div className="max-w-md mx-auto space-y-3">
       <h2 className="title text-main text-lg">Журнал боёв</h2>
+      {!loading && items.length > 0 && (
+        <div className="card p-3 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
+          <div className="bg-panel p-2 text-center">
+            <div className="font-display text-lg tabular-nums text-main">{wins}</div>
+            <div className="eyebrow mt-0.5">Побед</div>
+          </div>
+          <div className="bg-panel p-2 text-center">
+            <div className="font-display text-lg tabular-nums text-danger">{losses}</div>
+            <div className="eyebrow mt-0.5">Поражений</div>
+          </div>
+          <div className="bg-panel p-2 text-center">
+            <div className={['font-display text-lg tabular-nums', net >= 0 ? 'text-success' : 'text-danger'].join(' ')}>
+              {net >= 0 ? '+' : '−'}{Math.abs(net).toFixed(0)}
+            </div>
+            <div className="eyebrow mt-0.5">Итог ₽</div>
+          </div>
+        </div>
+      )}
       {loading && <SkeletonList rows={5} />}
       {!loading && items.length === 0 && (
         <div className="card p-8 flex flex-col items-center gap-3 text-center">

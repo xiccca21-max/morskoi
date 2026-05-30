@@ -222,7 +222,10 @@ export default function PlacementScreen() {
 
       {/* Верфь */}
       <div className="card p-3">
-        <p className="eyebrow mb-2">Верфь · выбери корабль</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="eyebrow">Верфь · выбери корабль</p>
+          <span className="text-xs font-display tabular-nums text-muted">{placedShips.length}/{fleet.length}</span>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           {fleet.map((s) => {
             const isSel = selected?.id === s.id && !s.placed;

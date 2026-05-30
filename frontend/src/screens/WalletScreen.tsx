@@ -39,8 +39,8 @@ function CopyId({ label, value }: { label: string; value: string }) {
 }
 
 const WD_STATUS: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: 'В обработке', cls: 'text-amber-400 border-amber-400/40' },
-  APPROVED: { label: 'Одобрено', cls: 'text-sky-400 border-sky-400/40' },
+  PENDING: { label: 'В обработке', cls: 'text-warning border-warning/40' },
+  APPROVED: { label: 'Одобрено', cls: 'text-main border-line/60' },
   PAID: { label: 'Выплачено', cls: 'text-success border-success/40' },
   REJECTED: { label: 'Отклонено', cls: 'text-danger border-danger/40' },
 };
@@ -198,7 +198,13 @@ export default function WalletScreen() {
           />
           <div className="flex gap-2">
             {[100, 500, 1000, 5000].map((v) => (
-              <button key={v} className="btn-ghost flex-1 tabular-nums" onClick={() => { setError(null); setAmount(v); }}>{v}</button>
+              <button
+                key={v}
+                className={['flex-1 py-2.5 rounded-lg text-sm font-display tabular-nums transition border', amount === v ? 'bg-danger text-white border-danger' : 'bg-panel text-main border-line'].join(' ')}
+                onClick={() => { setError(null); setAmount(v); }}
+              >
+                {v}
+              </button>
             ))}
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
@@ -336,7 +342,7 @@ export default function WalletScreen() {
                 <div className="flex items-center justify-between">
                   <span className="text-main text-sm flex items-center gap-1.5">
                     {txLabel(t.type)}
-                    {pending && <span className="text-[9px] uppercase tracking-wide text-amber-400 border border-amber-400/40 rounded px-1 py-px">в обработке</span>}
+                    {pending && <span className="text-[9px] uppercase tracking-wide text-warning border border-warning/40 rounded px-1 py-px">в обработке</span>}
                   </span>
                   <span className={['tabular-nums font-display text-sm', plus ? 'text-main' : 'text-danger'].join(' ')}>
                     {plus ? '+' : '−'}{Number(t.amount).toFixed(2)} ₽

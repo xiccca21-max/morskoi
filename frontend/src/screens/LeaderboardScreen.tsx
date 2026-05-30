@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LeaderboardAPI } from '../api/endpoints';
+import { useAuthStore } from '../stores/auth-store';
 import { Icon } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
 
@@ -7,6 +8,7 @@ export default function LeaderboardScreen() {
   const [tab, setTab] = useState<'wins' | 'earnings'>('wins');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const meId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
     setLoading(true);
@@ -31,8 +33,9 @@ export default function LeaderboardScreen() {
         )}
         {items.map((u) => {
           const top = u.rank <= 3;
+          const isMe = !!meId && u.id === meId;
           return (
-            <li key={u.id} className="card p-3 flex items-center gap-3">
+            <li key={u.id} className={['card p-3 flex items-center gap-3', isMe ? 'border-danger' : ''].join(' ')}>
               <div className="w-8 flex items-center justify-center">
                 {top
                   ? <Icon name="medal" size={20} className={u.rank === 1 ? 'text-main' : u.rank === 2 ? 'text-muted' : 'text-danger'} />
@@ -41,7 +44,10 @@ export default function LeaderboardScreen() {
               {u.avatar
                 ? <img src={u.avatar} className="w-8 h-8 rounded-full border border-line" alt="" />
                 : <div className="w-8 h-8 rounded-full bg-panel border border-line flex items-center justify-center text-xs text-muted">{u.name?.[0] ?? '?'}</div>}
-              <div className="flex-1 text-sm text-main">{u.name}</div>
+              <div className="flex-1 text-sm text-main flex items-center gap-2">
+                {u.name}
+                {isMe && <span className="text-[9px] uppercase tracking-wide bg-danger text-white rounded px-1.5 py-0.5">вы</span>}
+              </div>
               <div className="text-sm font-display tabular-nums text-main">
                 {tab === 'wins' ? `${u.wins}` : `${u.totalWon.toFixed(0)} ₽`}
               </div>

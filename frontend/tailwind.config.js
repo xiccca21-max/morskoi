@@ -11,6 +11,7 @@ export default {
         accent: 'rgb(var(--c-accent-rgb) / <alpha-value>)',
         danger: 'rgb(var(--c-danger-rgb) / <alpha-value>)',
         success: 'rgb(var(--c-success-rgb) / <alpha-value>)',
+        warning: 'rgb(var(--c-warning-rgb) / <alpha-value>)',
         line: 'rgb(var(--c-line-rgb) / <alpha-value>)',
         water: 'var(--c-water)',
       },

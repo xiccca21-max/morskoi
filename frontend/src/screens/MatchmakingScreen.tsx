@@ -11,6 +11,8 @@ import { Modal } from '../components/Modal';
 import { getRank } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
+import { Spinner } from '../components/Spinner';
+import { useDebounce } from '../lib/hooks';
 
 const ALL_RANKS: Rank[] = [
   { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
@@ -89,8 +91,11 @@ export default function MatchmakingScreen() {
   const [matches, setMatches] = useState<OpenMatch[] | null>(null);
   const [loadingList, setLoadingList] = useState(false);
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 350);
   const [filterMin, setFilterMin] = useState('');
   const [filterMax, setFilterMax] = useState('');
+  const debouncedMin = useDebounce(filterMin, 350);
+  const debouncedMax = useDebounce(filterMax, 350);
   const [sortAsc, setSortAsc] = useState(true); // true = от меньшего к большему
   const [myOpen, setMyOpen] = useState<{ code: string; wager: number } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -106,9 +111,9 @@ export default function MatchmakingScreen() {
     if (showSpinner) setLoadingList(true);
     try {
       const list = await MatchmakingAPI.listOpen({
-        q: query || undefined,
-        min: filterMin !== '' ? Number(filterMin) : undefined,
-        max: filterMax !== '' ? Number(filterMax) : undefined,
+        q: debouncedQuery || undefined,
+        min: debouncedMin !== '' ? Number(debouncedMin) : undefined,
+        max: debouncedMax !== '' ? Number(debouncedMax) : undefined,
       });
       setMatches(list);
       const mine = list.find((m) => m.isMine);
@@ -118,7 +123,7 @@ export default function MatchmakingScreen() {
     } finally {
       setLoadingList(false);
     }
-  }, [query, filterMin, filterMax]);
+  }, [debouncedQuery, debouncedMin, debouncedMax]);
 
   // Загрузка + автообновление списка пока открыт таб «Поиск матча»
   useEffect(() => {
@@ -182,7 +187,14 @@ export default function MatchmakingScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <h2 className="title text-main text-lg">Поиск боя</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="title text-main text-lg">Поиск боя</h2>
+        {tab === 'browse' && matches && matches.length > 0 && (
+          <span className="text-xs font-display text-muted tabular-nums">
+            {matches.length} {matchesPlural(matches.length)} в эфире
+          </span>
+        )}
+      </div>
 
       <div className="card p-1 flex gap-1">
         <TabBtn active={tab === 'browse'} onClick={() => setTab('browse')} icon="swords">Поиск матча</TabBtn>
@@ -320,7 +332,7 @@ export default function MatchmakingScreen() {
           {/* Пока первая загрузка не завершилась — тихий спиннер, без фильтров */}
           {matches === null ? (
             <div className="flex justify-center py-10">
-              <span className="w-6 h-6 rounded-full border-2 border-muted border-t-main animate-spin" />
+              <Spinner size={24} />
             </div>
           ) : (
             <motion.div
@@ -382,10 +394,20 @@ export default function MatchmakingScreen() {
                 </div>
               </div>
 
+              {/* Заголовок списка с количеством и сбросом фильтров */}
+              {(query || filterMin || filterMax) && (
+                <button
+                  onClick={() => { setQuery(''); setFilterMin(''); setFilterMax(''); }}
+                  className="text-[11px] text-danger font-display uppercase tracking-wide hover:underline"
+                >
+                  Сбросить фильтры
+                </button>
+              )}
+
               {/* Список боёв */}
               {loadingList ? (
                 <div className="flex justify-center py-8">
-                  <span className="w-5 h-5 rounded-full border-2 border-muted border-t-main animate-spin" />
+                  <Spinner size={20} />
                 </div>
               ) : matches.length === 0 ? (
                 <div className="card p-8 flex flex-col items-center gap-2 text-center">
@@ -426,7 +448,7 @@ export default function MatchmakingScreen() {
               maxLength={10}
               className="w-full px-4 py-3 rounded-lg bg-panel border border-line text-center font-display tracking-[0.3em] text-main focus:border-line outline-none"
             />
-            <button className="btn-primary w-full" onClick={joinPrivate} disabled={!joinCode}>Открыть лобби</button>
+            <button className="btn-primary w-full" onClick={joinPrivate} disabled={joinCode.trim().length < 4}>Открыть лобби</button>
           </div>
         </div>
       )}
@@ -485,6 +507,15 @@ function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick:
       <Icon name={icon} size={16} /> {children}
     </button>
   );
+}
+
+function matchesPlural(n: number): string {
+  const a = n % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return 'боёв';
+  if (b > 1 && b < 5) return 'боя';
+  if (b === 1) return 'бой';
+  return 'боёв';
 }
 
 function PrizeBreakdown({ wager }: { wager: number }) {

@@ -13,6 +13,7 @@
   --c-accent-rgb: 255 73 17;
   --c-danger-rgb: 255 0 0;
   --c-success-rgb: 22 163 74;
+  --c-warning-rgb: 200 120 0;
   --c-line-rgb: 0 0 0;
   --c-water: rgba(0,0,0,0.05);
   --radius-card: 0px;
@@ -33,6 +34,7 @@
   --c-accent-rgb: 74 246 38;
   --c-danger-rgb: 255 0 60;
   --c-success-rgb: 74 246 38;
+  --c-warning-rgb: 245 210 60;
   --c-line-rgb: 31 122 18;
   --c-water: rgba(74, 246, 38, 0.08);
   --radius-card: 0px;
@@ -53,6 +55,7 @@
   --c-accent-rgb: 255 255 255;
   --c-danger-rgb: 255 107 0;
   --c-success-rgb: 52 211 153;
+  --c-warning-rgb: 251 191 36;
   --c-line-rgb: 140 180 222;
   --c-water: rgba(255, 255, 255, 0.05);
   --radius-card: 4px;
@@ -76,6 +79,7 @@
   --c-accent: rgb(var(--c-accent-rgb));
   --c-danger: rgb(var(--c-danger-rgb));
   --c-success: rgb(var(--c-success-rgb));
+  --c-warning: rgb(var(--c-warning-rgb));
   --c-line: rgb(var(--c-line-rgb));
 }
 
@@ -84,7 +88,11 @@ html, body, #root {
   min-height: 100dvh;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
+
+html { scroll-behavior: smooth; }
 
 body {
   color: var(--c-main);
@@ -94,7 +102,16 @@ body {
   background-size: 20px 20px;
   background-attachment: fixed;
   transition: background-color 0.2s, color 0.2s;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection {
+  background: color-mix(in srgb, var(--c-danger) 35%, transparent);
+  color: var(--c-main);
+}
+
+button:disabled { cursor: not-allowed; }
 
 /* ===== Типографика ===== */
 .font-display { font-family: var(--font-display); letter-spacing: 0.01em; }

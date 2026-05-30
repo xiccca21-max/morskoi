@@ -142,6 +142,11 @@ export default function ResultScreen() {
           <Stat label="Добыча" value={won ? `${payout.toFixed(0)} ₽` : '—'} />
         </div>
 
+        <div className="rope my-4" />
+        <p className="text-muted text-xs">
+          Баланс: <span className="font-display text-main tabular-nums">{(me?.balance ?? 0).toFixed(0)} ₽</span>
+        </p>
+
         {matchId && (
           <p className="text-[10px] text-muted font-mono tracking-wide mt-3">
             Игра #{matchId.slice(-8).toUpperCase()}

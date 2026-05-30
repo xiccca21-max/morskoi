@@ -29,7 +29,7 @@ export function ConsentGate() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg flex items-center justify-center p-5">
+    <div className="fixed inset-0 z-50 bg-base flex items-center justify-center p-5">
       <motion.div
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

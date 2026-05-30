@@ -7,7 +7,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsPositive, IsString, Max, MaxLength } from 'class-validator';
+import { Throttle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
@@ -19,6 +20,7 @@ import { AdminKeyGuard } from './admin-key.guard';
 class DepositDto {
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000)
   amount!: number;
 }
 
@@ -29,6 +31,7 @@ class ProcessDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(256)
   note?: string;
 }
 
@@ -39,6 +42,7 @@ export class PaymentsController {
   /** Создать депозит: ссылка на оплату (CryptoBot) или мгновенное зачисление (демо). */
   @Post('deposit')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   deposit(@CurrentUser() u: JwtPayload, @Body() dto: DepositDto) {
     return this.payments.createDeposit(u.sub, dto.amount);
   }
