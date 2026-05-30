@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { Icon, IconName } from './Icon';
@@ -15,10 +15,19 @@ export function Layout() {
   const navigate = useNavigate();
   const loc = useLocation();
 
+  const [scrolled, setScrolled] = useState(false);
+
   // При смене экрана прокручиваем наверх — иначе новый экран открывается «в середине».
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [loc.pathname]);
+
+  // Тень у шапки появляется при скролле — даёт ощущение глубины.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     if (!match) return;
@@ -43,11 +52,13 @@ export function Layout() {
       <Toaster />
       <OfflineBanner />
       <header
-        className="px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line"
+        className={['px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line transition-shadow', scrolled ? 'shadow-[0_4px_16px_rgba(0,0,0,0.12)]' : ''].join(' ')}
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
       >
-        <NavLink to="/home" className="flex items-center gap-2 text-main">
-          <Icon name="anchor" size={18} />
+        <NavLink to="/home" className="flex items-center gap-2 text-main" aria-label="На палубу">
+          <span className="w-7 h-7 rounded-md bg-danger text-white flex items-center justify-center shrink-0">
+            <Icon name="anchor" size={16} />
+          </span>
           <span className="title text-[13px] leading-none">Морской Бой</span>
         </NavLink>
         <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main" aria-label="Кошелёк">
@@ -135,7 +146,15 @@ function Tab({ to, icon, label }: { to: string; icon: IconName; label: string })
           <>
             <Icon name={icon} size={20} />
             <span>{label}</span>
-            <span className={['h-0.5 w-5 rounded-full transition', isActive ? 'bg-danger' : 'bg-transparent'].join(' ')} />
+            <span className="relative h-0.5 w-5">
+              {isActive && (
+                <motion.span
+                  layoutId="navIndicator"
+                  className="absolute inset-0 rounded-full bg-danger"
+                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                />
+              )}
+            </span>
           </>
         )}
       </NavLink>
