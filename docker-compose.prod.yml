@@ -20,6 +20,8 @@ services:
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
       TELEGRAM_BOT_POLLING: ${TELEGRAM_BOT_POLLING:-false}
+      # Прокси-релей для api.telegram.org (если провайдер его блокирует).
+      TELEGRAM_API_ROOT: ${TELEGRAM_API_ROOT:-https://api.telegram.org}
       CORS_ORIGINS: ${CORS_ORIGINS}
       PLATFORM_RAKE_PERCENT: ${PLATFORM_RAKE_PERCENT:-5}
       MIN_WAGER: ${MIN_WAGER:-1}

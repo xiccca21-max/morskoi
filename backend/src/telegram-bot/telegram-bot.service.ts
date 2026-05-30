@@ -15,6 +15,12 @@ export class TelegramBotService implements OnModuleInit {
   private readonly logger = new Logger('TelegramBot');
   private bot?: TelegramBot;
   private webhookSecret?: string;
+  // Базовый адрес Bot API. По умолчанию api.telegram.org, но если провайдер
+  // его блокирует (частый случай в РФ) — задайте TELEGRAM_API_ROOT с адресом
+  // прокси-релея (например, Cloudflare Worker), который форвардит на Telegram.
+  private readonly apiRoot = (
+    process.env.TELEGRAM_API_ROOT || 'https://api.telegram.org'
+  ).replace(/\/+$/, '');
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -45,14 +51,17 @@ export class TelegramBotService implements OnModuleInit {
     }
     const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
     const pollingDisabled = process.env.TELEGRAM_BOT_POLLING === 'false';
+    if (this.apiRoot !== 'https://api.telegram.org') {
+      this.logger.log(`Telegram API root overridden → ${this.apiRoot}`);
+    }
     if (webhookUrl) {
-      this.bot = new TelegramBot(token, { polling: false });
+      this.bot = new TelegramBot(token, { polling: false, baseApiUrl: this.apiRoot });
       // Секрет для проверки входящих апдейтов (заголовок X-Telegram-Bot-Api-Secret-Token).
       this.webhookSecret =
         process.env.TELEGRAM_WEBHOOK_SECRET ||
         createHash('sha256').update(token).digest('hex').slice(0, 48);
       // Регистрируем webhook напрямую через Bot API, чтобы передать secret_token и allowed_updates.
-      await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      await fetch(`${this.apiRoot}/bot${token}/setWebhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,14 +80,14 @@ export class TelegramBotService implements OnModuleInit {
     } else if (pollingDisabled) {
       // Polling выключен (например, провайдер режет api.telegram.org).
       // Mini App всё равно работает — initData валидируется локально по бот-токену.
-      this.bot = new TelegramBot(token, { polling: false });
+      this.bot = new TelegramBot(token, { polling: false, baseApiUrl: this.apiRoot });
       this.logger.log('Bot created without polling (TELEGRAM_BOT_POLLING=false)');
     } else {
       // Снимаем возможный старый webhook, иначе getUpdates вернёт 409 Conflict.
-      await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, {
+      await fetch(`${this.apiRoot}/bot${token}/deleteWebhook`, {
         method: 'POST',
       }).catch(() => undefined);
-      this.bot = new TelegramBot(token, { polling: true });
+      this.bot = new TelegramBot(token, { polling: true, baseApiUrl: this.apiRoot });
       this.bot.on('polling_error', (e: any) =>
         this.logger.warn(`polling_error: ${e?.code || ''} ${e?.message || e}`),
       );
@@ -93,7 +102,7 @@ export class TelegramBotService implements OnModuleInit {
     // Устанавливаем кнопку меню «Начать играть» для всех чатов по умолчанию
     const webAppUrl = process.env.TELEGRAM_WEBAPP_URL;
     if (webAppUrl) {
-      await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+      await fetch(`${this.apiRoot}/bot${token}/setChatMenuButton`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -162,7 +171,7 @@ export class TelegramBotService implements OnModuleInit {
 
     const call = async (method: string, body: Record<string, any>) => {
       try {
-        const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+        const r = await fetch(`${this.apiRoot}/bot${token}/${method}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
