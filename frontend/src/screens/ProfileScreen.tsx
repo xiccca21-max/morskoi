@@ -136,7 +136,7 @@ export default function ProfileScreen() {
             {memberSince && <p className="text-muted text-[11px] mt-0.5">В игре с {memberSince}</p>}
           </div>
           <button className="btn-ghost w-10 h-10 p-0 shrink-0" onClick={shareProfile} aria-label="Поделиться профилем">
-            <Icon name="share" size={16} />
+            <Icon name="anchor" size={22} />
           </button>
         </div>
         <div className="flex items-center justify-between eyebrow mt-4 mb-1.5">
