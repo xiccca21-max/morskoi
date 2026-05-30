@@ -7,7 +7,7 @@ import { MatchmakingAPI, OpenMatch } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVibrate } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
-import { Modal } from '../components/Modal';
+import { Modal, ConfirmDialog } from '../components/Modal';
 import { getRank } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
@@ -86,6 +86,7 @@ export default function MatchmakingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showFundsModal, setShowFundsModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [bigWagerConfirm, setBigWagerConfirm] = useState(false);
   const [ranksForPlayer, setRanksForPlayer] = useState<string | undefined>(undefined);
 
   // Браузер открытых боёв; null = ещё не загружен (не показываем ни скелетон, ни фильтры)
@@ -136,6 +137,19 @@ export default function MatchmakingScreen() {
 
   // Открываем выбор ставки (browse)
   const openCreateModal = () => { setShowCreateModal(true); tgHaptic('light'); };
+
+  const doCreate = () => { (tab === 'browse' ? createPublic : createPrivate)(); };
+
+  // Перед созданием — если ставка съедает больше половины баланса, спрашиваем подтверждение.
+  const attemptCreate = () => {
+    if (overBalance) { tgVibrate(60); setShowFundsModal(true); return; }
+    if (balance > 0 && wager > balance * 0.5) {
+      setShowCreateModal(false);
+      setBigWagerConfirm(true);
+      return;
+    }
+    doCreate();
+  };
 
   const createPublic = async () => {
     setShowCreateModal(false);
@@ -277,7 +291,7 @@ export default function MatchmakingScreen() {
           <div className="mt-4 space-y-2">
             <button
               className="btn-primary w-full normal-case tracking-normal text-sm py-3.5 gap-2"
-              onClick={tab === 'browse' ? createPublic : createPrivate}
+              onClick={attemptCreate}
             >
               <Icon name="swords" size={18} className="shrink-0" />
               <span>Создать за {wager} ₽</span>
@@ -286,6 +300,17 @@ export default function MatchmakingScreen() {
           </div>
         </div>
       </Modal>
+
+      {/* Подтверждение крупной ставки */}
+      <ConfirmDialog
+        open={bigWagerConfirm}
+        title="Крупная ставка"
+        icon="coins"
+        message={<>Ставка <strong>{wager} ₽</strong> — это больше половины вашего баланса ({balance.toFixed(0)} ₽). Создать бой?</>}
+        confirmLabel="Создать"
+        onCancel={() => { setBigWagerConfirm(false); setShowCreateModal(true); }}
+        onConfirm={() => { setBigWagerConfirm(false); doCreate(); }}
+      />
 
       {/* Модалька: система званий */}
       <RanksModal open={ranksForPlayer !== undefined} onClose={() => setRanksForPlayer(undefined)} highlightTitle={ranksForPlayer} />
