@@ -27,8 +27,9 @@ export function formatMoney(valueRub: number): string {
  * чтобы компоненты, использующие его, перерисовывались мгновенно.
  */
 export function useMoney(): (valueRub: number) => string {
-  // подписка на валюту — гарантирует ре-рендер при переключении
+  // подписка на валюту и версию курсов — ре-рендер при переключении/обновлении курса
   useCurrencyStore((s) => s.currency);
+  useCurrencyStore((s) => s.ratesVersion);
   return formatMoney;
 }
 

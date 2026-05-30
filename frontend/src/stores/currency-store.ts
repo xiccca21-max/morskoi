@@ -24,14 +24,18 @@ export interface CurrencyDef {
 export const CURRENCIES: Record<CurrencyCode, CurrencyDef> = {
   RUB: { code: 'RUB', name: 'Рубль', symbol: '₽', rubPerUnit: 1, decimals: 0, symbolAfter: true },
   USDT: { code: 'USDT', name: 'USDT', symbol: '$', rubPerUnit: 95, decimals: 2, symbolAfter: false },
-  STARS: { code: 'STARS', name: 'Stars', symbol: '⭐', rubPerUnit: 1.5, decimals: 0, symbolAfter: true },
+  STARS: { code: 'STARS', name: 'Stars', symbol: '⭐', rubPerUnit: 1.9, decimals: 0, symbolAfter: true },
 };
+
 
 export const CURRENCY_LIST = Object.values(CURRENCIES);
 
 interface CurrencyState {
   currency: CurrencyCode;
+  /** Растёт при обновлении живых курсов — чтобы форматтеры пересчитались. */
+  ratesVersion: number;
   setCurrency: (c: CurrencyCode) => void;
+  applyLiveRates: (rates: { USDT?: number; STARS?: number }) => void;
 }
 
 // Модульная копия активной валюты — чтобы format.ts мог читать её синхронно,
@@ -52,13 +56,24 @@ export function getActiveCurrency(): CurrencyDef {
 
 export const useCurrencyStore = create<CurrencyState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       currency: active,
+      ratesVersion: 0,
       setCurrency: (currency) => {
         active = currency;
         set({ currency });
       },
+      applyLiveRates: (rates) => {
+        let changed = false;
+        if (rates.USDT && rates.USDT > 0) { CURRENCIES.USDT.rubPerUnit = rates.USDT; changed = true; }
+        if (rates.STARS && rates.STARS > 0) { CURRENCIES.STARS.rubPerUnit = rates.STARS; changed = true; }
+        if (changed) set({ ratesVersion: get().ratesVersion + 1 });
+      },
     }),
-    { name: 'currency-storage' },
+    {
+      name: 'currency-storage',
+      // курсы не персистим — только выбранную валюту
+      partialize: (s) => ({ currency: s.currency }),
+    },
   ),
 );

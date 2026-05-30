@@ -16,6 +16,7 @@ export function Layout() {
   const navigate = useNavigate();
   const loc = useLocation();
   useCurrencyStore((s) => s.currency); // ре-рендер баланса при смене валюты
+  useCurrencyStore((s) => s.ratesVersion); // и при обновлении живого курса
 
   const [scrolled, setScrolled] = useState(false);
 

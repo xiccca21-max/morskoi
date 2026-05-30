@@ -15,6 +15,7 @@ import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { GameModule } from './game/game.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { HistoryModule } from './history/history.module';
+import { RatesModule } from './rates/rates.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { HealthController } from './common/health.controller';
 
@@ -36,6 +37,7 @@ import { HealthController } from './common/health.controller';
     GameModule,
     LeaderboardModule,
     HistoryModule,
+    RatesModule,
     TelegramBotModule,
   ],
   controllers: [HealthController],

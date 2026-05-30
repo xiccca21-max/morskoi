@@ -97,3 +97,9 @@ export const LeaderboardAPI = {
   top: (type: 'wins' | 'earnings' = 'wins', limit = 50) =>
     api.get(`/leaderboard?type=${type}&limit=${limit}`).then(r => r.data),
 };
+
+export interface Rates { RUB: number; USDT: number; STARS: number; ts: number; live: boolean }
+
+export const RatesAPI = {
+  get: () => api.get<Rates>('/rates').then(r => r.data),
+};
