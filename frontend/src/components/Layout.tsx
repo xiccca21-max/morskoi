@@ -6,6 +6,7 @@ import { useMatchStore } from '../stores/match-store';
 import { Icon, IconName } from './Icon';
 import { AnimatedNumber } from './AnimatedNumber';
 import { Toaster } from './Toaster';
+import { OfflineBanner } from './OfflineBanner';
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -34,6 +35,7 @@ export function Layout() {
   return (
     <div className="min-h-[100dvh] flex flex-col">
       <Toaster />
+      <OfflineBanner />
       <header
         className="px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line"
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}

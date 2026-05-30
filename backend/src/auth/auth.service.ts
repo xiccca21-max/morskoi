@@ -56,6 +56,12 @@ export class AuthService {
 
     if (user.banned) throw new UnauthorizedException('User banned');
 
+    const excludedUntil = (user as any).selfExcludedUntil as Date | null;
+    if (excludedUntil && new Date(excludedUntil) > new Date()) {
+      const until = new Date(excludedUntil).toLocaleString('ru-RU');
+      throw new UnauthorizedException(`Самоисключение активно до ${until}`);
+    }
+
     // Реферал: start_param вида ref_<userId> — засчитываем при первой регистрации
     if (isNew && parsed.startParam?.startsWith('ref_')) {
       const refId = parsed.startParam.slice(4);
