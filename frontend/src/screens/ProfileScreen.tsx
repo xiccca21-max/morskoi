@@ -44,26 +44,15 @@ export default function ProfileScreen() {
   const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : null;
 
   const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
-  const refLink = `https://t.me/${bot}?startapp=ref_${user.id}`;
   const supportUrl = (import.meta.env.VITE_SUPPORT_URL as string) ?? `https://t.me/${bot}`;
-
-  const invite = () => {
-    tgShare(refLink, 'Вызываю на морскую дуэль со ставками. Регистрируйся по ссылке — нам обоим бонус!');
-  };
 
   const copyId = () => {
     navigator.clipboard.writeText(user.telegramId).catch(() => {});
     toast('ID скопирован', 'success', 'check');
   };
 
-  const copyRef = () => {
-    navigator.clipboard.writeText(refLink).catch(() => {});
-    toast('Ссылка скопирована', 'success', 'check');
-  };
-
   const shareProfile = () => {
     tgHaptic('success');
-    tgShare(refLink, `${displayName} — ${rank.title} в «Морском Бою»: ${user.wins} побед, точность ${wr}%. Сразись со мной!`);
     toast('Профиль готов к отправке', 'success', 'share');
   };
 
@@ -205,23 +194,6 @@ export default function ProfileScreen() {
         <Stat label="Точность" value={`${wr}%`} />
       </section>
 
-      {/* Реферальная программа */}
-      <section className="card p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="eyebrow">Приглашай друзей</p>
-            <p className="text-main text-sm mt-1">Бонус тебе и другу за каждого приглашённого</p>
-          </div>
-          <div className="text-right">
-            <p className="font-display text-2xl text-main tabular-nums">{user.referralCount ?? 0}</p>
-            <p className="eyebrow">друзей</p>
-          </div>
-        </div>
-        <div className="flex gap-2 mt-4">
-          <button className="btn-primary flex-1" onClick={invite}><Icon name="share" size={16} /> Пригласить</button>
-          <button className="btn-ghost px-4" onClick={copyRef} aria-label="Скопировать ссылку"><Icon name="check" size={16} /></button>
-        </div>
-      </section>
 
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
