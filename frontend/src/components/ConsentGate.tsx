@@ -13,6 +13,7 @@ export function ConsentGate() {
   const patchUser = useAuthStore((s) => s.patchUser);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const accept = async () => {
     if (!checked) return;
@@ -59,9 +60,19 @@ export function ConsentGate() {
           />
           <span className="text-xs text-muted leading-relaxed">
             Я подтверждаю, что мне есть 18 лет, и принимаю
-            {' '}<a href="#/rules" className="text-danger underline">правила</a> и условия сервиса.
+            {' '}<button type="button" onClick={(e) => { e.preventDefault(); setShowRules((v) => !v); }} className="text-danger underline">правила</button> и условия сервиса.
           </span>
         </label>
+
+        {showRules && (
+          <div className="bg-panel rounded-lg p-3 text-[11px] text-muted leading-relaxed space-y-1.5 max-h-40 overflow-y-auto">
+            <p>• Каждый бой — ставка двух игроков. Победитель забирает банк за вычетом комиссии 5%.</p>
+            <p>• Все ходы проверяются на сервере, поля соперников скрыты. Читы невозможны.</p>
+            <p>• Выход из боя или бездействие засчитывается как поражение, ставка не возвращается.</p>
+            <p>• Вывод средств — от 100 ₽, обработка до 24 часов.</p>
+            <p>• Играйте ответственно: лимиты и перерыв доступны в настройках.</p>
+          </div>
+        )}
 
         <button className="btn-primary w-full" onClick={accept} disabled={!checked || busy}>
           {busy ? 'Подтверждаем…' : 'Принять и продолжить'}

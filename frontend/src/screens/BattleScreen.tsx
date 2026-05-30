@@ -82,6 +82,16 @@ export default function BattleScreen() {
       tgVibrate(35);
       playSound('splash');
     }
+    // Если стрелял соперник — подсказываем, куда именно, и показываем наше поле
+    if (lastAttack.by && me?.id && lastAttack.by !== me.id) {
+      const where = coord(lastAttack.x, lastAttack.y);
+      if (lastAttack.sunk) toast(`Соперник потопил ваш корабль (${where})`, 'error', 'skull');
+      else if (lastAttack.hit) toast(`Попадание по вам: ${where}`, 'error', 'target');
+      else toast(`Соперник промахнулся: ${where}`, 'info', 'wave');
+      setView('own');
+      const t = setTimeout(() => setView('enemy'), 1600);
+      return () => clearTimeout(t);
+    }
   }, [lastAttack?.ts]); // eslint-disable-line
 
   useEffect(() => {
@@ -124,6 +134,16 @@ export default function BattleScreen() {
   const deadline = state?.turnDeadline ? new Date(state.turnDeadline).getTime() : 0;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
 
+  // Масштаб полоски таймера определяем по фактической длительности хода,
+  // а не по захардкоженным 20с (TURN_TIMEOUT_SEC может отличаться).
+  const turnMaxRef = useRef(20);
+  const lastDeadlineRef = useRef(0);
+  if (deadline && deadline !== lastDeadlineRef.current) {
+    lastDeadlineRef.current = deadline;
+    const span = Math.ceil((deadline - Date.now()) / 1000);
+    if (span > 0) turnMaxRef.current = span;
+  }
+
   // Сигнал, когда наступает твой ход
   const prevTurnRef = useRef(myTurn);
   useEffect(() => {
@@ -133,7 +153,7 @@ export default function BattleScreen() {
     }
     prevTurnRef.current = myTurn;
   }, [myTurn, state?.gameStatus]);
-  const fuse = Math.max(0, Math.min(100, (remaining / 20) * 100));
+  const fuse = Math.max(0, Math.min(100, (remaining / turnMaxRef.current) * 100));
 
   const enemyAttacks = state?.enemy.view.attacks ?? [];
   const ownAttacks = state?.me.own.attacks ?? [];
@@ -170,8 +190,13 @@ export default function BattleScreen() {
   const myLog = useMemo(() => enemyAttacks.slice(-5).reverse(), [enemyAttacks]);
 
   const attack = (x: number, y: number) => {
-    if (!myTurn || !matchId) return;
-    if (enemyAttacks.some((a) => a.x === x && a.y === y)) return;
+    if (!matchId) return;
+    if (!myTurn) { tgHaptic('warning'); return; }
+    if (enemyAttacks.some((a) => a.x === x && a.y === y)) {
+      tgHaptic('error');
+      toast('Сюда уже стреляли', 'info', 'crosshair');
+      return;
+    }
     getSocket().emit('game:attack', { matchId, x, y, nonce: newNonce() });
   };
 

@@ -79,7 +79,7 @@ export default function HomeScreen() {
       {/* Главная кнопка */}
       <button
         onClick={() => { tgHaptic('medium'); navigate('/matchmaking'); }}
-        className="w-full card p-5 text-left flex items-center justify-between hover:border-line transition group"
+        className="w-full card card-press p-5 text-left flex items-center justify-between hover:border-line transition group"
       >
         <div>
           <span className="title text-xl text-main">В бой</span>
@@ -111,7 +111,7 @@ function Stat({ label, value, accent }: { label: string; value: any; accent?: bo
 
 function Tile({ icon, title, sub, onClick }: { icon: IconName; title: string; sub: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="card p-4 text-left hover:border-line transition">
+    <button onClick={onClick} className="card card-press p-4 text-left hover:border-line transition">
       <Icon name={icon} size={22} className="text-muted" />
       <div className="font-display text-main mt-2">{title}</div>
       <div className="text-[11px] text-muted">{sub}</div>

@@ -2,15 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Цвета хранятся как RGB-каналы («R G B»), чтобы Tailwind-модификаторы прозрачности
+   (bg-danger/10, border-success/40 и т.д.) работали корректно. Hex-переменные
+   выводятся из каналов для сырого CSS. */
 :root, [data-theme="brutal"] {
-  --c-base: #EAE6D7;
-  --c-panel: #FFFFFF;
-  --c-main: #000000;
-  --c-muted: #444444;
-  --c-accent: #FF4911;
-  --c-danger: #FF0000;
-  --c-success: #16A34A;
-  --c-line: #000000;
+  --c-base-rgb: 234 230 215;
+  --c-panel-rgb: 255 255 255;
+  --c-main-rgb: 0 0 0;
+  --c-muted-rgb: 68 68 68;
+  --c-accent-rgb: 255 73 17;
+  --c-danger-rgb: 255 0 0;
+  --c-success-rgb: 22 163 74;
+  --c-line-rgb: 0 0 0;
   --c-water: rgba(0,0,0,0.05);
   --radius-card: 0px;
   --radius-btn: 0px;
@@ -23,14 +26,14 @@
 }
 
 [data-theme="radar"] {
-  --c-base: #020A04;
-  --c-panel: #041408;
-  --c-main: #4AF626;
-  --c-muted: #1F7A12;
-  --c-accent: #4AF626;
-  --c-danger: #FF003C;
-  --c-success: #4AF626;
-  --c-line: #1F7A12;
+  --c-base-rgb: 2 10 4;
+  --c-panel-rgb: 4 20 8;
+  --c-main-rgb: 74 246 38;
+  --c-muted-rgb: 31 122 18;
+  --c-accent-rgb: 74 246 38;
+  --c-danger-rgb: 255 0 60;
+  --c-success-rgb: 74 246 38;
+  --c-line-rgb: 31 122 18;
   --c-water: rgba(74, 246, 38, 0.08);
   --radius-card: 0px;
   --radius-btn: 0px;
@@ -43,14 +46,14 @@
 }
 
 [data-theme="blueprint"] {
-  --c-base: #0A3A69;
-  --c-panel: #114B82;
-  --c-main: #FFFFFF;
-  --c-muted: #8CB4DE;
-  --c-accent: #FFFFFF;
-  --c-danger: #FF6B00;
-  --c-success: #34D399;
-  --c-line: #8CB4DE;
+  --c-base-rgb: 10 58 105;
+  --c-panel-rgb: 17 75 130;
+  --c-main-rgb: 255 255 255;
+  --c-muted-rgb: 140 180 222;
+  --c-accent-rgb: 255 255 255;
+  --c-danger-rgb: 255 107 0;
+  --c-success-rgb: 52 211 153;
+  --c-line-rgb: 140 180 222;
   --c-water: rgba(255, 255, 255, 0.05);
   --radius-card: 4px;
   --radius-btn: 4px;
@@ -62,6 +65,18 @@
     linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
   color-scheme: dark;
+}
+
+/* Производные hex-подобные переменные для сырого CSS (background: var(--c-danger)). */
+:root {
+  --c-base: rgb(var(--c-base-rgb));
+  --c-panel: rgb(var(--c-panel-rgb));
+  --c-main: rgb(var(--c-main-rgb));
+  --c-muted: rgb(var(--c-muted-rgb));
+  --c-accent: rgb(var(--c-accent-rgb));
+  --c-danger: rgb(var(--c-danger-rgb));
+  --c-success: rgb(var(--c-success-rgb));
+  --c-line: rgb(var(--c-line-rgb));
 }
 
 html, body, #root {
@@ -186,3 +201,43 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--c-line); border-radius: 3px; }
 
 .fx-shake { animation: shake 0.4s ease-in-out; }
+
+/* ===== Доступность: видимый фокус с клавиатуры ===== */
+:focus-visible {
+  outline: 2px solid var(--c-danger);
+  outline-offset: 2px;
+}
+
+/* ===== Поля ввода: единый стиль, без уродливых стрелок у number ===== */
+input,
+textarea,
+select {
+  font-family: var(--font-body);
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input::placeholder { color: color-mix(in srgb, var(--c-muted) 70%, transparent); }
+input:focus, textarea:focus, select:focus { border-color: var(--c-danger) !important; }
+
+/* ===== Тактильный отклик на нажатие у кликабельных карточек ===== */
+.card-press { transition: transform 0.08s ease, filter 0.15s ease; }
+.card-press:active { transform: scale(0.985); }
+
+/* Плавность смены вкладок/состояний */
+.btn { will-change: transform; }
+
+/* Уважение к prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

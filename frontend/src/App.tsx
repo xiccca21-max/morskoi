@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, getInitData, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
-import { AuthAPI, UsersAPI } from './api/endpoints';
+import { AuthAPI, UsersAPI, WalletAPI } from './api/endpoints';
 import { loadToken, setAuthToken } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
 import { useAuthStore } from './stores/auth-store';
@@ -40,6 +40,7 @@ export default function App() {
   const setUser = useAuthStore((s) => s.setUser);
   const setReady = useAuthStore((s) => s.setReady);
   const updateBalance = useAuthStore((s) => s.updateBalance);
+  const updateWallet = useAuthStore((s) => s.updateWallet);
   const user = useAuthStore((s) => s.user);
   const setMatchState = useMatchStore((s) => s.setState);
   const setLastAttack = useMatchStore((s) => s.setLastAttack);
@@ -69,6 +70,19 @@ export default function App() {
   const theme = useThemeStore((s) => s.theme);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    // Синхронизируем цвет шапки/фона Telegram и meta theme-color с темой
+    requestAnimationFrame(() => {
+      const styles = getComputedStyle(document.documentElement);
+      const panel = styles.getPropertyValue('--c-panel').trim();
+      const base = styles.getPropertyValue('--c-base').trim();
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta && base) meta.setAttribute('content', base);
+      const tg: any = (window as any).Telegram?.WebApp;
+      try {
+        tg?.setHeaderColor?.(panel || base);
+        tg?.setBackgroundColor?.(base);
+      } catch { /* старые версии Telegram */ }
+    });
   }, [theme]);
 
   // Вибрация подчиняется пользовательской настройке
@@ -162,7 +176,11 @@ export default function App() {
       }
     };
     // match:turnTimeout обрабатывается только в BattleScreen чтобы избежать дублирования
-    const onWalletUpdate = (b: number) => updateBalance(b);
+    const onWalletUpdate = (b: number) => {
+      updateBalance(b);
+      // Подтягиваем withdrawable (сокет шлёт только баланс)
+      WalletAPI.balance().then(updateWallet).catch(() => {});
+    };
     const onCancelled = (e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
       clearMatch();
       if (e?.reason === 'placement_timeout') {
@@ -196,7 +214,7 @@ export default function App() {
       if (toastTimer) clearTimeout(toastTimer);
       closeSocket();
     };
-  }, [authenticated, setMatchState, setLastAttack, updateBalance, clearMatch, navigate]);
+  }, [authenticated, setMatchState, setLastAttack, updateBalance, updateWallet, clearMatch, navigate]);
 
   const ready = useAuthStore((s) => s.ready);
 

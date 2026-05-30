@@ -40,13 +40,16 @@ export function getToken() {
   return _token;
 }
 
-// Автоматический выход при истёкшем токене
+// Автоматический выход только при истёкшем/невалидном токене (401).
+// 403 (доступ запрещён к конкретному ресурсу) НЕ должен разлогинивать —
+// иначе бизнес-ошибки выкидывают пользователя из приложения.
+let _reloadingAuth = false;
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err?.response?.status === 401 || err?.response?.status === 403) {
+    if (err?.response?.status === 401 && !_reloadingAuth) {
+      _reloadingAuth = true;
       setAuthToken(null);
-      // Мягкая перезагрузка — даём App.tsx поймать отсутствие токена
       window.location.reload();
     }
     return Promise.reject(err);

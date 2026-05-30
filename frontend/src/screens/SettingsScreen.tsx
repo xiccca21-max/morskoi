@@ -18,10 +18,11 @@ const EXCLUDE_OPTIONS = [
 
 export default function SettingsScreen() {
   const setUser = useAuthStore((s) => s.setUser);
+  const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
   const { sound, haptics, setSound, setHaptics } = useSettingsStore();
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const [depLimit, setDepLimit] = useState(0);
+  const [depLimit, setDepLimit] = useState(user?.dailyDepositLimit ?? 0);
   const [savingLimit, setSavingLimit] = useState(false);
   const [confirmExclude, setConfirmExclude] = useState<number | null>(null);
 

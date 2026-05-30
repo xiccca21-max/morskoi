@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Board } from '../components/Board';
@@ -148,6 +148,25 @@ export default function PlacementScreen() {
   const allPlaced = placedShips.length === fleet.length;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
   const fuse = Math.max(0, Math.min(100, (remaining / 30) * 100));
+
+  // Автостановка: если время вышло и игрок не отправил флот —
+  // ставим корабли автоматически и отправляем, чтобы не потерять матч.
+  const autoSubmittedRef = useRef(false);
+  useEffect(() => {
+    if (remaining > 0 || sent || submitting || autoSubmittedRef.current || !matchId) return;
+    autoSubmittedRef.current = true;
+    const ships = autoPlaceLocal().map((sp, idx) => {
+      const slot = fleet[idx];
+      return { ...sp, id: slot.id, kind: slot.kind, size: slot.size };
+    });
+    showToast('Время вышло — флот расставлен автоматически', 'info', 'dice');
+    tgHaptic('warning');
+    setSubmitting(true);
+    getSocket().emit('game:placement', { matchId, ships, nonce: newNonce() }, (ack: any) => {
+      setSubmitting(false);
+      if (ack?.ok) setSent(true);
+    });
+  }, [remaining, sent, submitting, matchId, fleet]);
 
   // Нативная нижняя кнопка Telegram дублирует CTA «К бою»
   const useNative = isTelegram();

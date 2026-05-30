@@ -4,14 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: 'var(--c-base)',
-        panel: 'var(--c-panel)',
-        main: 'var(--c-main)',
-        muted: 'var(--c-muted)',
-        accent: 'var(--c-accent)',
-        danger: 'var(--c-danger)',
-        success: 'var(--c-success)',
-        line: 'var(--c-line)',
+        base: 'rgb(var(--c-base-rgb) / <alpha-value>)',
+        panel: 'rgb(var(--c-panel-rgb) / <alpha-value>)',
+        main: 'rgb(var(--c-main-rgb) / <alpha-value>)',
+        muted: 'rgb(var(--c-muted-rgb) / <alpha-value>)',
+        accent: 'rgb(var(--c-accent-rgb) / <alpha-value>)',
+        danger: 'rgb(var(--c-danger-rgb) / <alpha-value>)',
+        success: 'rgb(var(--c-success-rgb) / <alpha-value>)',
+        line: 'rgb(var(--c-line-rgb) / <alpha-value>)',
         water: 'var(--c-water)',
       },
       fontFamily: {

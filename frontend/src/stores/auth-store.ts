@@ -15,6 +15,8 @@ export interface User {
   draws?: number;
   referralCount?: number;
   agreedToTerms?: boolean;
+  dailyDepositLimit?: number;
+  selfExcludedUntil?: string | null;
   createdAt?: string;
 }
 
