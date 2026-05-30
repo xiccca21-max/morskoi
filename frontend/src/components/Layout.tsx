@@ -7,13 +7,15 @@ import { Icon, IconName } from './Icon';
 import { AnimatedNumber } from './AnimatedNumber';
 import { Toaster } from './Toaster';
 import { OfflineBanner } from './OfflineBanner';
-import { formatNumber, formatCompact } from '../lib/format';
+import { formatCompactMoney, formatMoney } from '../lib/format';
+import { useCurrencyStore } from '../stores/currency-store';
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
   const match = useMatchStore((s) => s.state);
   const navigate = useNavigate();
   const loc = useLocation();
+  useCurrencyStore((s) => s.currency); // ре-рендер баланса при смене валюты
 
   const [scrolled, setScrolled] = useState(false);
 
@@ -64,7 +66,7 @@ export function Layout() {
         <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main" aria-label="Кошелёк">
           <Icon name="coins" size={15} className="text-muted" />
           <span className="font-display text-sm tabular-nums">
-            <AnimatedNumber value={user?.balance ?? 0} formatter={formatNumber} /> ₽
+            <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
           </span>
         </NavLink>
       </header>
@@ -117,7 +119,7 @@ function BalanceTab({ balance }: { balance: number }) {
             >
               <Icon name="coins" size={18} />
               <span className="font-display text-[11px] leading-none tabular-nums mt-0.5">
-                <AnimatedNumber value={balance} formatter={formatCompact} />
+                <AnimatedNumber value={balance} formatter={formatCompactMoney} />
               </span>
             </motion.div>
             <span className={['text-[10px] font-display uppercase tracking-wider', isActive ? 'text-main' : 'text-muted'].join(' ')}>

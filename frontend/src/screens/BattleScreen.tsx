@@ -13,6 +13,7 @@ import { Icon, IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
 import { toast } from '../stores/toast-store';
+import { formatMoney } from '../lib/format';
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const coord = (x: number, y: number) => `${LETTERS[x] ?? '?'}${y + 1}`;
@@ -234,7 +235,7 @@ export default function BattleScreen() {
       <div className="card p-3 flex items-center justify-between">
         <div>
           <p className="eyebrow">Банк</p>
-          <p className="font-display text-main text-lg leading-none tabular-nums">{state.prizePool.toFixed(0)} ₽</p>
+          <p className="font-display text-main text-lg leading-none tabular-nums">{formatMoney(state.prizePool)}</p>
           {matchId && <p className="text-[9px] text-muted font-mono mt-0.5">#{matchId.slice(-8).toUpperCase()}</p>}
         </div>
         <div className="text-center flex-1 px-3">
@@ -390,7 +391,7 @@ export default function BattleScreen() {
         message={
           <>
             Если вы сдадитесь или выйдете, бой засчитывается сопернику.
-            Ваша ставка <span className="text-danger font-display">{state.wagerAmount} ₽</span> сгорит без возврата.
+            Ваша ставка <span className="text-danger font-display">{formatMoney(state.wagerAmount)}</span> сгорит без возврата.
           </>
         }
         confirmLabel="Сдаться"

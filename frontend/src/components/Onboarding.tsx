@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { Modal } from './Modal';
 import { Icon, IconName } from './Icon';
 import { tgHaptic } from '../lib/telegram';
-import { formatNumber } from '../lib/format';
+import { formatMoney } from '../lib/format';
 
 const STEPS: { icon: IconName; title: string; text: string }[] = [
   { icon: 'swords', title: 'Дуэль на ставку', text: 'Найдите соперника, поставьте равную сумму — победитель забирает банк.' },
@@ -72,7 +72,7 @@ export function Onboarding() {
         <div className="card p-3 mb-4 flex items-center gap-2 border-danger">
           <Icon name="coins" size={18} className="text-danger" />
           <p className="text-main text-xs">
-            На счёт зачислено <span className="font-display">{formatNumber(balance)} ₽</span> — попробуйте бой прямо сейчас.
+            На счёт зачислено <span className="font-display">{formatMoney(balance)}</span> — попробуйте бой прямо сейчас.
           </p>
         </div>
       )}

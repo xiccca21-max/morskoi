@@ -7,7 +7,7 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
-import { formatNumber } from '../lib/format';
+import { formatMoney } from '../lib/format';
 import { playSound } from '../lib/audio';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
@@ -162,7 +162,7 @@ export default function WalletScreen() {
           <div>
             <p className="eyebrow">Баланс</p>
             <p className="font-display text-4xl text-main mt-1 tabular-nums">
-              <AnimatedNumber value={balance} formatter={formatNumber} /> ₽
+              <AnimatedNumber value={balance} formatter={formatMoney} />
             </p>
           </div>
           <Icon name="coins" size={32} className="text-muted" />
@@ -171,12 +171,12 @@ export default function WalletScreen() {
           <div className="bg-panel rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-muted">Можно вывести</p>
             <p className="font-display text-main tabular-nums text-lg">
-              <AnimatedNumber value={withdrawable} formatter={formatNumber} /> ₽
+              <AnimatedNumber value={withdrawable} formatter={formatMoney} />
             </p>
           </div>
           <div className="bg-panel rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-muted">Бонусы</p>
-            <p className="font-display text-muted tabular-nums text-lg">{formatNumber(bonus)} ₽</p>
+            <p className="font-display text-muted tabular-nums text-lg">{formatMoney(bonus)}</p>
           </div>
         </div>
         {bonus > 0 && (
@@ -251,7 +251,7 @@ export default function WalletScreen() {
                   return (
                     <li key={w.id} className="bg-panel rounded-lg p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-main font-display tabular-nums">{w.net.toFixed(0)} ₽</span>
+                        <span className="text-main font-display tabular-nums">{formatMoney(w.net)}</span>
                         <span className={['text-[10px] uppercase tracking-wide border rounded px-1.5 py-0.5', st.cls].join(' ')}>
                           {st.label}
                         </span>
@@ -355,7 +355,7 @@ export default function WalletScreen() {
                     {pending && <span className="text-[9px] uppercase tracking-wide text-warning border border-warning/40 rounded px-1 py-px">в обработке</span>}
                   </span>
                   <span className={['tabular-nums font-display text-sm', plus ? 'text-main' : 'text-danger'].join(' ')}>
-                    {plus ? '+' : '−'}{Number(t.amount).toFixed(2)} ₽
+                    {plus ? '+' : '−'}{formatMoney(Number(t.amount))}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

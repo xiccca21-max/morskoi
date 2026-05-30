@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
+import { formatMoney } from '../lib/format';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -115,11 +116,11 @@ export default function LobbyScreen() {
         <div className="rope my-4" />
         <div className="grid grid-cols-2 gap-px bg-line rounded-lg overflow-hidden">
           <div className="bg-panel p-3">
-            <div className="font-display tabular-nums text-main">{lobby.wagerAmount} ₽</div>
+            <div className="font-display tabular-nums text-main">{formatMoney(lobby.wagerAmount)}</div>
             <div className="eyebrow mt-0.5">Ставка</div>
           </div>
           <div className="bg-panel p-3">
-            <div className="font-display tabular-nums text-main">{win} ₽</div>
+            <div className="font-display tabular-nums text-main">{formatMoney(win)}</div>
             <div className="eyebrow mt-0.5">Победителю</div>
           </div>
         </div>

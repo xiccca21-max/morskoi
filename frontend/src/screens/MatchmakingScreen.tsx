@@ -15,6 +15,7 @@ import { Spinner } from '../components/Spinner';
 import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
+import { formatMoney } from '../lib/format';
 
 const ALL_RANKS: Rank[] = [
   { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
@@ -338,7 +339,7 @@ export default function MatchmakingScreen() {
               <div className="flex items-center gap-3">
                 <span className="w-2 h-2 rounded-full bg-danger animate-pulse shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-main text-sm font-display">Ваш бой в списке · {myOpen.wager} ₽</p>
+                  <p className="text-main text-sm font-display">Ваш бой в списке · {formatMoney(myOpen.wager)}</p>
                   <p className="text-muted text-xs">Ждём соперника…</p>
                 </div>
                 <button className="btn-ghost px-3 py-2" onClick={cancelPublic}>Снять</button>
@@ -509,7 +510,7 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
         </button>
       </div>
       <div className="text-right shrink-0">
-        <div className="font-display text-main tabular-nums leading-none">{m.wagerAmount} ₽</div>
+        <div className="font-display text-main tabular-nums leading-none">{formatMoney(m.wagerAmount)}</div>
         {m.isMine ? (
           <button className="mt-1 text-xs text-muted underline" onClick={onCancel}>снять</button>
         ) : (

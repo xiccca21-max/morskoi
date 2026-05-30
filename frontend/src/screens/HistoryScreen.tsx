@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { toast } from '../stores/toast-store';
-import { formatNumber } from '../lib/format';
+import { formatMoney } from '../lib/format';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
@@ -57,9 +57,9 @@ export default function HistoryScreen() {
           </div>
           <div className="bg-panel p-2 text-center">
             <div className={['font-display text-lg tabular-nums', net >= 0 ? 'text-success' : 'text-danger'].join(' ')}>
-              {net >= 0 ? '+' : '−'}{Math.abs(net).toFixed(0)}
+              {net >= 0 ? '+' : '−'}{formatMoney(Math.abs(net))}
             </div>
-            <div className="eyebrow mt-0.5">Итог ₽</div>
+            <div className="eyebrow mt-0.5">Итог</div>
           </div>
         </div>
       )}
@@ -99,9 +99,9 @@ export default function HistoryScreen() {
                 <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString('ru-RU') : '—'}</div>
               </div>
               <div className={['font-display tabular-nums shrink-0', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
-                {win ? `+${formatNumber(m.prizePool - m.rakeAmount)} ₽`
-                  : loss ? `−${formatNumber(m.wagerAmount)} ₽`
-                    : `${formatNumber(m.wagerAmount)} ₽`}
+                {win ? `+${formatMoney(m.prizePool - m.rakeAmount)}`
+                  : loss ? `−${formatMoney(m.wagerAmount)}`
+                    : formatMoney(m.wagerAmount)}
               </div>
             </motion.li>
           );

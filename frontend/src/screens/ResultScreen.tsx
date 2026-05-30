@@ -11,6 +11,7 @@ import { tgHaptic, tgShare, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Skeleton } from '../components/Skeleton';
 import { playSound } from '../lib/audio';
+import { formatMoney } from '../lib/format';
 
 export default function ResultScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -125,7 +126,7 @@ export default function ResultScreen() {
 
         {!draw && (
           <p className={['font-display text-4xl mt-1 tabular-nums', won ? 'text-success' : 'text-danger'].join(' ')}>
-            {won ? `+${payout.toFixed(0)}` : `−${matchState?.wagerAmount.toFixed(0) ?? ''}`} ₽
+            {won ? `+${formatMoney(payout)}` : `−${formatMoney(matchState?.wagerAmount ?? 0)}`}
           </p>
         )}
 
@@ -137,14 +138,14 @@ export default function ResultScreen() {
         <div className="rope my-5" />
 
         <div className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
-          <Stat label="Банк" value={`${pool.toFixed(0)} ₽`} />
-          <Stat label="Комиссия" value={`${rake.toFixed(0)} ₽`} />
-          <Stat label="Добыча" value={won ? `${payout.toFixed(0)} ₽` : '—'} />
+          <Stat label="Банк" value={formatMoney(pool)} />
+          <Stat label="Комиссия" value={formatMoney(rake)} />
+          <Stat label="Добыча" value={won ? formatMoney(payout) : '—'} />
         </div>
 
         <div className="rope my-4" />
         <p className="text-muted text-xs">
-          Баланс: <span className="font-display text-main tabular-nums">{(me?.balance ?? 0).toFixed(0)} ₽</span>
+          Баланс: <span className="font-display text-main tabular-nums">{formatMoney(me?.balance ?? 0)}</span>
         </p>
 
         {matchId && (

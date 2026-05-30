@@ -6,7 +6,7 @@ import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { SkeletonList } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
-import { formatNumber } from '../lib/format';
+import { formatMoney } from '../lib/format';
 
 export default function LeaderboardScreen() {
   const [tab, setTab] = useState<'wins' | 'earnings'>('wins');
@@ -55,7 +55,7 @@ export default function LeaderboardScreen() {
                 {isMe && <span className="text-[9px] uppercase tracking-wide bg-danger text-white rounded px-1.5 py-0.5">вы</span>}
               </div>
               <div className="text-sm font-display tabular-nums text-main">
-                {tab === 'wins' ? `${u.wins}` : `${formatNumber(u.totalWon)} ₽`}
+                {tab === 'wins' ? `${u.wins}` : formatMoney(u.totalWon)}
               </div>
             </motion.li>
           );

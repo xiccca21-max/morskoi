@@ -4,6 +4,7 @@ import { UsersAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { useThemeStore, THEMES } from '../stores/theme-store';
 import { useSettingsStore } from '../stores/settings-store';
+import { useCurrencyStore, CURRENCY_LIST } from '../stores/currency-store';
 import { tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
@@ -21,6 +22,8 @@ export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
   const { sound, haptics, setSound, setHaptics } = useSettingsStore();
+  const currency = useCurrencyStore((s) => s.currency);
+  const setCurrency = useCurrencyStore((s) => s.setCurrency);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [depLimit, setDepLimit] = useState(user?.dailyDepositLimit ?? 0);
   const [savingLimit, setSavingLimit] = useState(false);
@@ -81,6 +84,26 @@ export default function SettingsScreen() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="card p-5 space-y-3">
+        <p className="eyebrow">Валюта отображения</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {CURRENCY_LIST.map((c) => (
+            <button
+              key={c.code}
+              onClick={() => { setCurrency(c.code); tgHaptic('light'); }}
+              className={['py-2.5 rounded-lg text-sm font-display transition flex flex-col items-center gap-0.5 border', currency === c.code ? 'bg-danger text-white border-danger' : 'bg-panel text-muted border-line'].join(' ')}
+            >
+              <span className="text-base leading-none">{c.symbol}</span>
+              <span className="text-[11px]">{c.name}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-muted text-[11px] leading-relaxed">
+          Меняет валюту, в которой показаны баланс, история и статистика. Ставки и пополнения
+          рассчитываются в рублях — это игровая валюта. Курс приблизительный.
+        </p>
       </section>
 
       {/* Ответственная игра */}
