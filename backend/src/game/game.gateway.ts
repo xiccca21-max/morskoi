@@ -48,6 +48,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private turnTimers = new Map<string, NodeJS.Timeout>();
   // Счётчик подряд пропущенных ходов (AFK/дисконнект): matchId → { userId, count }
   private afkCounters = new Map<string, { userId: string; count: number }>();
+  // Таймауты фазы расстановки: matchId → NodeJS.Timeout
+  private placementTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly auth: AuthService,
@@ -178,6 +180,36 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.turnTimers.delete(matchId);
   }
 
+  private schedulePlacementTimeout(matchId: string) {
+    const existing = this.placementTimers.get(matchId);
+    if (existing) clearTimeout(existing);
+    const sec = Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60);
+    const t = setTimeout(async () => {
+      try {
+        const r = await this.game.handlePlacementTimeout(matchId);
+        this.placementTimers.delete(matchId);
+        if (r?.players?.length) {
+          this.server.to(`match:${matchId}`).emit('match:cancelled', {
+            matchId,
+            reason: 'placement_timeout',
+          });
+          for (const uid of r.players) {
+            this.server.to(`user:${uid}`).emit('match:cancelled', { matchId, reason: 'placement_timeout' });
+          }
+        }
+      } catch (e: any) {
+        this.logger.warn(`placement timeout error: ${e?.message}`);
+      }
+    }, sec * 1000 + 1500);
+    this.placementTimers.set(matchId, t);
+  }
+
+  private clearPlacementTimer(matchId: string) {
+    const t = this.placementTimers.get(matchId);
+    if (t) clearTimeout(t);
+    this.placementTimers.delete(matchId);
+  }
+
   // ============= Matchmaking =============
 
   @SubscribeMessage('mm:join')
@@ -224,6 +256,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       });
     }
     await this.broadcastStateToBothPlayers(matchId);
+    // Если кто-то не расставит флот вовремя — матч отменится
+    this.schedulePlacementTimeout(matchId);
   }
 
   // ============= Лобби (приватные) =============
@@ -273,7 +307,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       // оповещаем обоих о смене состояния
       await this.broadcastStateToBothPlayers(body.matchId);
       if (r.started) {
-        // запускаем таймер хода
+        // бой начался — снимаем таймер расстановки, запускаем таймер хода
+        this.clearPlacementTimer(body.matchId);
         const gs = await this.prisma.gameState.findUnique({ where: { matchId: body.matchId } });
         this.scheduleTurnTimeout(body.matchId, gs?.turnDeadline ?? null);
         this.server.to(`match:${body.matchId}`).emit('match:start', {

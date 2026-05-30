@@ -42,3 +42,18 @@ export const TxStatus = {
   REVERSED:  'REVERSED',
 } as const;
 export type TxStatus = typeof TxStatus[keyof typeof TxStatus];
+
+export const WithdrawalStatus = {
+  PENDING:  'PENDING',
+  APPROVED: 'APPROVED',
+  PAID:     'PAID',
+  REJECTED: 'REJECTED',
+} as const;
+export type WithdrawalStatus = typeof WithdrawalStatus[keyof typeof WithdrawalStatus];
+
+export const WithdrawalMethod = {
+  CARD:   'CARD',
+  TON:    'TON',
+  CRYPTO: 'CRYPTO',
+} as const;
+export type WithdrawalMethod = typeof WithdrawalMethod[keyof typeof WithdrawalMethod];

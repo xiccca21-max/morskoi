@@ -25,13 +25,43 @@ export class WalletService {
     return Number(u.balance);
   }
 
-  async deposit(userId: string, amount: number, meta?: Record<string, any>) {
+  /** Полный кошелёк: баланс + сколько можно вывести. */
+  async getWallet(userId: string): Promise<{ balance: number; withdrawable: number }> {
+    const u = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!u) throw new NotFoundException('User not found');
+    return { balance: Number(u.balance), withdrawable: Number((u as any).withdrawable ?? 0) };
+  }
+
+  /**
+   * Пополнение. Реальные деньги (real=true) увеличивают и баланс, и withdrawable.
+   * Бонус (real=false) — только баланс (вывести нельзя).
+   */
+  async deposit(userId: string, amount: number, meta?: Record<string, any>, real = true) {
     if (amount <= 0) throw new BadRequestException('Amount must be positive');
+
+    // Дневной лимит депозита (защита/ответственная игра)
+    const u0 = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!u0) throw new NotFoundException('User not found');
+    const limit = Number((u0 as any).dailyDepositLimit ?? 0);
+    if (limit > 0) {
+      const since = new Date(Date.now() - 24 * 3600 * 1000);
+      const agg = await this.prisma.transaction.aggregate({
+        where: { userId, type: TxType.DEPOSIT, createdAt: { gt: since } },
+        _sum: { amount: true },
+      });
+      const usedToday = Number(agg._sum.amount ?? 0);
+      if (usedToday + amount > limit) {
+        throw new BadRequestException(`Превышен дневной лимит пополнения (${limit} ₽)`);
+      }
+    }
+
     return this.redis.withLock(`wallet:${userId}`, 3000, async () => {
       return this.prisma.$transaction(async (tx) => {
         const u = await tx.user.update({
           where: { id: userId },
-          data: { balance: { increment: amount } },
+          data: real
+            ? ({ balance: { increment: amount }, withdrawable: { increment: amount } } as any)
+            : { balance: { increment: amount } },
         });
         await tx.transaction.create({
           data: {
@@ -47,29 +77,79 @@ export class WalletService {
     });
   }
 
-  async withdraw(userId: string, amount: number, meta?: Record<string, any>) {
-    if (amount <= 0) throw new BadRequestException('Amount must be positive');
-    return this.redis.withLock(`wallet:${userId}`, 3000, async () => {
+  /**
+   * Заявка на вывод средств. Создаёт WithdrawalRequest (PENDING) и сразу
+   * холдит средства (списывает с баланса + withdrawable). Реальная выплата —
+   * после ручной/автоматической обработки (статус → PAID).
+   */
+  async requestWithdrawal(
+    userId: string,
+    amount: number,
+    method: string,
+    destination: string,
+  ) {
+    const MIN = Number(process.env.MIN_WITHDRAW ?? 100);
+    const FEE_PERCENT = Number(process.env.WITHDRAW_FEE_PERCENT ?? 0);
+    const DAILY_LIMIT = Number(process.env.WITHDRAW_DAILY_LIMIT ?? 50000);
+
+    if (!['CARD', 'TON', 'CRYPTO'].includes(method)) throw new BadRequestException('Неверный способ вывода');
+    if (!destination || destination.trim().length < 4) throw new BadRequestException('Укажите реквизиты для вывода');
+    if (amount < MIN) throw new BadRequestException(`Минимальная сумма вывода — ${MIN} ₽`);
+
+    return this.redis.withLock(`wallet:${userId}`, 5000, async () => {
       return this.prisma.$transaction(async (tx) => {
         const u = await tx.user.findUnique({ where: { id: userId } });
         if (!u) throw new NotFoundException('User not found');
-        if (Number(u.balance) < amount) throw new BadRequestException('Insufficient balance');
+        const withdrawable = Number((u as any).withdrawable ?? 0);
+        if (withdrawable < amount) {
+          throw new BadRequestException(`Доступно к выводу: ${withdrawable.toFixed(0)} ₽`);
+        }
 
-        const updated = await tx.user.update({
-          where: { id: userId },
-          data: { balance: { decrement: amount } },
+        // Суточный лимит вывода
+        const since = new Date(Date.now() - 24 * 3600 * 1000);
+        const agg = await (tx as any).withdrawalRequest.aggregate({
+          where: { userId, status: { not: 'REJECTED' }, createdAt: { gt: since } },
+          _sum: { amount: true },
         });
+        const usedToday = Number(agg._sum.amount ?? 0);
+        if (usedToday + amount > DAILY_LIMIT) {
+          throw new BadRequestException(`Превышен дневной лимит вывода (${DAILY_LIMIT} ₽)`);
+        }
+
+        const fee = +(amount * (FEE_PERCENT / 100)).toFixed(2);
+        const net = +(amount - fee).toFixed(2);
+
+        // Холдим средства
+        await tx.user.update({
+          where: { id: userId },
+          data: { balance: { decrement: amount }, withdrawable: { decrement: amount } } as any,
+        });
+
+        const wr = await (tx as any).withdrawalRequest.create({
+          data: { userId, amount, fee, net, method, destination: destination.trim(), status: 'PENDING' },
+        });
+
         await tx.transaction.create({
           data: {
             userId,
             type: TxType.WITHDRAW,
             amount,
-            status: TxStatus.COMPLETED,
-            meta: meta ? JSON.stringify(meta) : null,
+            status: TxStatus.PENDING,
+            meta: JSON.stringify({ withdrawalId: wr.id, method, fee, net }),
           },
         });
-        return Number(updated.balance);
+
+        return { id: wr.id, amount, fee, net, status: 'PENDING' };
       });
+    });
+  }
+
+  /** Список заявок на вывод пользователя. */
+  async listWithdrawals(userId: string) {
+    return (this.prisma as any).withdrawalRequest.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     });
   }
 
@@ -101,6 +181,15 @@ export class WalletService {
             where: { id: p2Id },
             data: { balance: { decrement: amount }, totalWagered: { increment: amount } },
           });
+
+          // withdrawable не может превышать оставшийся баланс
+          for (const [u, id] of [[p1, p1Id], [p2, p2Id]] as const) {
+            const w = Number((u as any).withdrawable ?? 0);
+            const newBal = Number(u!.balance) - amount;
+            if (w > newBal) {
+              await tx.user.update({ where: { id }, data: { withdrawable: Math.max(0, newBal) } as any });
+            }
+          }
 
           await tx.transaction.createMany({
             data: [
@@ -142,11 +231,11 @@ export class WalletService {
             // refund обоим
             await tx.user.update({
               where: { id: p1Id },
-              data: { balance: { increment: wagerAmount }, draws: { increment: 1 } },
+              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 } } as any,
             });
             await tx.user.update({
               where: { id: p2Id },
-              data: { balance: { increment: wagerAmount }, draws: { increment: 1 } },
+              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 } } as any,
             });
             await tx.transaction.createMany({
               data: [
@@ -170,9 +259,10 @@ export class WalletService {
             where: { id: winnerId },
             data: {
               balance: { increment: winnerPayout },
+              withdrawable: { increment: winnerPayout },
               wins: { increment: 1 },
               totalWon: { increment: winnerPayout },
-            },
+            } as any,
           });
           await tx.user.update({
             where: { id: loserId },

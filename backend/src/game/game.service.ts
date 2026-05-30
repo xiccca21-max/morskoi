@@ -72,6 +72,33 @@ export class GameService {
     });
   }
 
+  /**
+   * Тайм-аут фазы расстановки: если бой так и не начался (кто-то не расставил
+   * флот), отменяем матч. Ставка ещё не списана — возврат не нужен.
+   * Возвращает список игроков, которым надо разослать отмену.
+   */
+  async handlePlacementTimeout(matchId: string) {
+    return this.redis.withLock(`match:${matchId}`, 4000, async () => {
+      const match = await this.prisma.match.findUnique({
+        where: { id: matchId },
+        include: { gameState: true },
+      });
+      if (!match || !match.gameState) return null;
+      if (match.status !== MatchStatus.PLACEMENT) return null; // уже стартовал/завершён
+
+      await this.prisma.match.update({
+        where: { id: matchId },
+        data: { status: MatchStatus.CANCELLED, endedAt: new Date() },
+      });
+      await this.prisma.gameState.update({
+        where: { matchId },
+        data: { gameStatus: GameStatus.FINISHED },
+      });
+      this.logger.warn(`Match ${matchId} cancelled: placement timeout`);
+      return { players: [match.player1Id, match.player2Id].filter(Boolean) as string[] };
+    });
+  }
+
   async findActiveMatchForUser(userId: string) {
     return this.prisma.match.findFirst({
       where: {

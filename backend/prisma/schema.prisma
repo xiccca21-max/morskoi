@@ -19,9 +19,12 @@ model User {
   username      String?
   firstName     String?
   lastName      String?
+  nickname      String?  // пользовательский ник (если задан вручную)
   avatar        String?
+  language      String?  // language_code из Telegram
 
-  balance       Float    @default(0)
+  balance       Float    @default(0)   // полный игровой баланс (реал + бонус)
+  withdrawable  Float    @default(0)   // часть, которую можно вывести (реальные деньги)
 
   wins          Int      @default(0)
   losses        Int      @default(0)
@@ -30,6 +33,17 @@ model User {
   totalWon      Float    @default(0)
 
   banned        Boolean  @default(false)
+
+  // Согласие с правилами и возрастом (18+)
+  agreedToTermsAt DateTime?
+
+  // Реферальная система
+  referredById  String?
+  referralCount Int      @default(0)
+
+  // Ответственная игра
+  dailyDepositLimit Float?
+  selfExcludedUntil DateTime?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -41,8 +55,12 @@ model User {
   transactions  Transaction[]
   queueEntry    MatchmakingQueue?
   lobbies       Lobby[]  @relation("LobbyHost")
+  withdrawals   WithdrawalRequest[]
+  referrer      User?    @relation("Referral", fields: [referredById], references: [id])
+  referrals     User[]   @relation("Referral")
 
   @@index([telegramId])
+  @@index([referredById])
 }
 
 // ===========================================================
@@ -118,6 +136,44 @@ model Transaction {
   @@index([userId])
   @@index([matchId])
   @@index([type])
+}
+
+// ===========================================================
+// Withdrawal requests
+// status: PENDING | APPROVED | PAID | REJECTED
+// method: CARD | TON | CRYPTO
+// ===========================================================
+model WithdrawalRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Float    // запрошенная сумма (брутто)
+  fee         Float    @default(0)
+  net         Float    // к выплате (amount - fee)
+  method      String   // CARD | TON | CRYPTO
+  destination String   // номер карты / адрес кошелька
+  status      String   @default("PENDING")
+  note        String?  // комментарий админа при отклонении
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ===========================================================
+// Action log (аудит важных действий)
+// ===========================================================
+model ActionLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // DEPOSIT | WITHDRAW_REQUEST | MATCH_CREATE | MATCH_JOIN | ...
+  meta      String?  // JSON
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
 }
 
 // ===========================================================
