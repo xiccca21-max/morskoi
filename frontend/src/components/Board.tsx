@@ -161,6 +161,10 @@ export function Board({
                   mode === 'placement'
                     ? !disabled
                     : mode === 'enemy' && !disabled && myTurn && !att;
+                // Наводящие линии: подсветка ряда/столбца от прицельной клетки (вражеское поле в мой ход)
+                const inAimLine =
+                  mode === 'enemy' && myTurn && !disabled && !!highlight && !isHighlight &&
+                  (highlight!.x === x || highlight!.y === y);
 
                 let cls = 'relative w-full h-full transition-colors';
                 if (isGhost) cls += ghostInvalid ? ' cell-ghost-bad' : ' cell-ghost';
@@ -175,6 +179,9 @@ export function Board({
                     onMouseEnter={() => onCellEnter?.(x, y)}
                     onTouchStart={() => onCellEnter?.(x, y)}
                   >
+                    {inAimLine && !att && (
+                      <span className="absolute inset-0 pointer-events-none bg-danger/10" />
+                    )}
                     {att && !onSunk && <Marker hit={att.hit} sunk={false} />}
                     {isHighlight && isClickable && <Crosshair />}
                   </div>
