@@ -6,11 +6,16 @@ export interface User {
   username?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  nickname?: string | null;
   avatar?: string | null;
   balance: number;
+  withdrawable?: number;
   wins: number;
   losses: number;
   draws?: number;
+  referralCount?: number;
+  agreedToTerms?: boolean;
+  createdAt?: string;
 }
 
 interface AuthState {
@@ -18,8 +23,10 @@ interface AuthState {
   authenticated: boolean;
   user: User | null;
   setUser: (u: User | null) => void;
+  patchUser: (p: Partial<User>) => void;
   setReady: (v: boolean) => void;
   updateBalance: (b: number) => void;
+  updateWallet: (w: { balance: number; withdrawable: number }) => void;
   applyMatchResult: (won: boolean) => void;
 }
 
@@ -28,8 +35,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   authenticated: false,
   user: null,
   setUser: (u) => set({ user: u, authenticated: !!u }),
+  patchUser: (p) => set((s) => (s.user ? { user: { ...s.user, ...p } } : {})),
   setReady: (v) => set({ ready: v }),
   updateBalance: (b) => set((s) => (s.user ? { user: { ...s.user, balance: b } } : {})),
+  updateWallet: (w) => set((s) => (s.user ? { user: { ...s.user, balance: w.balance, withdrawable: w.withdrawable } } : {})),
   applyMatchResult: (won) =>
     set((s) =>
       s.user

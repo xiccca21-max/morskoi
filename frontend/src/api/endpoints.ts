@@ -7,18 +7,38 @@ export const AuthAPI = {
   devLogin: (nickname: string) =>
     api.post<{ token: string; user: any }>('/auth/dev', { nickname })
        .then(r => r.data),
+  agreeTerms: () => api.post('/auth/agree-terms', {}).then(r => r.data),
+  setNickname: (nickname: string) => api.post('/auth/nickname', { nickname }).then(r => r.data),
 };
 
 export const UsersAPI = {
   me: () => api.get('/users/me').then(r => r.data),
   byId: (id: string) => api.get(`/users/${id}`).then(r => r.data),
+  setLimits: (p: { dailyDepositLimit?: number; selfExcludeDays?: number }) =>
+    api.patch('/users/me/limits', p).then(r => r.data),
+  deleteMe: () => api.delete('/users/me').then(r => r.data),
 };
 
+export interface Withdrawal {
+  id: string;
+  amount: number;
+  fee: number;
+  net: number;
+  method: string;
+  destination: string;
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED';
+  note?: string | null;
+  createdAt: string;
+  processedAt?: string | null;
+}
+
 export const WalletAPI = {
-  balance: () => api.get<{ balance: number }>('/wallet/balance').then(r => r.data),
+  balance: () => api.get<{ balance: number; withdrawable: number }>('/wallet/balance').then(r => r.data),
   txs:     () => api.get('/wallet/transactions').then(r => r.data),
+  withdrawals: () => api.get<Withdrawal[]>('/wallet/withdrawals').then(r => r.data),
   deposit: (amount: number) => api.post('/wallet/deposit', { amount }).then(r => r.data),
-  withdraw: (amount: number) => api.post('/wallet/withdraw', { amount }).then(r => r.data),
+  withdraw: (amount: number, method: string, destination: string) =>
+    api.post('/wallet/withdraw', { amount, method, destination }).then(r => r.data),
 };
 
 export interface OpenMatch {

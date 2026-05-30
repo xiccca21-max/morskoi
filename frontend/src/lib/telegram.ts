@@ -188,6 +188,18 @@ export function tgNotify(kind: 'success' | 'error' | 'warning' = 'success') {
   tgVibrate(pattern);
 }
 
+/** Открыть ссылку (t.me — через Telegram, иначе в браузере). */
+export function tgOpenLink(url: string) {
+  const tg = getTelegramWebApp();
+  if (url.includes('t.me') && tg?.openTelegramLink) {
+    tg.openTelegramLink(url);
+  } else if (tg?.openLink) {
+    tg.openLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
 export function tgShare(url: string, text: string) {
   const tg = getTelegramWebApp();
   if (tg?.openTelegramLink) {

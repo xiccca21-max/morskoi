@@ -10,8 +10,11 @@ export class GameController {
   constructor(private readonly game: GameService) {}
 
   @Get('active')
-  active(@CurrentUser() u: JwtPayload) {
-    return this.game.findActiveMatchForUser(u.sub);
+  async active(@CurrentUser() u: JwtPayload) {
+    const m = await this.game.findActiveMatchForUser(u.sub);
+    if (!m) return null;
+    // Возвращаем публичное состояние (matchId, gameStatus, ...) для фронта
+    return this.game.getStateForUser(m.id, u.sub);
   }
 
   @Get('state/:matchId')

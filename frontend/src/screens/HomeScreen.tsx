@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
+import { GameAPI } from '../api/endpoints';
 import { tgHaptic } from '../lib/telegram';
 import { getRank, rankProgress } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
@@ -11,6 +13,15 @@ export default function HomeScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const match = useMatchStore((s) => s.state);
+  const setMatchState = useMatchStore((s) => s.setState);
+
+  // Подтянуть активный матч при входе — чтобы кнопка «вернуться в бой» работала
+  // даже после перезапуска мини-аппа.
+  useEffect(() => {
+    GameAPI.active()
+      .then((m) => { if (m && m.matchId) setMatchState(m); })
+      .catch(() => {});
+  }, [setMatchState]);
 
   const wins = user?.wins ?? 0;
   const losses = user?.losses ?? 0;

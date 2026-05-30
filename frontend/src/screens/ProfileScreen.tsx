@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
-import { tgShare, tgPhotoUrl, tgHaptic } from '../lib/telegram';
+import { AuthAPI, UsersAPI } from '../api/endpoints';
+import { setAuthToken } from '../api/http';
+import { tgShare, tgPhotoUrl, tgHaptic, tgOpenLink } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { getRank, rankProgress, nextRank, winsToNext } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
-import { Modal } from '../components/Modal';
+import { Modal, ConfirmDialog } from '../components/Modal';
 
 const ALL_RANKS: Rank[] = [
   { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
@@ -19,9 +21,16 @@ const ALL_RANKS: Rank[] = [
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
+  const patchUser = useAuthStore((s) => s.patchUser);
+  const setUser = useAuthStore((s) => s.setUser);
   const navigate = useNavigate();
   const [showRanks, setShowRanks] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [showNick, setShowNick] = useState(false);
+  const [nick, setNick] = useState('');
+  const [savingNick, setSavingNick] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   if (!user) return null;
 
   const total = user.wins + user.losses;
@@ -31,21 +40,57 @@ export default function ProfileScreen() {
   const next = nextRank(user.wins);
   const toNext = winsToNext(user.wins);
   const avatarUrl = !avatarFailed ? (user.avatar ?? tgPhotoUrl()) : undefined;
+  const displayName = user.nickname ?? user.firstName ?? user.username ?? 'Капитан';
+  const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : null;
 
   const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
+  const refLink = `https://t.me/${bot}?startapp=ref_${user.id}`;
+  const supportUrl = (import.meta.env.VITE_SUPPORT_URL as string) ?? `https://t.me/${bot}`;
 
   const invite = () => {
-    tgShare(`https://t.me/${bot}`, 'Вызываю на морскую дуэль со ставками. Кто кого потопит?');
+    tgShare(refLink, 'Вызываю на морскую дуэль со ставками. Регистрируйся по ссылке — нам обоим бонус!');
+  };
+
+  const copyRef = () => {
+    navigator.clipboard.writeText(refLink).catch(() => {});
+    toast('Ссылка скопирована', 'success', 'check');
   };
 
   const shareProfile = () => {
     tgHaptic('success');
-    const name = user.firstName ?? user.username ?? 'Капитан';
-    tgShare(
-      `https://t.me/${bot}`,
-      `${name} — ${rank.title} в «Морском Бою»: ${user.wins} побед, точность ${wr}%. Сразись со мной!`,
-    );
+    tgShare(refLink, `${displayName} — ${rank.title} в «Морском Бою»: ${user.wins} побед, точность ${wr}%. Сразись со мной!`);
     toast('Профиль готов к отправке', 'success', 'share');
+  };
+
+  const openNick = () => { setNick(user.nickname ?? ''); setShowNick(true); };
+  const saveNick = async () => {
+    if (nick.trim().length < 2) { toast('Ник слишком короткий', 'error'); return; }
+    setSavingNick(true);
+    try {
+      const u = await AuthAPI.setNickname(nick.trim());
+      patchUser({ nickname: u.nickname });
+      tgHaptic('success');
+      toast('Ник обновлён', 'success', 'check');
+      setShowNick(false);
+    } catch (e: any) {
+      tgHaptic('error');
+      toast(e?.response?.data?.message ?? 'Не удалось сохранить', 'error');
+    } finally { setSavingNick(false); }
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await UsersAPI.deleteMe();
+      setAuthToken(null);
+      setUser(null);
+      window.location.reload();
+    } catch (e: any) {
+      tgHaptic('error');
+      toast(e?.response?.data?.message ?? 'Не удалось удалить аккаунт', 'error');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
   };
 
   return (
@@ -61,15 +106,21 @@ export default function ProfileScreen() {
             />
           ) : (
             <div className="w-14 h-14 rounded-full bg-panel border border-line flex items-center justify-center font-display text-xl text-main">
-              {user.firstName?.[0] ?? user.username?.[0] ?? '?'}
+              {displayName[0] ?? '?'}
             </div>
           )}
-          <div className="flex-1">
-            <h2 className="font-display text-xl text-main">{user.firstName ?? user.username ?? 'Капитан'}</h2>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-xl text-main truncate">{displayName}</h2>
+              <button onClick={openNick} className="text-muted hover:text-main shrink-0" aria-label="Изменить ник">
+                <Icon name="gear" size={14} />
+              </button>
+            </div>
             <div className="flex items-center gap-1.5 mt-0.5 text-muted">
               <Icon name={rank.icon} size={16} />
               <span className="title text-xs">{rank.title}</span>
             </div>
+            {memberSince && <p className="text-muted text-[11px] mt-0.5">В игре с {memberSince}</p>}
           </div>
           <button className="btn-ghost w-10 h-10 p-0 shrink-0" onClick={shareProfile} aria-label="Поделиться профилем">
             <Icon name="share" size={16} />
@@ -137,12 +188,68 @@ export default function ProfileScreen() {
         <Stat label="Точность" value={`${wr}%`} />
       </section>
 
+      {/* Реферальная программа */}
+      <section className="card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="eyebrow">Приглашай друзей</p>
+            <p className="text-main text-sm mt-1">Бонус тебе и другу за каждого приглашённого</p>
+          </div>
+          <div className="text-right">
+            <p className="font-display text-2xl text-main tabular-nums">{user.referralCount ?? 0}</p>
+            <p className="eyebrow">друзей</p>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button className="btn-primary flex-1" onClick={invite}><Icon name="share" size={16} /> Пригласить</button>
+          <button className="btn-ghost px-4" onClick={copyRef} aria-label="Скопировать ссылку"><Icon name="check" size={16} /></button>
+        </div>
+      </section>
+
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
         <Row icon="scroll" label="Журнал боёв" onClick={() => navigate('/history')} />
         <Row icon="gear" label="Настройки" onClick={() => navigate('/settings')} />
-        <Row icon="share" label="Позвать друга" onClick={invite} />
+        <Row icon="shield" label="Поддержка" onClick={() => tgOpenLink(supportUrl)} />
       </section>
+
+      <section className="card p-3">
+        <button onClick={() => setConfirmDelete(true)} className="w-full flex items-center gap-3 py-3 px-1 text-danger transition">
+          <Icon name="logout" size={18} />
+          <span className="flex-1 text-left text-sm">Удалить аккаунт</span>
+          <Icon name="arrow-right" size={16} />
+        </button>
+      </section>
+
+      {/* Модаль: ник */}
+      <Modal open={showNick} onClose={() => setShowNick(false)} title="Изменить ник" icon="user">
+        <p className="text-muted text-xs mb-3">От 2 до 24 символов. Виден соперникам и в таблице лидеров.</p>
+        <input
+          value={nick}
+          onChange={(e) => setNick(e.target.value)}
+          maxLength={24}
+          placeholder={user.firstName ?? 'Капитан'}
+          className="w-full px-3 py-2.5 rounded-lg bg-panel border border-line text-main outline-none text-sm mb-3"
+        />
+        <div className="space-y-2">
+          <button className="btn-primary w-full" onClick={saveNick} disabled={savingNick || nick.trim().length < 2}>
+            {savingNick ? 'Сохраняем…' : 'Сохранить'}
+          </button>
+          <button className="btn-ghost w-full" onClick={() => setShowNick(false)}>Отмена</button>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Удалить аккаунт?"
+        icon="logout"
+        busy={deleting}
+        danger
+        message={<>Это действие необратимо. Баланс должен быть нулевым, активных боёв быть не должно. Профиль и статистика будут удалены.</>}
+        confirmLabel="Удалить"
+        onConfirm={deleteAccount}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

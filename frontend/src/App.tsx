@@ -27,6 +27,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import HowItWorksScreen from './screens/HowItWorksScreen';
 import RulesScreen from './screens/RulesScreen';
 import { Layout } from './components/Layout';
+import { ConsentGate } from './components/ConsentGate';
 
 function Protected({ children }: { children: JSX.Element }) {
   const { authenticated, ready } = useAuthStore();
@@ -39,8 +40,10 @@ export default function App() {
   const setUser = useAuthStore((s) => s.setUser);
   const setReady = useAuthStore((s) => s.setReady);
   const updateBalance = useAuthStore((s) => s.updateBalance);
+  const user = useAuthStore((s) => s.user);
   const setMatchState = useMatchStore((s) => s.setState);
   const setLastAttack = useMatchStore((s) => s.setLastAttack);
+  const clearMatch = useMatchStore((s) => s.clear);
   const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
@@ -160,6 +163,15 @@ export default function App() {
     };
     // match:turnTimeout обрабатывается только в BattleScreen чтобы избежать дублирования
     const onWalletUpdate = (b: number) => updateBalance(b);
+    const onCancelled = (e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      clearMatch();
+      if (e?.reason === 'placement_timeout') {
+        toast('Бой отменён: соперник не расставил флот вовремя', 'info', 'clock');
+      } else {
+        toast('Бой отменён', 'info');
+      }
+      navigate('/home');
+    };
 
     sock.on('connect_error', onConnectError);
     sock.on('connect', onConnect);
@@ -168,6 +180,7 @@ export default function App() {
     sock.on('match:state', onState);
     sock.on('match:attack', onAttack);
     sock.on('match:finished', onFinished);
+    sock.on('match:cancelled', onCancelled);
     sock.on('wallet:update', onWalletUpdate);
 
     return () => {
@@ -178,11 +191,12 @@ export default function App() {
       sock.off('match:state', onState);
       sock.off('match:attack', onAttack);
       sock.off('match:finished', onFinished);
+      sock.off('match:cancelled', onCancelled);
       sock.off('wallet:update', onWalletUpdate);
       if (toastTimer) clearTimeout(toastTimer);
       closeSocket();
     };
-  }, [authenticated, setMatchState, setLastAttack, updateBalance]);
+  }, [authenticated, setMatchState, setLastAttack, updateBalance, clearMatch, navigate]);
 
   const ready = useAuthStore((s) => s.ready);
 
@@ -202,6 +216,10 @@ export default function App() {
   }
   if (ready && !authenticated) {
     return <DevLoginScreen />;
+  }
+
+  if (authenticated && user && user.agreedToTerms === false) {
+    return <ConsentGate />;
   }
 
   return (
