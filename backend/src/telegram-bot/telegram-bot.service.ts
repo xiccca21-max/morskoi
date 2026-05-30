@@ -38,6 +38,11 @@ export class TelegramBotService implements OnModuleInit {
       this.logger.log('Bot started with polling');
     }
 
+    // Описание бота — текст на экране «Что умеет этот бот?» (до нажатия «Старт»).
+    // ВАЖНО: картинку над этим текстом можно поставить ТОЛЬКО через @BotFather
+    // (Edit Bot → Edit Description Picture) — Bot API такого метода не имеет.
+    await this.setupBotProfile(token);
+
     // Устанавливаем кнопку меню «Начать играть» для всех чатов по умолчанию
     const webAppUrl = process.env.TELEGRAM_WEBAPP_URL;
     if (webAppUrl) {
@@ -64,7 +69,7 @@ export class TelegramBotService implements OnModuleInit {
       const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
       const param = (match?.[1] ?? '').trim();
       const launchUrl = param ? `${url}?startapp=${encodeURIComponent(param)}` : url;
-      const photoUrl = `${url}/bot-welcome.jpg`;
+      const photoUrl = `${url}/bot-welcome.png`;
       const caption =
         '⚓ <b>Naval Clash — морской бой с реальными ставками</b>\n\n' +
         '🚢 Расставь флот, вызови соперника и потопи его корабли\n' +
@@ -89,6 +94,38 @@ export class TelegramBotService implements OnModuleInit {
         });
       }
     });
+  }
+
+  /**
+   * Текст на экране «Что умеет этот бот?» (description) и под именем (short description).
+   * Картинка/видео над описанием ставится вручную через @BotFather.
+   */
+  private async setupBotProfile(token: string) {
+    const description =
+      '⚓ Морской Бой — PvP-дуэль капитанов на реальные ставки прямо в Telegram.\n\n' +
+      '🚢 Расставь флот и потопи соперника\n' +
+      '💰 Победитель забирает банк (95%)\n' +
+      '🏆 Расти в звании: от Юнги до Адмирала\n\n' +
+      '18+. Играй ответственно.';
+    const shortDescription =
+      '⚓ Морской бой на ставки. Потопи соперника и забери банк. 18+';
+
+    const call = async (method: string, body: Record<string, any>) => {
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }).then((res) => res.json());
+        if ((r as any).ok) this.logger.log(`${method} ok`);
+        else this.logger.warn(`${method} failed: ${JSON.stringify(r)}`);
+      } catch (e: any) {
+        this.logger.warn(`${method} error: ${e?.message}`);
+      }
+    };
+
+    await call('setMyDescription', { description });
+    await call('setMyShortDescription', { short_description: shortDescription });
   }
 
   async notify(telegramId: string, text: string) {
