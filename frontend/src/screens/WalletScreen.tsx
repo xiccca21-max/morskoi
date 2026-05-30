@@ -6,6 +6,7 @@ import { Icon, IconName } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
+import { formatNumber } from '../lib/format';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
@@ -154,7 +155,7 @@ export default function WalletScreen() {
           <div>
             <p className="eyebrow">Баланс</p>
             <p className="font-display text-4xl text-main mt-1 tabular-nums">
-              <AnimatedNumber value={balance} formatter={(v) => v.toFixed(2)} /> ₽
+              <AnimatedNumber value={balance} formatter={formatNumber} /> ₽
             </p>
           </div>
           <Icon name="coins" size={32} className="text-muted" />
@@ -162,11 +163,11 @@ export default function WalletScreen() {
         <div className="grid grid-cols-2 gap-2 mt-4">
           <div className="bg-panel rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-muted">Можно вывести</p>
-            <p className="font-display text-main tabular-nums text-lg">{withdrawable.toFixed(0)} ₽</p>
+            <p className="font-display text-main tabular-nums text-lg">{formatNumber(withdrawable)} ₽</p>
           </div>
           <div className="bg-panel rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-muted">Бонусы</p>
-            <p className="font-display text-muted tabular-nums text-lg">{bonus.toFixed(0)} ₽</p>
+            <p className="font-display text-muted tabular-nums text-lg">{formatNumber(bonus)} ₽</p>
           </div>
         </div>
         {bonus > 0 && (

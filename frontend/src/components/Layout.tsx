@@ -7,6 +7,7 @@ import { Icon, IconName } from './Icon';
 import { AnimatedNumber } from './AnimatedNumber';
 import { Toaster } from './Toaster';
 import { OfflineBanner } from './OfflineBanner';
+import { formatNumber, formatCompact } from '../lib/format';
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -49,10 +50,10 @@ export function Layout() {
           <Icon name="anchor" size={18} />
           <span className="title text-[13px] leading-none">Морской Бой</span>
         </NavLink>
-        <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main">
+        <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main" aria-label="Кошелёк">
           <Icon name="coins" size={15} className="text-muted" />
           <span className="font-display text-sm tabular-nums">
-            <AnimatedNumber value={user?.balance ?? 0} formatter={(v) => v.toFixed(2)} /> ₽
+            <AnimatedNumber value={user?.balance ?? 0} formatter={formatNumber} /> ₽
           </span>
         </NavLink>
       </header>
@@ -105,7 +106,7 @@ function BalanceTab({ balance }: { balance: number }) {
             >
               <Icon name="coins" size={18} />
               <span className="font-display text-[11px] leading-none tabular-nums mt-0.5">
-                <AnimatedNumber value={balance} formatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0))} />
+                <AnimatedNumber value={balance} formatter={formatCompact} />
               </span>
             </motion.div>
             <span className={['text-[10px] font-display uppercase tracking-wider', isActive ? 'text-main' : 'text-muted'].join(' ')}>

@@ -155,6 +155,17 @@ export default function BattleScreen() {
     prevTurnRef.current = myTurn;
   }, [myTurn, state?.gameStatus]);
   const fuse = Math.max(0, Math.min(100, (remaining / turnMaxRef.current) * 100));
+  const lowTime = myTurn && remaining > 0 && remaining <= 10;
+
+  // Тактильное предупреждение, когда на твой ход остаётся мало времени.
+  const warnedAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!myTurn) { warnedAtRef.current = null; return; }
+    if ((remaining === 10 || remaining === 5) && warnedAtRef.current !== remaining) {
+      warnedAtRef.current = remaining;
+      tgVibrate(40);
+    }
+  }, [myTurn, remaining]);
 
   const enemyAttacks = state?.enemy.view.attacks ?? [];
   const ownAttacks = state?.me.own.attacks ?? [];
@@ -238,9 +249,12 @@ export default function BattleScreen() {
             {myTurn ? 'Твой залп' : 'Ход соперника'}
           </p>
           <div className="h-1 rounded-full bg-panel overflow-hidden mt-1.5">
-            <div className={['h-full transition-all', myTurn ? 'bg-danger' : 'bg-muted'].join(' ')} style={{ width: `${fuse}%` }} />
+            <div
+              className={['h-full transition-all', myTurn ? (lowTime ? 'bg-danger animate-pulse' : 'bg-danger') : 'bg-muted'].join(' ')}
+              style={{ width: `${fuse}%` }}
+            />
           </div>
-          <p className="font-display text-xl text-main mt-0.5 tabular-nums">{remaining}c</p>
+          <p className={['font-display text-xl mt-0.5 tabular-nums transition-colors', lowTime ? 'text-danger animate-pulse' : 'text-main'].join(' ')}>{remaining}c</p>
         </div>
         <button
           onClick={() => setShowSurrender(true)}
