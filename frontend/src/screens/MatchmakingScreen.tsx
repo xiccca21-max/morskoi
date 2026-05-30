@@ -7,7 +7,6 @@ import { MatchmakingAPI, OpenMatch } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVibrate } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
-import { SkeletonList } from '../components/Skeleton';
 import { Modal } from '../components/Modal';
 import { getRank } from '../lib/rank';
 import type { Rank } from '../lib/rank';
@@ -86,9 +85,9 @@ export default function MatchmakingScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [ranksForPlayer, setRanksForPlayer] = useState<string | undefined>(undefined);
 
-  // Браузер открытых боёв
-  const [matches, setMatches] = useState<OpenMatch[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
+  // Браузер открытых боёв; null = ещё не загружен (не показываем ни скелетон, ни фильтры)
+  const [matches, setMatches] = useState<OpenMatch[] | null>(null);
+  const [loadingList, setLoadingList] = useState(false);
   const [query, setQuery] = useState('');
   const [filterMin, setFilterMin] = useState('');
   const [filterMax, setFilterMax] = useState('');
@@ -103,7 +102,8 @@ export default function MatchmakingScreen() {
     return () => { sock.off('match:found', onFound); };
   }, [navigate]);
 
-  const fetchList = useCallback(async () => {
+  const fetchList = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoadingList(true);
     try {
       const list = await MatchmakingAPI.listOpen({
         q: query || undefined,
@@ -123,9 +123,8 @@ export default function MatchmakingScreen() {
   // Загрузка + автообновление списка пока открыт таб «Поиск матча»
   useEffect(() => {
     if (tab !== 'browse') return;
-    setLoadingList(true);
-    fetchList();
-    const t = setInterval(fetchList, 5000);
+    fetchList(true); // первая загрузка — показываем спиннер
+    const t = setInterval(() => fetchList(false), 5000); // фоновое обновление — без спиннера
     return () => clearInterval(t);
   }, [tab, fetchList]);
 
@@ -318,81 +317,94 @@ export default function MatchmakingScreen() {
             </button>
           )}
 
-          {/* Фильтры */}
-          <div className="card p-3 space-y-2">
-            {/* Поиск по нику */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-panel border border-line">
-              <Icon name="target" size={15} className="text-muted shrink-0" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Поиск по нику"
-                className="flex-1 bg-transparent outline-none text-main text-sm placeholder:text-muted"
-              />
-              {query && <button onClick={() => setQuery('')} className="text-muted"><Icon name="minus" size={14} /></button>}
-            </div>
-
-            {/* Диапазон ставки + сортировка */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg bg-panel border border-line">
-                <span className="text-muted text-xs shrink-0">от</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={filterMin}
-                  onChange={(e) => setFilterMin(e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-transparent outline-none text-main text-sm tabular-nums placeholder:text-muted"
-                />
-              </div>
-              <span className="text-muted text-xs shrink-0">—</span>
-              <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg bg-panel border border-line">
-                <span className="text-muted text-xs shrink-0">до</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={filterMax}
-                  onChange={(e) => setFilterMax(e.target.value)}
-                  placeholder="∞"
-                  className="w-full bg-transparent outline-none text-main text-sm tabular-nums placeholder:text-muted"
-                />
-              </div>
-              {/* Кнопка сортировки */}
-              <button
-                onClick={() => setSortAsc((v) => !v)}
-                className="shrink-0 w-10 h-10 rounded-lg border border-line bg-panel flex items-center justify-center transition hover:border-main"
-                title={sortAsc ? 'Сначала дешевле' : 'Сначала дороже'}
-              >
-                <motion.span
-                  animate={{ rotate: sortAsc ? 0 : 180 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  className="flex items-center justify-center"
-                >
-                  <Icon name="arrow-right" size={16} className="rotate-90 text-main" />
-                </motion.span>
-              </button>
-            </div>
-          </div>
-
-          {/* Список боёв */}
-          {loadingList ? (
-            <SkeletonList rows={4} />
-          ) : matches.length === 0 ? (
-            <div className="card p-8 flex flex-col items-center gap-2 text-center">
-              <Icon name="compass" size={28} className="text-muted" />
-              <p className="text-main text-sm">Открытых боёв нет</p>
-              <p className="text-muted text-xs">Создайте свой — и соперник подключится к вам.</p>
+          {/* Пока первая загрузка не завершилась — тихий спиннер, без фильтров */}
+          {matches === null ? (
+            <div className="flex justify-center py-10">
+              <span className="w-6 h-6 rounded-full border-2 border-muted border-t-main animate-spin" />
             </div>
           ) : (
-            <div className="space-y-2">
-              <AnimatePresence initial={false}>
-                {[...matches]
-                  .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
-                  .map((m) => (
-                    <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
-                  ))}
-              </AnimatePresence>
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-3"
+            >
+              {/* Фильтры */}
+              <div className="card p-3 space-y-2">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-panel border border-line">
+                  <Icon name="target" size={15} className="text-muted shrink-0" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Поиск по нику"
+                    className="flex-1 bg-transparent outline-none text-main text-sm placeholder:text-muted"
+                  />
+                  {query && <button onClick={() => setQuery('')} className="text-muted"><Icon name="minus" size={14} /></button>}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg bg-panel border border-line">
+                    <span className="text-muted text-xs shrink-0">от</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={filterMin}
+                      onChange={(e) => setFilterMin(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-transparent outline-none text-main text-sm tabular-nums placeholder:text-muted"
+                    />
+                  </div>
+                  <span className="text-muted text-xs shrink-0">—</span>
+                  <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg bg-panel border border-line">
+                    <span className="text-muted text-xs shrink-0">до</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={filterMax}
+                      onChange={(e) => setFilterMax(e.target.value)}
+                      placeholder="∞"
+                      className="w-full bg-transparent outline-none text-main text-sm tabular-nums placeholder:text-muted"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setSortAsc((v) => !v)}
+                    className="shrink-0 w-10 h-10 rounded-lg border border-line bg-panel flex items-center justify-center transition hover:border-main"
+                    title={sortAsc ? 'Сначала дешевле' : 'Сначала дороже'}
+                  >
+                    <motion.span
+                      animate={{ rotate: sortAsc ? 0 : 180 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                      className="flex items-center justify-center"
+                    >
+                      <Icon name="arrow-right" size={16} className="rotate-90 text-main" />
+                    </motion.span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Список боёв */}
+              {loadingList ? (
+                <div className="flex justify-center py-8">
+                  <span className="w-5 h-5 rounded-full border-2 border-muted border-t-main animate-spin" />
+                </div>
+              ) : matches.length === 0 ? (
+                <div className="card p-8 flex flex-col items-center gap-2 text-center">
+                  <Icon name="compass" size={28} className="text-muted" />
+                  <p className="text-main text-sm">Открытых боёв нет</p>
+                  <p className="text-muted text-xs">Создайте свой — и соперник подключится к вам.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <AnimatePresence initial={false}>
+                    {[...matches]
+                      .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
+                      .map((m) => (
+                        <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
+                      ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </motion.div>
           )}
         </div>
       ) : (

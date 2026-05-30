@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
@@ -52,16 +52,19 @@ export function Layout() {
         </NavLink>
       </header>
 
-      <motion.main
-        key={loc.pathname}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22 }}
-        className="flex-1 px-4 py-5"
-        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
-      >
-        <Outlet />
-      </motion.main>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.main
+          key={loc.pathname}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+          className="flex-1 px-4 py-5"
+          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+        >
+          <Outlet />
+        </motion.main>
+      </AnimatePresence>
 
       {!hideNav && (
         <nav
