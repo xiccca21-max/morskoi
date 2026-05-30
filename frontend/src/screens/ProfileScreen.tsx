@@ -118,7 +118,7 @@ export default function ProfileScreen() {
             <div className="flex items-center gap-2">
               <h2 className="font-display text-xl text-main truncate">{displayName}</h2>
               <button onClick={openNick} className="text-muted hover:text-main shrink-0" aria-label="Изменить ник">
-                <Icon name="gear" size={14} />
+                <Icon name="pencil" size={14} />
               </button>
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 text-muted">

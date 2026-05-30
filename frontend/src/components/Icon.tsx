@@ -6,7 +6,7 @@ export type IconName =
   | 'skull' | 'gear' | 'plus' | 'minus' | 'arrow-right' | 'check'
   | 'lock' | 'bolt' | 'wheel' | 'crown' | 'ship' | 'user' | 'grid'
   | 'medal' | 'handshake' | 'crosshair' | 'wave' | 'logout'
-  | 'clock' | 'info';
+  | 'clock' | 'info' | 'pencil';
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -89,6 +89,8 @@ function paths(name: IconName) {
       return <g {...P}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></g>;
     case 'info':
       return <g {...P}><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><circle cx="12" cy="7.5" r="0.6" fill="currentColor" /></g>;
+    case 'pencil':
+      return <g {...P}><path d="M17 3a2.4 2.4 0 0 1 3.4 3.4L8 19l-4 1 1-4L17 3Z" /></g>;
     default:
       return null;
   }
