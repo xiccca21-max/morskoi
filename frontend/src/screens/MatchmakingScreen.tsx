@@ -12,6 +12,7 @@ import { getRank } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
 import { Spinner } from '../components/Spinner';
+import { Avatar } from '../components/Avatar';
 import { useDebounce } from '../lib/hooks';
 
 const ALL_RANKS: Rank[] = [
@@ -459,7 +460,6 @@ export default function MatchmakingScreen() {
 function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; busy: boolean; onAccept: () => void; onCancel: () => void; onShowRank: () => void }) {
   const name = m.host.firstName || m.host.username || 'Капитан';
   const rank = getRank(m.host.wins);
-  const initial = name.charAt(0).toUpperCase();
   return (
     <motion.div
       layout
@@ -468,11 +468,7 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
       exit={{ opacity: 0, scale: 0.97 }}
       className="card p-3 flex items-center gap-3"
     >
-      <div className="w-10 h-10 rounded-lg bg-panel border border-line flex items-center justify-center overflow-hidden shrink-0">
-        {m.host.avatar
-          ? <img src={m.host.avatar} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          : <span className="font-display text-main">{initial}</span>}
-      </div>
+      <Avatar name={name} src={m.host.avatar} size={40} rounded="lg" />
       <div className="flex-1 min-w-0">
         <p className="text-main text-sm font-display truncate">{name}</p>
         <button onClick={onShowRank} className="flex items-center gap-1 text-muted text-xs hover:text-main transition">

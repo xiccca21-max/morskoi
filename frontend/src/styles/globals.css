@@ -182,6 +182,7 @@ button:disabled { cursor: not-allowed; }
   border: var(--border-w) solid var(--c-line);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .plate {
   background: var(--c-panel);

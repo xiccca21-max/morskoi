@@ -7,6 +7,7 @@ import { getSocket, newNonce } from '../api/socket';
 import { useAuthStore } from '../stores/auth-store';
 import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
+import { Avatar } from '../components/Avatar';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -148,13 +149,7 @@ export default function LobbyScreen() {
       ) : (
         <>
           <div className="card p-5 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-panel border border-line flex items-center justify-center text-main">
-              {lobby.host?.avatar ? (
-                <img src={lobby.host.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <Icon name="user" size={20} />
-              )}
-            </div>
+            <Avatar name={hostName} src={lobby.host?.avatar} size={40} />
             <div>
               <p className="text-main text-sm font-display">{hostName}</p>
               <p className="eyebrow">вызывает вас на дуэль</p>

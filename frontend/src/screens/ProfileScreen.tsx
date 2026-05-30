@@ -8,6 +8,7 @@ import { toast } from '../stores/toast-store';
 import { getRank, rankProgress, nextRank, winsToNext } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
+import { Avatar } from '../components/Avatar';
 import { Modal, ConfirmDialog } from '../components/Modal';
 
 const ALL_RANKS: Rank[] = [
@@ -25,7 +26,6 @@ export default function ProfileScreen() {
   const setUser = useAuthStore((s) => s.setUser);
   const navigate = useNavigate();
   const [showRanks, setShowRanks] = useState(false);
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const [showNick, setShowNick] = useState(false);
   const [nick, setNick] = useState('');
   const [savingNick, setSavingNick] = useState(false);
@@ -39,7 +39,7 @@ export default function ProfileScreen() {
   const progress = rankProgress(user.wins);
   const next = nextRank(user.wins);
   const toNext = winsToNext(user.wins);
-  const avatarUrl = !avatarFailed ? (user.avatar ?? tgPhotoUrl()) : undefined;
+  const avatarUrl = user.avatar ?? tgPhotoUrl();
   const displayName = user.nickname ?? user.firstName ?? user.username ?? 'Капитан';
   const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : null;
 
@@ -92,20 +92,7 @@ export default function ProfileScreen() {
     <div className="max-w-md mx-auto space-y-4">
       <section className="card p-6">
         <div className="flex items-center gap-4">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              className="w-14 h-14 rounded-full border border-line object-cover"
-              alt=""
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setAvatarFailed(true)}
-            />
-          ) : (
-            <div className="w-14 h-14 rounded-full bg-panel border border-line flex items-center justify-center font-display text-xl text-main">
-              {displayName[0] ?? '?'}
-            </div>
-          )}
+          <Avatar name={displayName} src={avatarUrl} size={56} className="border border-line" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="font-display text-xl text-main truncate">{displayName}</h2>

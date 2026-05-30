@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LeaderboardAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { Icon } from '../components/Icon';
+import { Avatar } from '../components/Avatar';
 import { SkeletonList } from '../components/Skeleton';
 
 export default function LeaderboardScreen() {
@@ -41,9 +42,7 @@ export default function LeaderboardScreen() {
                   ? <Icon name="medal" size={20} className={u.rank === 1 ? 'text-main' : u.rank === 2 ? 'text-muted' : 'text-danger'} />
                   : <span className="font-display text-muted tabular-nums">{u.rank}</span>}
               </div>
-              {u.avatar
-                ? <img src={u.avatar} className="w-8 h-8 rounded-full border border-line" alt="" />
-                : <div className="w-8 h-8 rounded-full bg-panel border border-line flex items-center justify-center text-xs text-muted">{u.name?.[0] ?? '?'}</div>}
+              <Avatar name={u.name} src={u.avatar} size={32} />
               <div className="flex-1 text-sm text-main flex items-center gap-2">
                 {u.name}
                 {isMe && <span className="text-[9px] uppercase tracking-wide bg-danger text-white rounded px-1.5 py-0.5">вы</span>}
