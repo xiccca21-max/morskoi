@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { LeaderboardAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { SkeletonList } from '../components/Skeleton';
+import { formatNumber } from '../lib/format';
 
 export default function LeaderboardScreen() {
   const [tab, setTab] = useState<'wins' | 'earnings'>('wins');
@@ -32,11 +34,17 @@ export default function LeaderboardScreen() {
             <p className="text-muted text-xs">Выигрывайте бои и станьте первым капитаном</p>
           </li>
         )}
-        {items.map((u) => {
+        {items.map((u, i) => {
           const top = u.rank <= 3;
           const isMe = !!meId && u.id === meId;
           return (
-            <li key={u.id} className={['card p-3 flex items-center gap-3', isMe ? 'border-danger' : ''].join(' ')}>
+            <motion.li
+              key={u.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
+              className={['card p-3 flex items-center gap-3', isMe ? 'border-danger' : ''].join(' ')}
+            >
               <div className="w-8 flex items-center justify-center">
                 {top
                   ? <Icon name="medal" size={20} className={u.rank === 1 ? 'text-main' : u.rank === 2 ? 'text-muted' : 'text-danger'} />
@@ -48,9 +56,9 @@ export default function LeaderboardScreen() {
                 {isMe && <span className="text-[9px] uppercase tracking-wide bg-danger text-white rounded px-1.5 py-0.5">вы</span>}
               </div>
               <div className="text-sm font-display tabular-nums text-main">
-                {tab === 'wins' ? `${u.wins}` : `${u.totalWon.toFixed(0)} ₽`}
+                {tab === 'wins' ? `${u.wins}` : `${formatNumber(u.totalWon)} ₽`}
               </div>
-            </li>
+            </motion.li>
           );
         })}
       </ul>

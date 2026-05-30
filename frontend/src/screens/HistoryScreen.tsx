@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { HistoryAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
 import { toast } from '../stores/toast-store';
+import { formatNumber } from '../lib/format';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
@@ -69,12 +71,18 @@ export default function HistoryScreen() {
         </div>
       )}
       <ul className="space-y-2">
-        {items.map((m) => {
+        {items.map((m, i) => {
           const win = m.result === 'win';
           const loss = m.result === 'loss';
           const resultLabel = win ? 'Победа' : loss ? 'Поражение' : m.result === 'cancelled' ? 'Отменён' : 'Ничья';
           return (
-            <li key={m.id} className="card p-4 flex items-center gap-3">
+            <motion.li
+              key={m.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
+              className="card p-4 flex items-center gap-3"
+            >
               <div className={[
                 'w-9 h-9 rounded-lg flex items-center justify-center border shrink-0',
                 win ? 'text-main border-line'
@@ -94,11 +102,11 @@ export default function HistoryScreen() {
                 <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString('ru-RU') : '—'}</div>
               </div>
               <div className={['font-display tabular-nums shrink-0', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
-                {win ? `+${(m.prizePool - m.rakeAmount).toFixed(0)} ₽`
-                  : loss ? `−${m.wagerAmount.toFixed(0)} ₽`
-                    : `${m.wagerAmount.toFixed(0)} ₽`}
+                {win ? `+${formatNumber(m.prizePool - m.rakeAmount)} ₽`
+                  : loss ? `−${formatNumber(m.wagerAmount)} ₽`
+                    : `${formatNumber(m.wagerAmount)} ₽`}
               </div>
-            </li>
+            </motion.li>
           );
         })}
       </ul>

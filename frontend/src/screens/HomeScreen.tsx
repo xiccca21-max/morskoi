@@ -49,9 +49,9 @@ export default function HomeScreen() {
         </h2>
 
         <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
-          <Stat label="Победы" value={wins} />
-          <Stat label="Поражения" value={losses} accent />
-          <Stat label="Точность" value={`${wr}%`} />
+          <Stat icon="trophy" label="Победы" value={wins} />
+          <Stat icon="skull" label="Поражения" value={losses} accent />
+          <Stat icon="target" label="Точность" value={`${wr}%`} />
         </div>
       </motion.section>
 
@@ -99,11 +99,12 @@ export default function HomeScreen() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: any; accent?: boolean }) {
+function Stat({ icon, label, value, accent }: { icon: IconName; label: string; value: any; accent?: boolean }) {
   return (
-    <div className="bg-panel p-3 text-center">
-      <div className={['font-display text-xl tabular-nums', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
-      <div className="eyebrow mt-0.5">{label}</div>
+    <div className="bg-panel py-4 px-3 text-center flex flex-col items-center gap-1">
+      <Icon name={icon} size={16} className={accent ? 'text-danger' : 'text-muted'} />
+      <div className={['font-display text-xl tabular-nums leading-none', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
+      <div className="eyebrow">{label}</div>
     </div>
   );
 }
