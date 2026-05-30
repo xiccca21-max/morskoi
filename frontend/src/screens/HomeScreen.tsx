@@ -84,16 +84,20 @@ export default function HomeScreen() {
           <span className="title text-xl text-main">В бой</span>
           <p className="text-muted text-sm mt-1">Найти соперника и сразиться на ставку</p>
         </div>
-        <span className="w-11 h-11 rounded-full bg-danger flex items-center justify-center text-white">
+        <motion.span
+          className="w-11 h-11 rounded-full bg-danger flex items-center justify-center text-white"
+          animate={{ x: [0, 4, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
           <Icon name="arrow-right" size={20} />
-        </span>
+        </motion.span>
       </button>
 
       <div className="grid grid-cols-2 gap-3">
-        <Tile icon="coins" title="Казна" sub="Пополнить / вывести" onClick={() => navigate('/wallet')} />
-        <Tile icon="trophy" title="Топ" sub="Лучшие капитаны" onClick={() => navigate('/leaderboard')} />
-        <Tile icon="compass" title="Как это работает" sub="Пошаговое объяснение" onClick={() => navigate('/how-it-works')} />
-        <Tile icon="scroll" title="Правила" sub="Флот, ходы, штрафы" onClick={() => navigate('/rules')} />
+        <Tile index={0} icon="coins" title="Казна" sub="Пополнить / вывести" onClick={() => navigate('/wallet')} />
+        <Tile index={1} icon="trophy" title="Топ" sub="Лучшие капитаны" onClick={() => navigate('/leaderboard')} />
+        <Tile index={2} icon="compass" title="Как это работает" sub="Пошаговое объяснение" onClick={() => navigate('/how-it-works')} />
+        <Tile index={3} icon="scroll" title="Правила" sub="Флот, ходы, штрафы" onClick={() => navigate('/rules')} />
       </div>
     </div>
   );
@@ -109,13 +113,19 @@ function Stat({ icon, label, value, accent }: { icon: IconName; label: string; v
   );
 }
 
-function Tile({ icon, title, sub, onClick }: { icon: IconName; title: string; sub: string; onClick: () => void }) {
+function Tile({ icon, title, sub, onClick, index = 0 }: { icon: IconName; title: string; sub: string; onClick: () => void; index?: number }) {
   return (
-    <button onClick={onClick} className="card card-press p-4 text-left hover:border-line transition">
+    <motion.button
+      onClick={onClick}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: 0.05 + index * 0.05 }}
+      className="card card-press p-4 text-left hover:border-line transition"
+    >
       <Icon name={icon} size={22} className="text-danger" />
       <div className="font-display text-main mt-2">{title}</div>
       <div className="text-[11px] text-muted">{sub}</div>
-    </button>
+    </motion.button>
   );
 }
 

@@ -8,6 +8,7 @@ import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
 import { formatNumber } from '../lib/format';
+import { playSound } from '../lib/audio';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
@@ -84,6 +85,7 @@ export default function WalletScreen() {
         if (w.balance > startBalance) {
           toast('Оплата получена — баланс пополнен', 'success', 'plus');
           tgHaptic('success');
+          playSound('win');
           setCelebrate(true);
           setTimeout(() => setCelebrate(false), 2200);
           WalletAPI.txs().then(setTxs).catch(() => {});
