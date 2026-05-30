@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -13,8 +14,28 @@ import { PrismaService } from '../prisma/prisma.service';
 export class TelegramBotService implements OnModuleInit {
   private readonly logger = new Logger('TelegramBot');
   private bot?: TelegramBot;
+  private webhookSecret?: string;
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Передаёт апдейт от Telegram боту (используется webhook-контроллером).
+   * Возвращает false, если секрет не совпал или бот не инициализирован.
+   */
+  processUpdate(update: unknown, secret?: string): boolean {
+    if (!this.bot) return false;
+    if (this.webhookSecret && secret !== this.webhookSecret) {
+      this.logger.warn('webhook update rejected: bad secret token');
+      return false;
+    }
+    try {
+      this.bot.processUpdate(update as TelegramBot.Update);
+      return true;
+    } catch (e: any) {
+      this.logger.warn(`processUpdate error: ${e?.message}`);
+      return false;
+    }
+  }
 
   async onModuleInit() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -26,15 +47,41 @@ export class TelegramBotService implements OnModuleInit {
     const pollingDisabled = process.env.TELEGRAM_BOT_POLLING === 'false';
     if (webhookUrl) {
       this.bot = new TelegramBot(token, { polling: false });
-      await this.bot.setWebHook(webhookUrl).catch((e) => this.logger.warn(`webhook err: ${e.message}`));
-      this.logger.log(`Bot started with webhook → ${webhookUrl}`);
+      // Секрет для проверки входящих апдейтов (заголовок X-Telegram-Bot-Api-Secret-Token).
+      this.webhookSecret =
+        process.env.TELEGRAM_WEBHOOK_SECRET ||
+        createHash('sha256').update(token).digest('hex').slice(0, 48);
+      // Регистрируем webhook напрямую через Bot API, чтобы передать secret_token и allowed_updates.
+      await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: webhookUrl,
+          secret_token: this.webhookSecret,
+          allowed_updates: ['message', 'callback_query'],
+          drop_pending_updates: false,
+        }),
+      })
+        .then((r) => r.json())
+        .then((r: any) => {
+          if (r.ok) this.logger.log(`Bot started with webhook → ${webhookUrl}`);
+          else this.logger.warn(`setWebhook failed: ${JSON.stringify(r)}`);
+        })
+        .catch((e) => this.logger.warn(`webhook err: ${e.message}`));
     } else if (pollingDisabled) {
       // Polling выключен (например, провайдер режет api.telegram.org).
       // Mini App всё равно работает — initData валидируется локально по бот-токену.
       this.bot = new TelegramBot(token, { polling: false });
       this.logger.log('Bot created without polling (TELEGRAM_BOT_POLLING=false)');
     } else {
+      // Снимаем возможный старый webhook, иначе getUpdates вернёт 409 Conflict.
+      await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, {
+        method: 'POST',
+      }).catch(() => undefined);
       this.bot = new TelegramBot(token, { polling: true });
+      this.bot.on('polling_error', (e: any) =>
+        this.logger.warn(`polling_error: ${e?.code || ''} ${e?.message || e}`),
+      );
       this.logger.log('Bot started with polling');
     }
 
@@ -136,6 +183,8 @@ export class TelegramBotService implements OnModuleInit {
         { command: 'start', description: '🚀 Запустить бота' },
         { command: 'play', description: '⚔️ Играть — открыть бой' },
         { command: 'balance', description: '💰 Мой баланс' },
+        { command: 'stats', description: '📊 Моя статистика' },
+        { command: 'top', description: '🏆 Топ игроков' },
         { command: 'rules', description: '📜 Правила игры' },
         { command: 'support', description: '🆘 Поддержка' },
         { command: 'help', description: 'ℹ️ Помощь и команды' },
@@ -181,6 +230,30 @@ export class TelegramBotService implements OnModuleInit {
       );
     });
 
+    bot.onText(/^\/top\b/, async (msg) => {
+      const top = await this.prisma.user.findMany({
+        where: { wins: { gt: 0 } },
+        orderBy: [{ wins: 'desc' }],
+        take: 10,
+      });
+      if (top.length === 0) {
+        await bot.sendMessage(msg.chat.id, '🏆 Рейтинг пока пуст. Стань первым капитаном!', {
+          reply_markup: this.playButton(),
+        });
+        return;
+      }
+      const medals = ['🥇', '🥈', '🥉'];
+      const lines = top.map((u, i) => {
+        const place = medals[i] ?? `${i + 1}.`;
+        const name = (u as any).nickname || u.firstName || u.username || 'Капитан';
+        return `${place} <b>${this.escapeHtml(name)}</b> — ${u.wins} побед`;
+      });
+      await bot.sendMessage(msg.chat.id, `🏆 <b>Топ капитанов</b>\n\n${lines.join('\n')}`, {
+        parse_mode: 'HTML',
+        reply_markup: this.playButton(),
+      });
+    });
+
     bot.onText(/^\/rules\b/, async (msg) => {
       const text =
         '📜 <b>Правила «Морского Боя»</b>\n\n' +
@@ -213,6 +286,28 @@ export class TelegramBotService implements OnModuleInit {
         'Кнопка <b>«Начать играть»</b> внизу всегда открывает игру.';
       await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_markup: this.playButton() });
     });
+
+    // Любое текстовое сообщение, не являющееся командой — вежливый ответ с кнопкой игры.
+    const KNOWN = /^\/(start|play|balance|top|rules|support|help)\b/;
+    bot.on('message', async (msg) => {
+      if (msg.chat.type !== 'private') return; // только в личке
+      const text = msg.text?.trim();
+      if (!text) return; // не реагируем на фото/стикеры и т.п.
+      if (text.startsWith('/')) {
+        if (KNOWN.test(text)) return; // известную команду обработает свой хендлер
+        await bot.sendMessage(msg.chat.id, 'Не знаю такой команды 🤔 Нажми /help или кнопку ниже.', {
+          reply_markup: this.playButton(),
+        });
+        return;
+      }
+      await bot.sendMessage(msg.chat.id, '⚓ Готов к бою? Открывай игру и вызывай соперника!', {
+        reply_markup: this.playButton(),
+      });
+    });
+  }
+
+  private escapeHtml(s: string): string {
+    return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
   }
 
   async notify(telegramId: string, text: string) {
