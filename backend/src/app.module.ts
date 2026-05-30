@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentsModule } from './payments/payments.module';
+import { AdminModule } from './admin/admin.module';
 import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { GameModule } from './game/game.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
@@ -30,6 +31,7 @@ import { HealthController } from './common/health.controller';
     UsersModule,
     WalletModule,
     PaymentsModule,
+    AdminModule,
     MatchmakingModule,
     GameModule,
     LeaderboardModule,

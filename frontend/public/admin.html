@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Naval Clash — Админка</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel2: #273449;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px; line-height: 1.4;
+    }
+    header {
+      padding: 16px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 18px; margin: 0; flex: 1; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    input, select, button {
+      font-size: 15px; font-family: inherit; border-radius: 8px; border: 1px solid var(--border);
+      padding: 9px 12px; background: var(--panel2); color: var(--text); outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input { flex: 1; min-width: 140px; }
+    button {
+      background: var(--accent); color: #06283d; border: none; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+    }
+    button:hover { filter: brightness(1.08); }
+    button.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--border); font-weight: 600; }
+    button.green { background: var(--green); color: #04220f; }
+    button.red { background: var(--red); color: #2a0606; }
+    button.amber { background: var(--amber); color: #2a1c00; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .tabs { display: flex; gap: 6px; }
+    .tabs button { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); font-weight: 600; }
+    .tabs button.active { background: var(--accent); color: #06283d; border-color: var(--accent); }
+    .muted { color: var(--muted); font-size: 13px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; }
+    .stat { background: var(--panel2); border-radius: 10px; padding: 14px; }
+    .stat .v { font-size: 24px; font-weight: 800; }
+    .stat .l { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .ulist { display: flex; flex-direction: column; gap: 8px; }
+    .uitem {
+      background: var(--panel2); border-radius: 10px; padding: 12px 14px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .uitem:hover { outline: 1px solid var(--accent); }
+    .uitem .name { font-weight: 700; }
+    .uitem .id { font-family: monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+    .bal { text-align: right; white-space: nowrap; }
+    .bal .b { font-weight: 800; color: var(--accent); }
+    .bal .w { font-size: 12px; color: var(--muted); }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge.PENDING { background: #422006; color: var(--amber); }
+    .badge.PAID, .badge.APPROVED { background: #052e16; color: var(--green); }
+    .badge.REJECTED { background: #450a0a; color: var(--red); }
+    .badge.ban { background: #450a0a; color: var(--red); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    .err { color: var(--red); font-size: 13px; margin-top: 6px; }
+    .ok { color: var(--green); font-size: 13px; margin-top: 6px; }
+    label.chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+    label.chk input { flex: none; min-width: auto; }
+    .hidden { display: none !important; }
+    .back { cursor: pointer; color: var(--accent); font-size: 14px; }
+    h3 { margin: 0 0 12px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚓ Naval Clash — Админка</h1>
+    <input id="keyInput" type="password" placeholder="Admin key" style="max-width:220px" />
+    <button id="saveKey" class="ghost">Сохранить ключ</button>
+  </header>
+
+  <div class="wrap">
+    <div id="gate" class="card hidden">
+      <p class="muted">Введите <b>Admin key</b> вверху, чтобы начать работу. Ключ хранится только в этом браузере.</p>
+    </div>
+
+    <div class="tabs card" style="display:flex;">
+      <button data-tab="users" class="active">Игроки</button>
+      <button data-tab="withdrawals">Выводы</button>
+      <button data-tab="stats">Статистика</button>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users">
+      <div class="card">
+        <div class="row">
+          <input id="searchInput" placeholder="Поиск: ID, Telegram ID, @username, ник, имя" />
+          <button id="searchBtn">Найти</button>
+        </div>
+        <div id="usersErr" class="err"></div>
+      </div>
+      <div class="card"><div id="usersList" class="ulist"><span class="muted">Введите запрос и нажмите «Найти» (пусто = последние).</span></div></div>
+    </div>
+
+    <!-- USER DETAIL -->
+    <div id="tab-user" class="hidden">
+      <div class="card">
+        <span class="back" id="backToUsers">← к списку</span>
+        <div id="userDetail"></div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div id="tab-withdrawals" class="hidden">
+      <div class="card">
+        <div class="row">
+          <select id="wStatus" style="flex:1">
+            <option value="PENDING">Ожидают (PENDING)</option>
+            <option value="">Все</option>
+            <option value="PAID">Выплачены</option>
+            <option value="REJECTED">Отклонены</option>
+          </select>
+          <button id="wRefresh">Обновить</button>
+        </div>
+        <div id="wErr" class="err"></div>
+      </div>
+      <div class="card"><div id="wList" class="ulist"></div></div>
+    </div>
+
+    <!-- STATS -->
+    <div id="tab-stats" class="hidden">
+      <div class="card"><div id="statsBox" class="stat-grid"></div></div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/admin';
+    const KEY_STORE = 'naval_admin_key';
+    let adminKey = localStorage.getItem(KEY_STORE) || '';
+    document.getElementById('keyInput').value = adminKey;
+
+    function setKey() {
+      adminKey = document.getElementById('keyInput').value.trim();
+      localStorage.setItem(KEY_STORE, adminKey);
+      flash('Ключ сохранён');
+      switchTab('stats');
+    }
+    document.getElementById('saveKey').onclick = setKey;
+    document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') setKey(); });
+
+    let flashTimer;
+    function flash(msg) {
+      clearTimeout(flashTimer);
+      const h = document.querySelector('header');
+      let el = document.getElementById('flash');
+      if (!el) { el = document.createElement('span'); el.id = 'flash'; el.className = 'ok'; el.style.width='100%'; h.appendChild(el); }
+      el.textContent = msg;
+      flashTimer = setTimeout(() => { el.textContent = ''; }, 2500);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey, ...(opts.headers || {}) },
+      });
+      if (!res.ok) {
+        let msg = 'Ошибка ' + res.status;
+        try { const j = await res.json(); msg = (j.message || msg) + ''; } catch {}
+        throw new Error(msg);
+      }
+      return res.status === 204 ? null : res.json();
+    }
+
+    function fmt(n) { return Number(n).toLocaleString('ru-RU'); }
+    function dt(s) { return s ? new Date(s).toLocaleString('ru-RU') : '—'; }
+    function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    // ---- tabs ----
+    const tabs = ['users','withdrawals','stats'];
+    function switchTab(name) {
+      document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      tabs.forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+      document.getElementById('tab-user').classList.add('hidden');
+      if (name === 'stats') loadStats();
+      if (name === 'withdrawals') loadWithdrawals();
+    }
+    document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+
+    // ---- users ----
+    document.getElementById('searchBtn').onclick = loadUsers;
+    document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadUsers(); });
+
+    async function loadUsers() {
+      const q = document.getElementById('searchInput').value.trim();
+      const errEl = document.getElementById('usersErr'); errEl.textContent = '';
+      const list = document.getElementById('usersList');
+      list.innerHTML = '<span class="muted">Загрузка…</span>';
+      try {
+        const users = await api('/users?q=' + encodeURIComponent(q));
+        if (!users.length) { list.innerHTML = '<span class="muted">Ничего не найдено.</span>'; return; }
+        list.innerHTML = '';
+        users.forEach(u => {
+          const div = document.createElement('div');
+          div.className = 'uitem';
+          div.innerHTML = `
+            <div>
+              <div class="name">${esc(u.nickname || u.firstName || u.username || 'Без имени')} ${u.banned ? '<span class="badge ban">бан</span>' : ''}</div>
+              <div class="id">id: ${esc(u.id)} · tg: ${esc(u.telegramId)} ${u.username ? '· @' + esc(u.username) : ''}</div>
+            </div>
+            <div class="bal"><div class="b">${fmt(u.balance)} ₽</div><div class="w">вывод: ${fmt(u.withdrawable)}</div></div>`;
+          div.onclick = () => openUser(u.id);
+          list.appendChild(div);
+        });
+      } catch (e) { errEl.textContent = e.message; list.innerHTML = ''; }
+    }
+
+    async function openUser(id) {
+      switchTab('users');
+      document.getElementById('tab-users').classList.add('hidden');
+      const box = document.getElementById('tab-user');
+      box.classList.remove('hidden');
+      const d = document.getElementById('userDetail');
+      d.innerHTML = '<span class="muted">Загрузка…</span>';
+      try {
+        const { user: u, transactions, withdrawals } = await api('/users/' + encodeURIComponent(id));
+        d.innerHTML = `
+          <h3>${esc(u.nickname || u.firstName || u.username || 'Без имени')} ${u.banned ? '<span class="badge ban">забанен</span>' : ''}</h3>
+          <p class="muted">ID: <b>${esc(u.id)}</b><br>Telegram ID: <b>${esc(u.telegramId)}</b> ${u.username ? '· @' + esc(u.username) : ''}<br>
+          Регистрация: ${dt(u.createdAt)} · Побед: ${u.wins} · Поражений: ${u.losses} · Рефералов: ${u.referralCount}</p>
+          <div class="stat-grid" style="margin:12px 0;">
+            <div class="stat"><div class="v">${fmt(u.balance)} ₽</div><div class="l">Баланс</div></div>
+            <div class="stat"><div class="v">${fmt(u.withdrawable)} ₽</div><div class="l">Можно вывести</div></div>
+          </div>
+          <h3>Выдать / списать монеты</h3>
+          <div class="row">
+            <input id="cAmount" type="number" placeholder="Сумма (+ выдать, − списать)" />
+            <input id="cReason" placeholder="Причина (необязательно)" />
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <label class="chk"><input type="checkbox" id="cWithdraw" /> можно выводить (реальные)</label>
+            <button class="green" id="cBtn">Применить</button>
+          </div>
+          <div id="cMsg"></div>
+          <div class="row" style="margin-top:14px;">
+            <button class="${u.banned ? 'green' : 'red'}" id="banBtn">${u.banned ? 'Разбанить' : 'Забанить'}</button>
+          </div>
+          <h3 style="margin-top:20px;">Последние операции</h3>
+          <table><thead><tr><th>Тип</th><th>Сумма</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
+            ${transactions.length ? transactions.map(t => `<tr><td>${esc(t.type)}</td><td>${fmt(t.amount)}</td><td>${esc(t.status)}</td><td>${dt(t.createdAt)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">нет</td></tr>'}
+          </tbody></table>
+          <h3 style="margin-top:20px;">Заявки на вывод</h3>
+          <table><thead><tr><th>Сумма</th><th>К выплате</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
+            ${withdrawals.length ? withdrawals.map(w => `<tr><td>${fmt(w.amount)}</td><td>${fmt(w.net)}</td><td><span class="badge ${w.status}">${w.status}</span></td><td>${dt(w.createdAt)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">нет</td></tr>'}
+          </tbody></table>`;
+
+        document.getElementById('cBtn').onclick = async () => {
+          const msg = document.getElementById('cMsg'); msg.textContent = ''; msg.className = '';
+          const amount = Number(document.getElementById('cAmount').value);
+          if (!amount) { msg.className = 'err'; msg.textContent = 'Введите сумму'; return; }
+          try {
+            await api('/users/' + encodeURIComponent(id) + '/credit', {
+              method: 'POST',
+              body: JSON.stringify({ amount, reason: document.getElementById('cReason').value, withdrawable: document.getElementById('cWithdraw').checked }),
+            });
+            msg.className = 'ok'; msg.textContent = 'Готово';
+            openUser(id);
+          } catch (e) { msg.className = 'err'; msg.textContent = e.message; }
+        };
+        document.getElementById('banBtn').onclick = async () => {
+          try { await api('/users/' + encodeURIComponent(id) + '/ban', { method: 'POST', body: JSON.stringify({ banned: !u.banned }) }); openUser(id); }
+          catch (e) { flash(e.message); }
+        };
+      } catch (e) { d.innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+    }
+    document.getElementById('backToUsers').onclick = () => {
+      document.getElementById('tab-user').classList.add('hidden');
+      document.getElementById('tab-users').classList.remove('hidden');
+    };
+
+    // ---- withdrawals ----
+    document.getElementById('wRefresh').onclick = loadWithdrawals;
+    document.getElementById('wStatus').onchange = loadWithdrawals;
+    async function loadWithdrawals() {
+      const status = document.getElementById('wStatus').value;
+      const errEl = document.getElementById('wErr'); errEl.textContent = '';
+      const list = document.getElementById('wList');
+      list.innerHTML = '<span class="muted">Загрузка…</span>';
+      try {
+        const items = await api('/withdrawals?status=' + encodeURIComponent(status));
+        if (!items.length) { list.innerHTML = '<span class="muted">Заявок нет.</span>'; return; }
+        list.innerHTML = '';
+        items.forEach(w => {
+          const u = w.user || {};
+          const div = document.createElement('div');
+          div.className = 'uitem';
+          div.style.cursor = 'default';
+          div.innerHTML = `
+            <div>
+              <div class="name">${fmt(w.amount)} ₽ → к выплате ${fmt(w.net)} <span class="badge ${w.status}">${w.status}</span></div>
+              <div class="id">${esc(u.nickname || u.firstName || u.username || u.id || '')} · tg: ${esc(u.telegramId || '')} · ${esc(w.method)} ${esc(w.destination || '')}</div>
+              <div class="id">${dt(w.createdAt)} ${w.note ? '· ' + esc(w.note) : ''}</div>
+            </div>
+            <div class="row"></div>`;
+          if (w.status === 'PENDING') {
+            const actions = div.querySelector('.row');
+            const pay = document.createElement('button'); pay.className = 'green'; pay.textContent = 'Выплатить';
+            const rej = document.createElement('button'); rej.className = 'red'; rej.textContent = 'Отклонить';
+            pay.onclick = () => processW(w.id, 'pay');
+            rej.onclick = () => processW(w.id, 'reject');
+            actions.appendChild(pay); actions.appendChild(rej);
+          }
+          list.appendChild(div);
+        });
+      } catch (e) { errEl.textContent = e.message; list.innerHTML = ''; }
+    }
+    async function processW(id, action) {
+      if (!confirm(action === 'pay' ? 'Подтвердить выплату?' : 'Отклонить заявку (средства вернутся игроку)?')) return;
+      let note = '';
+      if (action === 'reject') note = prompt('Причина отклонения (необязательно):') || '';
+      try { await api('/withdrawals/' + encodeURIComponent(id) + '/process', { method: 'POST', body: JSON.stringify({ action, note }) }); flash('Готово'); loadWithdrawals(); }
+      catch (e) { flash(e.message); }
+    }
+
+    // ---- stats ----
+    async function loadStats() {
+      const box = document.getElementById('statsBox');
+      box.innerHTML = '<span class="muted">Загрузка…</span>';
+      try {
+        const s = await api('/stats');
+        box.innerHTML = `
+          <div class="stat"><div class="v">${fmt(s.users)}</div><div class="l">Игроков</div></div>
+          <div class="stat"><div class="v">${fmt(s.totalBalance)} ₽</div><div class="l">Сумма балансов</div></div>
+          <div class="stat"><div class="v">${fmt(s.pendingWithdrawals)}</div><div class="l">Выводов в ожидании</div></div>
+          <div class="stat"><div class="v">${fmt(s.banned)}</div><div class="l">Забанено</div></div>`;
+      } catch (e) { box.innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+    }
+
+    // init
+    if (adminKey) switchTab('stats'); else document.getElementById('gate').classList.remove('hidden');
+  </script>
+</body>
+</html>

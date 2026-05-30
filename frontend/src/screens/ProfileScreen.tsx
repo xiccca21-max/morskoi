@@ -51,6 +51,11 @@ export default function ProfileScreen() {
     tgShare(refLink, 'Вызываю на морскую дуэль со ставками. Регистрируйся по ссылке — нам обоим бонус!');
   };
 
+  const copyId = () => {
+    navigator.clipboard.writeText(user.telegramId).catch(() => {});
+    toast('ID скопирован', 'success', 'check');
+  };
+
   const copyRef = () => {
     navigator.clipboard.writeText(refLink).catch(() => {});
     toast('Ссылка скопирована', 'success', 'check');
@@ -120,6 +125,14 @@ export default function ProfileScreen() {
               <Icon name={rank.icon} size={16} />
               <span className="title text-xs">{rank.title}</span>
             </div>
+            <button
+              onClick={copyId}
+              className="flex items-center gap-1 mt-0.5 text-muted text-[11px] hover:text-main"
+              aria-label="Скопировать игровой ID"
+            >
+              ID: <span className="tabular-nums font-medium">{user.telegramId}</span>
+              <Icon name="check" size={11} />
+            </button>
             {memberSince && <p className="text-muted text-[11px] mt-0.5">В игре с {memberSince}</p>}
           </div>
           <button className="btn-ghost w-10 h-10 p-0 shrink-0" onClick={shareProfile} aria-label="Поделиться профилем">

@@ -198,6 +198,46 @@ export class WalletService {
   }
 
   /**
+   * Ручная корректировка баланса администратором (выдача/списание монет).
+   * amount > 0 — начислить, amount < 0 — списать.
+   * makeWithdrawable=true — средства можно выводить (реальные), иначе бонус.
+   */
+  async adminAdjust(userId: string, amount: number, reason: string, makeWithdrawable = false) {
+    if (!amount || amount === 0) throw new BadRequestException('Сумма не может быть нулевой');
+    return this.redis.withLock(`wallet:${userId}`, 4000, async () => {
+      return this.prisma.$transaction(async (tx) => {
+        const u = await tx.user.findUnique({ where: { id: userId } });
+        if (!u) throw new NotFoundException('Пользователь не найден');
+        const newBalance = Number(u.balance) + amount;
+        if (newBalance < 0) throw new BadRequestException('Недостаточно средств для списания');
+
+        const curW = Number((u as any).withdrawable ?? 0);
+        const data: any = { balance: { increment: amount } };
+        if (makeWithdrawable) {
+          data.withdrawable = Math.max(0, Math.min(newBalance, curW + amount));
+        } else if (curW > newBalance) {
+          data.withdrawable = newBalance; // withdrawable не выше баланса
+        }
+
+        const updated = await tx.user.update({ where: { id: userId }, data });
+        await tx.transaction.create({
+          data: {
+            userId,
+            type: amount > 0 ? TxType.DEPOSIT : TxType.WITHDRAW,
+            amount: Math.abs(amount),
+            status: TxStatus.COMPLETED,
+            meta: JSON.stringify({ source: 'admin', reason: reason || 'admin adjust' }),
+          },
+        });
+        return {
+          balance: Number(updated.balance),
+          withdrawable: Number((updated as any).withdrawable ?? 0),
+        };
+      });
+    });
+  }
+
+  /**
    * Завершить заявку на вывод: PAID (выплачено) или REJECTED (возврат средств).
    * При отклонении удержанные деньги возвращаются на баланс.
    */
