@@ -9,6 +9,7 @@ import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
+import { PaymentsModule } from './payments/payments.module';
 import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { GameModule } from './game/game.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
@@ -28,6 +29,7 @@ import { HealthController } from './common/health.controller';
     AuthModule,
     UsersModule,
     WalletModule,
+    PaymentsModule,
     MatchmakingModule,
     GameModule,
     LeaderboardModule,

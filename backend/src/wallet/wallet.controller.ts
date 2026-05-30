@@ -5,12 +5,6 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/auth.service';
 
-class AmountDto {
-  @IsNumber()
-  @IsPositive()
-  amount!: number;
-}
-
 class WithdrawDto {
   @IsNumber()
   @IsPositive()
@@ -45,16 +39,8 @@ export class WalletController {
     return this.wallet.listWithdrawals(u.sub);
   }
 
-  /**
-   * Заглушка для пополнения. В проде сюда подключается провайдер
-   * (Telegram Stars / TON / crypto-gateway). Здесь — демо-deposit для теста.
-   */
-  @Post('deposit')
-  deposit(@CurrentUser() u: JwtPayload, @Body() dto: AmountDto) {
-    return this.wallet
-      .deposit(u.sub, dto.amount, { source: 'demo' }, true)
-      .then((balance) => ({ balance }));
-  }
+  // Пополнение перенесено в PaymentsController (/payments/deposit),
+  // чтобы деньги всегда проходили через платёжного провайдера.
 
   /** Создаёт заявку на вывод. Средства холдятся сразу, выплата — после обработки. */
   @Post('withdraw')

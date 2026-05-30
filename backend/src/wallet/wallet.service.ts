@@ -154,6 +154,87 @@ export class WalletService {
   }
 
   /**
+   * Создать «висящий» депозит под внешний инвойс провайдера.
+   * Деньги НЕ зачисляются — ждём вебхук об оплате.
+   */
+  async createPendingDeposit(userId: string, amount: number, invoiceId: string, provider: string) {
+    return this.prisma.transaction.create({
+      data: {
+        userId,
+        type: TxType.DEPOSIT,
+        amount,
+        status: TxStatus.PENDING,
+        meta: JSON.stringify({ invoiceId, provider }),
+      },
+    });
+  }
+
+  /**
+   * Зачислить депозит по факту оплаты инвойса (идемпотентно).
+   * Находит PENDING-депозит с этим invoiceId и проводит его.
+   */
+  async completeDepositByInvoice(userId: string, invoiceId: string, amount: number) {
+    return this.redis.withLock(`wallet:${userId}`, 4000, async () => {
+      return this.prisma.$transaction(async (tx) => {
+        const pending = await tx.transaction.findFirst({
+          where: { userId, type: TxType.DEPOSIT, status: TxStatus.PENDING, meta: { contains: invoiceId } },
+        });
+        if (!pending) return { credited: false };
+        await tx.transaction.update({ where: { id: pending.id }, data: { status: TxStatus.COMPLETED } });
+        await tx.user.update({
+          where: { id: userId },
+          data: { balance: { increment: amount }, withdrawable: { increment: amount } } as any,
+        });
+        return { credited: true };
+      });
+    });
+  }
+
+  /** Получить заявку на вывод по id. */
+  async getWithdrawal(id: string) {
+    return (this.prisma as any).withdrawalRequest.findUnique({ where: { id } });
+  }
+
+  /**
+   * Завершить заявку на вывод: PAID (выплачено) или REJECTED (возврат средств).
+   * При отклонении удержанные деньги возвращаются на баланс.
+   */
+  async resolveWithdrawal(id: string, status: 'PAID' | 'REJECTED', note?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const wr = await (tx as any).withdrawalRequest.findUnique({ where: { id } });
+      if (!wr) throw new NotFoundException('Заявка не найдена');
+      if (wr.status === 'PAID' || wr.status === 'REJECTED') {
+        return wr; // уже обработана — идемпотентность
+      }
+      if (status === 'PAID') {
+        await (tx as any).withdrawalRequest.update({
+          where: { id },
+          data: { status: 'PAID', processedAt: new Date() },
+        });
+        await tx.transaction.updateMany({
+          where: { userId: wr.userId, type: TxType.WITHDRAW, status: TxStatus.PENDING, meta: { contains: id } },
+          data: { status: TxStatus.COMPLETED },
+        });
+      } else {
+        // Возврат удержанных средств
+        await tx.user.update({
+          where: { id: wr.userId },
+          data: { balance: { increment: wr.amount }, withdrawable: { increment: wr.amount } } as any,
+        });
+        await (tx as any).withdrawalRequest.update({
+          where: { id },
+          data: { status: 'REJECTED', note: note ?? null, processedAt: new Date() },
+        });
+        await tx.transaction.updateMany({
+          where: { userId: wr.userId, type: TxType.WITHDRAW, status: TxStatus.PENDING, meta: { contains: id } },
+          data: { status: TxStatus.FAILED },
+        });
+      }
+      return { ...wr, status };
+    });
+  }
+
+  /**
    * Списать ставку у двух игроков атомарно.
    * Используется при старте матча. Создаёт WAGER_LOCK транзакции.
    * При недостаточном балансе у одного — ничего не списывается.

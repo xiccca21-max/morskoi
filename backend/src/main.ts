@@ -7,7 +7,7 @@ import * as express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: false, rawBody: true });
 
   const isDev = process.env.NODE_ENV !== 'production';
   const origins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(',');

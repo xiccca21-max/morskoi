@@ -32,11 +32,19 @@ export interface Withdrawal {
   processedAt?: string | null;
 }
 
+export interface DepositResult {
+  mode: 'demo' | 'cryptobot';
+  credited?: boolean;
+  balance?: number;
+  payUrl?: string;
+  invoiceId?: string;
+}
+
 export const WalletAPI = {
   balance: () => api.get<{ balance: number; withdrawable: number }>('/wallet/balance').then(r => r.data),
   txs:     () => api.get('/wallet/transactions').then(r => r.data),
   withdrawals: () => api.get<Withdrawal[]>('/wallet/withdrawals').then(r => r.data),
-  deposit: (amount: number) => api.post('/wallet/deposit', { amount }).then(r => r.data),
+  deposit: (amount: number) => api.post<DepositResult>('/payments/deposit', { amount }).then(r => r.data),
   withdraw: (amount: number, method: string, destination: string) =>
     api.post('/wallet/withdraw', { amount, method, destination }).then(r => r.data),
 };

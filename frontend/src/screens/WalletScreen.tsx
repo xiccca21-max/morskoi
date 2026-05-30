@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic } from '../lib/telegram';
+import { tgHaptic, tgOpenLink } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { Modal } from '../components/Modal';
@@ -60,12 +60,36 @@ export default function WalletScreen() {
   const [destination, setDestination] = useState('');
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
+  const [awaitingPayment, setAwaitingPayment] = useState(false);
+
   const refresh = () => {
     WalletAPI.txs().then(setTxs).catch(() => {});
     WalletAPI.withdrawals().then(setWithdrawals).catch(() => {});
     WalletAPI.balance().then(updateWallet).catch(() => {});
   };
   useEffect(() => { refresh(); }, []);
+
+  // После выставления крипто-счёта опрашиваем баланс ~3 минуты, ждём вебхук об оплате
+  useEffect(() => {
+    if (!awaitingPayment) return;
+    const startBalance = useAuthStore.getState().user?.balance ?? 0;
+    let ticks = 0;
+    const t = setInterval(async () => {
+      ticks++;
+      try {
+        const w = await WalletAPI.balance();
+        updateWallet(w);
+        if (w.balance > startBalance) {
+          toast('Оплата получена — баланс пополнен', 'success', 'plus');
+          tgHaptic('success');
+          WalletAPI.txs().then(setTxs).catch(() => {});
+          setAwaitingPayment(false);
+        }
+      } catch { /* ignore */ }
+      if (ticks >= 36) setAwaitingPayment(false); // ~3 мин (5с * 36)
+    }, 5000);
+    return () => clearInterval(t);
+  }, [awaitingPayment, updateWallet]);
 
   const balance = user?.balance ?? 0;
   const withdrawable = user?.withdrawable ?? 0;
@@ -78,8 +102,16 @@ export default function WalletScreen() {
     if (!validDeposit) { setError(`Сумма от ${MIN_DEPOSIT} до ${MAX_DEPOSIT} ₽`); return; }
     setError(null); setBusy(true);
     try {
-      await WalletAPI.deposit(amount); tgHaptic('success');
-      toast(`Баланс пополнен на ${amount} ₽`, 'success', 'plus');
+      const r = await WalletAPI.deposit(amount);
+      tgHaptic('success');
+      if (r.mode === 'cryptobot' && r.payUrl) {
+        // Открываем счёт в @CryptoBot; зачисление придёт по вебхуку
+        tgOpenLink(r.payUrl);
+        toast('Счёт создан — оплатите в @CryptoBot', 'info', 'coins');
+        setAwaitingPayment(true);
+      } else {
+        toast(`Баланс пополнен на ${amount} ₽`, 'success', 'plus');
+      }
       refresh();
     } catch (e: any) {
       tgHaptic('error'); setError(e?.response?.data?.message ?? 'Не удалось пополнить');
@@ -176,9 +208,12 @@ export default function WalletScreen() {
           <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit}>
             <Icon name="plus" size={16} /> Пополнить на {Number.isFinite(amount) ? amount : 0} ₽
           </button>
-          <p className="text-xs text-muted">
-            Демо-режим: пополнение условное. В проде — Telegram Stars / TON / крипто-провайдер.
-          </p>
+          {awaitingPayment && (
+            <div className="flex items-center justify-center gap-2 text-muted text-xs">
+              <span className="w-3 h-3 rounded-full border-2 border-transparent border-t-danger animate-spin" />
+              Ждём подтверждения оплаты…
+            </div>
+          )}
         </section>
       ) : (
         <section className="card p-5 space-y-3">

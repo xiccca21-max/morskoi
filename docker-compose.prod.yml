@@ -30,6 +30,11 @@ services:
       WITHDRAW_FEE_PERCENT: ${WITHDRAW_FEE_PERCENT:-0}
       WITHDRAW_DAILY_LIMIT: ${WITHDRAW_DAILY_LIMIT:-50000}
       REFERRAL_BONUS: ${REFERRAL_BONUS:-25}
+      # Платёжка Crypto Pay (@CryptoBot). Пусто = демо-режим.
+      CRYPTO_PAY_TOKEN: ${CRYPTO_PAY_TOKEN:-}
+      CRYPTO_PAY_API: ${CRYPTO_PAY_API:-https://pay.crypt.bot/api}
+      # Ключ для админских действий (обработка выводов)
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
     volumes:
       - naval-data:/data
     expose:

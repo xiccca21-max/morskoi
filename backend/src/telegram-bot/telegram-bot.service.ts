@@ -115,6 +115,18 @@ export class TelegramBotService implements OnModuleInit {
     await this.notifyUser(userId, `🏆 Победа! Выплата: ${amount.toFixed(0)} ₽`);
   }
 
+  async notifyDeposit(userId: string, amount: number) {
+    await this.notifyUser(userId, `✅ Баланс пополнен на ${amount.toFixed(0)} ₽. Удачи в бою!`);
+  }
+
+  async notifyWithdrawal(userId: string, amount: number, status: 'paid' | 'rejected', note?: string) {
+    if (status === 'paid') {
+      await this.notifyUser(userId, `💸 Вывод ${amount.toFixed(0)} ₽ выполнен. Проверьте @CryptoBot.`);
+    } else {
+      await this.notifyUser(userId, `↩️ Заявка на вывод отклонена${note ? `: ${note}` : ''}. Средства возвращены на баланс.`);
+    }
+  }
+
   /** Уведомление создателю открытого лобби — кто-то принял его вызов. */
   async notifyLobbyJoined(hostId: string, joinerName: string, wager: number) {
     if (!this.bot) {
