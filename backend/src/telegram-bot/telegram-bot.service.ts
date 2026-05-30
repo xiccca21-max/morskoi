@@ -94,6 +94,9 @@ export class TelegramBotService implements OnModuleInit {
         });
       }
     });
+
+    // Остальные команды: /play, /balance, /rules, /support, /help
+    this.registerCommands();
   }
 
   /**
@@ -126,6 +129,90 @@ export class TelegramBotService implements OnModuleInit {
 
     await call('setMyDescription', { description });
     await call('setMyShortDescription', { short_description: shortDescription });
+
+    // Список команд — показывается при вводе «/» и в меню команд.
+    await call('setMyCommands', {
+      commands: [
+        { command: 'start', description: '🚀 Запустить бота' },
+        { command: 'play', description: '⚔️ Играть — открыть бой' },
+        { command: 'balance', description: '💰 Мой баланс' },
+        { command: 'rules', description: '📜 Правила игры' },
+        { command: 'support', description: '🆘 Поддержка' },
+        { command: 'help', description: 'ℹ️ Помощь и команды' },
+      ],
+    });
+  }
+
+  /** Inline-кнопка «Начать играть», открывающая мини-приложение. */
+  private playButton(launchUrl?: string) {
+    const url = launchUrl ?? process.env.TELEGRAM_WEBAPP_URL;
+    if (!url) return undefined;
+    return { inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url } }]] };
+  }
+
+  /** Регистрация обработчиков команд бота. */
+  private registerCommands() {
+    if (!this.bot) return;
+    const bot = this.bot;
+    const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
+    const supportUrl = process.env.SUPPORT_URL ?? process.env.VITE_SUPPORT_URL;
+
+    bot.onText(/^\/play\b/, async (msg) => {
+      await bot.sendMessage(msg.chat.id, '⚔️ Открывай игру и вызывай соперника на дуэль!', {
+        reply_markup: this.playButton(),
+      });
+    });
+
+    bot.onText(/^\/balance\b/, async (msg) => {
+      const tgId = String(msg.from?.id ?? msg.chat.id);
+      const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
+      if (!user) {
+        await bot.sendMessage(msg.chat.id, 'Сначала зайди в игру, чтобы создать аккаунт 👇', {
+          reply_markup: this.playButton(),
+        });
+        return;
+      }
+      const balance = Number(user.balance).toLocaleString('ru-RU');
+      const withdrawable = Number((user as any).withdrawable ?? 0).toLocaleString('ru-RU');
+      await bot.sendMessage(
+        msg.chat.id,
+        `💰 <b>Твой баланс</b>\n\nВсего: <b>${balance} ₽</b>\nМожно вывести: <b>${withdrawable} ₽</b>`,
+        { parse_mode: 'HTML', reply_markup: this.playButton() },
+      );
+    });
+
+    bot.onText(/^\/rules\b/, async (msg) => {
+      const text =
+        '📜 <b>Правила «Морского Боя»</b>\n\n' +
+        '• Флот: 1×4, 2×3, 3×2, 4×1 — корабли не касаются друг друга.\n' +
+        '• Игроки ходят по очереди, попадание даёт право на ещё один выстрел.\n' +
+        '• На ход — ограниченное время; пропустишь — ход перейдёт сопернику.\n' +
+        '• Кто первым потопит весь флот врага — забирает банк (95%).\n' +
+        '• Комиссия платформы — 5%. 18+, играй ответственно.';
+      await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_markup: this.playButton() });
+    });
+
+    bot.onText(/^\/support\b/, async (msg) => {
+      const text = '🆘 <b>Поддержка</b>\n\nНапиши нам, если возник вопрос по игре, оплате или выводу.';
+      await bot.sendMessage(msg.chat.id, text, {
+        parse_mode: 'HTML',
+        reply_markup: supportUrl
+          ? { inline_keyboard: [[{ text: '💬 Написать в поддержку', url: supportUrl }]] }
+          : undefined,
+      });
+    });
+
+    bot.onText(/^\/help\b/, async (msg) => {
+      const text =
+        'ℹ️ <b>Команды бота</b>\n\n' +
+        '/play — открыть игру и вызвать соперника\n' +
+        '/balance — показать баланс\n' +
+        '/rules — правила игры\n' +
+        '/support — связаться с поддержкой\n' +
+        '/start — главный экран\n\n' +
+        'Кнопка <b>«Начать играть»</b> внизу всегда открывает игру.';
+      await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_markup: this.playButton() });
+    });
   }
 
   async notify(telegramId: string, text: string) {
