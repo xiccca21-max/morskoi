@@ -53,6 +53,8 @@ export default function SettingsScreen() {
 
       <button className="btn-danger w-full" onClick={() => setConfirmLogout(true)}><Icon name="logout" size={16} /> Выйти</button>
 
+      <p className="text-center text-muted text-[10px] font-mono">сборка {__APP_BUILD__}</p>
+
       <ConfirmDialog
         open={confirmLogout}
         title="Выйти из аккаунта?"

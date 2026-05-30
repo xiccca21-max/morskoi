@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  define: {
+    __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16)),
+  },
   plugins: [react()],
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },

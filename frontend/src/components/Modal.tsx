@@ -28,7 +28,7 @@ export function Modal({ open, onClose, title, icon, children, dismissable = true
             onClick={() => dismissable && onClose?.()}
           />
           <motion.div
-            className="relative w-full max-w-sm card p-5 z-10"
+            className="relative w-full max-w-sm card p-5 z-10 overflow-hidden"
             initial={{ y: 30, scale: 0.96, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 20, scale: 0.97, opacity: 0 }}

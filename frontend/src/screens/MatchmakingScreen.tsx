@@ -194,12 +194,11 @@ export default function MatchmakingScreen() {
 
       {/* Bottom-sheet: выбор ставки */}
       <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Ставка боя" icon="coins">
-        {/* Поле ввода — красная обводка только здесь при превышении баланса */}
-        <div className={['rounded-xl transition p-0.5', overBalance ? 'ring-1 ring-danger' : ''].join(' ')}>
-          <div className="flex items-center justify-between mb-3 px-0.5">
+        <div className="overflow-hidden">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
             <p className="eyebrow">Укажи сумму</p>
             {overBalance && (
-              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-danger text-xs font-display">
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-danger text-[11px] font-display">
                 Превышает баланс
               </motion.span>
             )}
@@ -262,19 +261,17 @@ export default function MatchmakingScreen() {
           </div>
 
           <PrizeBreakdown wager={wager} />
-        </div>
 
-        {/* Кнопки — отдельно от блока с обводкой */}
-        <div className="mt-4 space-y-2">
-          <button
-            className="btn-primary w-full"
-            style={{ border: 'none' }}
-            onClick={tab === 'browse' ? createPublic : createPrivate}
-          >
-            <Icon name="swords" size={18} className="shrink-0" />
-            <span className="truncate">Создать за {wager} ₽</span>
-          </button>
-          <button className="btn-ghost w-full" onClick={() => setShowCreateModal(false)}>Отмена</button>
+          <div className="mt-4 space-y-2">
+            <button
+              className="btn-primary w-full normal-case tracking-normal text-sm py-3.5 gap-2"
+              onClick={tab === 'browse' ? createPublic : createPrivate}
+            >
+              <Icon name="swords" size={18} className="shrink-0" />
+              <span>Создать за {wager} ₽</span>
+            </button>
+            <button className="btn-ghost w-full" onClick={() => setShowCreateModal(false)}>Отмена</button>
+          </div>
         </div>
       </Modal>
 
@@ -447,7 +444,7 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
         <button onClick={onShowRank} className="flex items-center gap-1 text-muted text-xs hover:text-main transition">
           <Icon name={rank.icon} size={12} />
           <span>{rank.title} · {m.host.wins}W</span>
-          <span className="text-danger text-[10px] font-display underline ml-0.5">?</span>
+          <span className="text-danger text-[10px] font-display underline ml-0.5 shrink-0">подробнее</span>
         </button>
       </div>
       <div className="text-right shrink-0">
@@ -484,17 +481,17 @@ function PrizeBreakdown({ wager }: { wager: number }) {
   const win = +(pool - rake).toFixed(2);
   return (
     <div className="mt-4 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
-      <Cell label="Банк" value={`${pool} ₽`} />
-      <Cell label="Комиссия" value={`−${rake} ₽`} accent />
-      <Cell label="Победителю" value={`${win} ₽`} />
+      <Cell label="Банк" value={`${pool.toFixed(0)} ₽`} />
+      <Cell label="Комиссия" value={`−${rake.toFixed(0)} ₽`} accent />
+      <Cell label="Победителю" value={`${win.toFixed(0)} ₽`} />
     </div>
   );
 }
 function Cell({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="bg-panel p-3 text-center">
-      <div className={['font-display tabular-nums', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
-      <div className="eyebrow mt-0.5">{label}</div>
+    <div className="bg-panel px-1.5 py-2.5 text-center min-w-0">
+      <div className={['font-display tabular-nums text-xs leading-tight truncate', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
+      <div className="text-[9px] uppercase tracking-wide text-muted mt-1 truncate">{label}</div>
     </div>
   );
 }

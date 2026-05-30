@@ -46,6 +46,8 @@ async function bootstrap() {
       if (req.path.includes('.') && existsSync(join(frontendDist, req.path))) {
         return express.static(frontendDist)(req, res, next);
       }
+      // Telegram кэширует index.html — без no-cache пользователи видят старый JS
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(join(frontendDist, 'index.html'));
     });
     Logger.log(`Serving frontend from ${frontendDist}`, 'Bootstrap');
