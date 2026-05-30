@@ -18,11 +18,11 @@ const MIN_WITHDRAW = 100;
 
 type Tab = 'deposit' | 'withdraw';
 
-type Method = { id: string; label: string; icon: IconName; placeholder: string };
+type Method = { id: string; label: string; icon: IconName };
+// Вывод только через @CryptoBot — на привязанный к Telegram аккаунт
 const METHODS: Method[] = [
-  { id: 'CARD', label: 'Карта', icon: 'coins', placeholder: 'Номер карты' },
-  { id: 'TON', label: 'TON', icon: 'wave', placeholder: 'Адрес TON-кошелька' },
-  { id: 'CRYPTO', label: 'USDT', icon: 'coins', placeholder: 'Адрес кошелька (TRC-20)' },
+  { id: 'CRYPTO', label: 'USDT', icon: 'coins' },
+  { id: 'TON', label: 'TON', icon: 'wave' },
 ];
 
 function CopyId({ label, value }: { label: string; value: string }) {
@@ -56,8 +56,7 @@ export default function WalletScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [method, setMethod] = useState<string>('CARD');
-  const [destination, setDestination] = useState('');
+  const [method, setMethod] = useState<string>('CRYPTO');
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
   const [awaitingPayment, setAwaitingPayment] = useState(false);
@@ -130,14 +129,12 @@ export default function WalletScreen() {
 
   const submitWithdraw = async () => {
     if (!validWithdraw) { setError(`Сумма от ${MIN_WITHDRAW} до ${withdrawable.toFixed(0)} ₽`); return; }
-    if (destination.trim().length < 4) { setError('Укажите реквизиты'); return; }
     setBusy(true); setError(null);
     try {
-      await WalletAPI.withdraw(amount, method, destination.trim());
+      await WalletAPI.withdraw(amount, method, '');
       tgHaptic('success');
       toast('Заявка на вывод создана', 'success', 'minus');
       setShowWithdraw(false);
-      setDestination('');
       refresh();
     } catch (e: any) {
       tgHaptic('error'); setError(e?.response?.data?.message ?? 'Не удалось создать заявку');
@@ -222,8 +219,8 @@ export default function WalletScreen() {
             <span className="text-muted text-xs tabular-nums">Доступно: {withdrawable.toFixed(0)} ₽</span>
           </div>
           <p className="text-xs text-muted leading-relaxed">
-            Минимальная сумма вывода — {MIN_WITHDRAW} ₽. Заявка обрабатывается до 24 часов.
-            Выводятся только реальные средства (депозиты и выигрыши).
+            Вывод через <b className="text-main">@CryptoBot</b> (USDT/TON) на твой Telegram-аккаунт.
+            Минимум — {MIN_WITHDRAW} ₽. Выводятся только реальные средства (депозиты и выигрыши).
           </p>
           <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < MIN_WITHDRAW}>
             <Icon name="minus" size={16} /> Создать заявку на вывод
@@ -259,31 +256,29 @@ export default function WalletScreen() {
         </section>
       )}
 
-      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Заявка на вывод" icon="minus">
+      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Вывод через @CryptoBot" icon="minus">
         <div className="space-y-3">
+          <div className="flex items-start gap-2 bg-panel rounded-lg p-3">
+            <Icon name="info" size={15} className="text-muted shrink-0 mt-0.5" />
+            <p className="text-[11px] text-muted leading-relaxed">
+              Выплата придёт на твой аккаунт в <b className="text-main">@CryptoBot</b> (тот же Telegram).
+              Реквизиты вводить не нужно — просто выбери валюту и сумму.
+            </p>
+          </div>
           <div>
-            <p className="eyebrow mb-1.5">Способ</p>
-            <div className="grid grid-cols-3 gap-1.5">
+            <p className="eyebrow mb-1.5">Валюта</p>
+            <div className="grid grid-cols-2 gap-1.5">
               {METHODS.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setMethod(m.id)}
-                  className={['py-2 rounded-lg text-xs font-display transition flex flex-col items-center gap-1', method === m.id ? 'bg-danger text-white' : 'bg-panel text-muted'].join(' ')}
+                  className={['py-2.5 rounded-lg text-xs font-display transition flex items-center justify-center gap-1.5', method === m.id ? 'bg-danger text-white' : 'bg-panel text-muted'].join(' ')}
                 >
                   <Icon name={m.icon} size={16} />
                   {m.label}
                 </button>
               ))}
             </div>
-          </div>
-          <div>
-            <p className="eyebrow mb-1.5">Реквизиты</p>
-            <input
-              value={destination}
-              onChange={(e) => { setError(null); setDestination(e.target.value); }}
-              placeholder={METHODS.find((m) => m.id === method)?.placeholder}
-              className="w-full px-3 py-2.5 rounded-lg bg-panel border border-line text-main outline-none text-sm"
-            />
           </div>
           <div>
             <p className="eyebrow mb-1.5">Сумма</p>
@@ -300,7 +295,7 @@ export default function WalletScreen() {
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
           <div className="space-y-2 pt-1">
-            <button className="btn-primary w-full" onClick={submitWithdraw} disabled={busy || !validWithdraw || destination.trim().length < 4}>
+            <button className="btn-primary w-full" onClick={submitWithdraw} disabled={busy || !validWithdraw}>
               {busy ? 'Отправляем…' : `Вывести ${Number.isFinite(amount) ? amount : 0} ₽`}
             </button>
             <button className="btn-ghost w-full" onClick={() => setShowWithdraw(false)}>Отмена</button>

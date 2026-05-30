@@ -92,9 +92,11 @@ export class WalletService {
     const FEE_PERCENT = Number(process.env.WITHDRAW_FEE_PERCENT ?? 0);
     const DAILY_LIMIT = Number(process.env.WITHDRAW_DAILY_LIMIT ?? 50000);
 
-    if (!['CARD', 'TON', 'CRYPTO'].includes(method)) throw new BadRequestException('Неверный способ вывода');
-    if (!destination || destination.trim().length < 4) throw new BadRequestException('Укажите реквизиты для вывода');
+    // Вывод только через @CryptoBot (на привязанный Telegram-аккаунт игрока)
+    if (!['TON', 'CRYPTO'].includes(method)) throw new BadRequestException('Вывод доступен только через @CryptoBot');
     if (amount < MIN) throw new BadRequestException(`Минимальная сумма вывода — ${MIN} ₽`);
+    // Реквизиты не нужны — выплата идёт на аккаунт пользователя в @CryptoBot
+    const dest = destination && destination.trim().length >= 2 ? destination.trim() : '@CryptoBot';
 
     return this.redis.withLock(`wallet:${userId}`, 5000, async () => {
       return this.prisma.$transaction(async (tx) => {
@@ -126,7 +128,7 @@ export class WalletService {
         });
 
         const wr = await (tx as any).withdrawalRequest.create({
-          data: { userId, amount, fee, net, method, destination: destination.trim(), status: 'PENDING' },
+          data: { userId, amount, fee, net, method, destination: dest, status: 'PENDING' },
         });
 
         await tx.transaction.create({
