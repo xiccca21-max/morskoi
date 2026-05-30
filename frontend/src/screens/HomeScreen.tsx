@@ -5,7 +5,6 @@ import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { GameAPI } from '../api/endpoints';
 import { tgHaptic } from '../lib/telegram';
-import { getRank, rankProgress } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
 import { Onboarding } from '../components/Onboarding';
 
@@ -25,8 +24,6 @@ export default function HomeScreen() {
 
   const wins = user?.wins ?? 0;
   const losses = user?.losses ?? 0;
-  const rank = getRank(wins);
-  const progress = rankProgress(wins);
   const total = wins + losses;
   const wr = total ? Math.round((wins / total) * 100) : 0;
 
@@ -37,30 +34,11 @@ export default function HomeScreen() {
       <Onboarding />
       {/* Каюта капитана */}
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="eyebrow">Капитан</p>
-            <h2 className="font-display text-2xl text-main leading-tight mt-0.5">
-              {user?.firstName ?? user?.username ?? 'без имени'}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2 text-muted">
-            <Icon name={rank.icon} size={22} />
-            <span className="title text-xs text-main">{rank.title}</span>
-          </div>
-        </div>
+        <h2 className="font-display text-2xl text-main leading-tight">
+          {user?.firstName ?? user?.username ?? 'без имени'}
+        </h2>
 
-        <div className="mt-4">
-          <div className="flex items-center justify-between eyebrow mb-1.5">
-            <span>Прогресс звания</span>
-            <span className="text-muted">{wins}{rank.next ? ` / ${rank.next}` : ''}</span>
-          </div>
-          <div className="h-1 rounded-full bg-panel overflow-hidden">
-            <div className="h-full bg-main" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-px mt-5 bg-line rounded-lg overflow-hidden">
+        <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
           <Stat label="Победы" value={wins} />
           <Stat label="Поражения" value={losses} accent />
           <Stat label="Точность" value={`${wr}%`} />
