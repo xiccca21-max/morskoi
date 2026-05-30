@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { SkeletonList } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
 import { formatNumber } from '../lib/format';
 
 export default function LeaderboardScreen() {
@@ -28,10 +29,8 @@ export default function LeaderboardScreen() {
       {loading && <SkeletonList rows={6} />}
       <ul className="space-y-1.5">
         {!loading && items.length === 0 && (
-          <li className="card p-8 flex flex-col items-center gap-3 text-center">
-            <Icon name="trophy" size={32} className="text-muted" />
-            <p className="text-main text-sm">Рейтинг пуст</p>
-            <p className="text-muted text-xs">Выигрывайте бои и станьте первым капитаном</p>
+          <li>
+            <EmptyState icon="trophy" title="Рейтинг пуст" subtitle="Выигрывайте бои и станьте первым капитаном" />
           </li>
         )}
         {items.map((u, i) => {

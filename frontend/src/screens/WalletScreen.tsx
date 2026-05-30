@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic, tgOpenLink } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
 import { formatNumber } from '../lib/format';
@@ -61,6 +62,7 @@ export default function WalletScreen() {
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
   const [awaitingPayment, setAwaitingPayment] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
 
   const refresh = () => {
     WalletAPI.txs().then(setTxs).catch(() => {});
@@ -82,6 +84,8 @@ export default function WalletScreen() {
         if (w.balance > startBalance) {
           toast('Оплата получена — баланс пополнен', 'success', 'plus');
           tgHaptic('success');
+          setCelebrate(true);
+          setTimeout(() => setCelebrate(false), 2200);
           WalletAPI.txs().then(setTxs).catch(() => {});
           setAwaitingPayment(false);
         }
@@ -150,7 +154,8 @@ export default function WalletScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <section className="card p-6">
+      <section className="card p-6 relative overflow-hidden">
+        {celebrate && <VictoryBurst />}
         <div className="flex items-start justify-between">
           <div>
             <p className="eyebrow">Баланс</p>
@@ -163,7 +168,9 @@ export default function WalletScreen() {
         <div className="grid grid-cols-2 gap-2 mt-4">
           <div className="bg-panel rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-muted">Можно вывести</p>
-            <p className="font-display text-main tabular-nums text-lg">{formatNumber(withdrawable)} ₽</p>
+            <p className="font-display text-main tabular-nums text-lg">
+              <AnimatedNumber value={withdrawable} formatter={formatNumber} /> ₽
+            </p>
           </div>
           <div className="bg-panel rounded-lg px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-muted">Бонусы</p>

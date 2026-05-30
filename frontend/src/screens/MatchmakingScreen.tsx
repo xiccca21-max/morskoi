@@ -13,6 +13,7 @@ import type { Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
 import { Spinner } from '../components/Spinner';
 import { Avatar } from '../components/Avatar';
+import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
 
 const ALL_RANKS: Rank[] = [
@@ -436,11 +437,16 @@ export default function MatchmakingScreen() {
                   <Spinner size={20} />
                 </div>
               ) : matches.length === 0 ? (
-                <div className="card p-8 flex flex-col items-center gap-2 text-center">
-                  <Icon name="compass" size={28} className="text-muted" />
-                  <p className="text-main text-sm">Открытых боёв нет</p>
-                  <p className="text-muted text-xs">Создайте свой — и соперник подключится к вам.</p>
-                </div>
+                <EmptyState
+                  icon="compass"
+                  title="Открытых боёв нет"
+                  subtitle="Создайте свой — и соперник подключится к вам."
+                  action={!myOpen && (
+                    <button className="btn-primary px-5" onClick={openCreateModal}>
+                      <Icon name="plus" size={16} /> Создать бой
+                    </button>
+                  )}
+                />
               ) : (
                 <div className="space-y-2">
                   <AnimatePresence initial={false}>

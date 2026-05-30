@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { HistoryAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
 import { toast } from '../stores/toast-store';
 import { formatNumber } from '../lib/format';
 
@@ -64,11 +65,7 @@ export default function HistoryScreen() {
       )}
       {loading && <SkeletonList rows={5} />}
       {!loading && items.length === 0 && (
-        <div className="card p-8 flex flex-col items-center gap-3 text-center">
-          <Icon name="scroll" size={32} className="text-muted" />
-          <p className="text-main text-sm">Журнал пуст</p>
-          <p className="text-muted text-xs">Сыграйте первый бой — он появится здесь</p>
-        </div>
+        <EmptyState icon="scroll" title="Журнал пуст" subtitle="Сыграйте первый бой — он появится здесь" />
       )}
       <ul className="space-y-2">
         {items.map((m, i) => {
