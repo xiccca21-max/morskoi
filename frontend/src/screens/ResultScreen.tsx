@@ -12,6 +12,7 @@ import { Icon, IconName } from '../components/Icon';
 import { Skeleton } from '../components/Skeleton';
 import { playSound } from '../lib/audio';
 import { formatMoney } from '../lib/format';
+import { getRank } from '../lib/rank';
 
 export default function ResultScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -51,6 +52,9 @@ export default function ResultScreen() {
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;
   const useNative = isTelegram();
+  // Повышение звания: после победы новое звание отличается от прежнего (wins-1)
+  const rankedUp = !!(won && me && getRank(me.wins).title !== getRank(Math.max(0, me.wins - 1)).title);
+  const newRank = me ? getRank(me.wins) : null;
 
   const rematch = () => {
     if (!matchId) return;
@@ -128,6 +132,26 @@ export default function ResultScreen() {
           <p className={['font-display text-4xl mt-1 tabular-nums', won ? 'text-success' : 'text-danger'].join(' ')}>
             {won ? `+${formatMoney(payout)}` : `−${formatMoney(matchState?.wagerAmount ?? 0)}`}
           </p>
+        )}
+
+        {rankedUp && newRank && (
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0, y: 8 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 240, damping: 16, delay: 0.5 }}
+            className="mt-3 inline-flex items-center gap-2 rounded-full bg-warning/15 border border-warning/50 px-4 py-1.5"
+          >
+            <motion.span
+              animate={{ rotate: [0, -12, 12, 0] }}
+              transition={{ duration: 0.8, repeat: 2, delay: 0.6 }}
+              className="text-warning"
+            >
+              <Icon name={newRank.icon} size={16} />
+            </motion.span>
+            <span className="font-display text-warning text-sm">
+              Новое звание: {newRank.title}!
+            </span>
+          </motion.div>
         )}
 
         {/* Тонущий корабль при поражении */}

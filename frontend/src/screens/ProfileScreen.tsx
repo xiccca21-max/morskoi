@@ -92,7 +92,19 @@ export default function ProfileScreen() {
     <div className="max-w-md mx-auto space-y-4">
       <section className="card p-6">
         <div className="flex items-center gap-4">
-          <Avatar name={displayName} src={avatarUrl} size={56} className="border border-line" />
+          <div className="relative shrink-0 grid place-items-center" style={{ width: 64, height: 64 }}>
+            <svg width="64" height="64" className="absolute inset-0 -rotate-90" aria-hidden>
+              <circle cx="32" cy="32" r="29" fill="none" stroke="var(--c-line)" strokeWidth="3" />
+              <circle
+                cx="32" cy="32" r="29" fill="none"
+                stroke="var(--c-danger)" strokeWidth="3" strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 29}
+                strokeDashoffset={(1 - progress / 100) * 2 * Math.PI * 29}
+                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+              />
+            </svg>
+            <Avatar name={displayName} src={avatarUrl} size={52} />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="font-display text-xl text-main truncate">{displayName}</h2>
@@ -184,6 +196,8 @@ export default function ProfileScreen() {
         <Stat label="Точность" value={`${wr}%`} />
       </section>
 
+      <Achievements wins={user.wins} losses={user.losses} games={total} wr={wr} />
+
 
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
@@ -242,6 +256,39 @@ function plural(n: number): string {
   if (b > 1 && b < 5) return 'победы';
   if (b === 1) return 'победа';
   return 'побед';
+}
+
+function Achievements({ wins, losses, games, wr }: { wins: number; losses: number; games: number; wr: number }) {
+  const badges: { icon: IconName; title: string; desc: string; earned: boolean }[] = [
+    { icon: 'swords', title: 'Первая кровь', desc: 'Первая победа', earned: wins >= 1 },
+    { icon: 'ship', title: 'Морской волк', desc: '10 боёв', earned: games >= 10 },
+    { icon: 'target', title: 'Снайпер', desc: 'Точность 70%+', earned: games >= 5 && wr >= 70 },
+    { icon: 'medal', title: 'Десятка', desc: '10 побед', earned: wins >= 10 },
+    { icon: 'crown', title: 'Полста', desc: '50 побед', earned: wins >= 50 },
+    { icon: 'shield', title: 'Несокрушимый', desc: '5 побед без поражений', earned: wins >= 5 && losses === 0 },
+  ];
+  const earnedCount = badges.filter((b) => b.earned).length;
+  return (
+    <section className="card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="eyebrow">Достижения</p>
+        <span className="text-muted text-[11px] tabular-nums">Открыто {earnedCount}/{badges.length}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {badges.map((b) => (
+          <div
+            key={b.title}
+            className={['rounded-lg p-3 flex flex-col items-center text-center gap-1 border transition', b.earned ? 'bg-danger/10 border-danger/40' : 'bg-panel border-line opacity-50'].join(' ')}
+            title={b.desc}
+          >
+            <Icon name={b.earned ? b.icon : 'lock'} size={20} className={b.earned ? 'text-danger' : 'text-muted'} />
+            <span className="text-[11px] font-display text-main leading-tight">{b.title}</span>
+            <span className="text-[9px] text-muted leading-tight">{b.desc}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function Stat({ label, value, accent }: { label: string; value: any; accent?: boolean }) {
