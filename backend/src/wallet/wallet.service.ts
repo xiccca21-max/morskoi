@@ -4,6 +4,13 @@ import { TxType, TxStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import {
+  USDT_NETWORKS,
+  USDT_NETWORK_IDS,
+  methodForNetwork,
+  validateUsdtAddress,
+  type UsdtNetwork,
+} from './withdraw.constants';
 
 /**
  * WalletService — атомарные операции с балансом.
@@ -78,27 +85,34 @@ export class WalletService {
   }
 
   /**
-   * Заявка на вывод средств. Создаёт WithdrawalRequest (PENDING) и сразу
-   * холдит средства (списывает с баланса + withdrawable). Реальная выплата —
-   * после ручной/автоматической обработки (статус → PAID).
+   * Заявка на вывод USDT на внешний кошелёк.
+   * Создаёт WithdrawalRequest (PENDING) и сразу холдит средства.
+   * Выплата в USDT — вручную, до 24 часов.
    */
   async requestWithdrawal(
     userId: string,
     amount: number,
-    method: string,
-    destination: string,
+    network: string,
+    address: string,
   ) {
     const MIN = Number(process.env.MIN_WITHDRAW ?? 100);
     const FEE_PERCENT = Number(process.env.WITHDRAW_FEE_PERCENT ?? 0);
     const DAILY_LIMIT = Number(process.env.WITHDRAW_DAILY_LIMIT ?? 50000);
 
-    // Вывод только через @CryptoBot (на привязанный Telegram-аккаунт игрока)
-    if (!['TON', 'CRYPTO'].includes(method)) throw new BadRequestException('Вывод доступен только через @CryptoBot');
+    if (!USDT_NETWORK_IDS.includes(network as UsdtNetwork)) {
+      throw new BadRequestException('Выберите сеть USDT');
+    }
+    const dest = address.trim();
+    try {
+      validateUsdtAddress(network, dest);
+    } catch (e: any) {
+      throw new BadRequestException(e.message || 'Некорректный адрес');
+    }
     if (amount < MIN) throw new BadRequestException(`Минимальная сумма вывода — ${MIN} ₽`);
-    // Реквизиты не нужны — выплата идёт на аккаунт пользователя в @CryptoBot
-    const dest = destination && destination.trim().length >= 2 ? destination.trim() : '@CryptoBot';
 
-    return this.redis.withLock(`wallet:${userId}`, 5000, async () => {
+    const method = methodForNetwork(network as UsdtNetwork);
+
+    const result = await this.redis.withLock(`wallet:${userId}`, 5000, async () => {
       return this.prisma.$transaction(async (tx) => {
         const u = await tx.user.findUnique({ where: { id: userId } });
         if (!u) throw new NotFoundException('User not found');
@@ -107,7 +121,6 @@ export class WalletService {
           throw new BadRequestException(`Доступно к выводу: ${withdrawable.toFixed(0)} ₽`);
         }
 
-        // Суточный лимит вывода
         const since = new Date(Date.now() - 24 * 3600 * 1000);
         const agg = await (tx as any).withdrawalRequest.aggregate({
           where: { userId, status: { not: 'REJECTED' }, createdAt: { gt: since } },
@@ -121,7 +134,6 @@ export class WalletService {
         const fee = +(amount * (FEE_PERCENT / 100)).toFixed(2);
         const net = +(amount - fee).toFixed(2);
 
-        // Холдим средства
         await tx.user.update({
           where: { id: userId },
           data: { balance: { decrement: amount }, withdrawable: { decrement: amount } } as any,
@@ -137,13 +149,48 @@ export class WalletService {
             type: TxType.WITHDRAW,
             amount,
             status: TxStatus.PENDING,
-            meta: JSON.stringify({ withdrawalId: wr.id, method, fee, net }),
+            meta: JSON.stringify({ withdrawalId: wr.id, method, network, address: dest, fee, net }),
           },
         });
 
-        return { id: wr.id, amount, fee, net, status: 'PENDING' };
+        return { id: wr.id, amount, fee, net, method, network, address: dest, status: 'PENDING' as const };
       });
     });
+
+    setImmediate(() => {
+      this.notifyAdminNewWithdrawal(userId, result).catch(() => undefined);
+    });
+
+    return result;
+  }
+
+  listWithdrawNetworks() {
+    return USDT_NETWORK_IDS.map((id) => ({
+      id,
+      label: USDT_NETWORKS[id].label,
+      hint: USDT_NETWORKS[id].hint,
+    }));
+  }
+
+  private async notifyAdminNewWithdrawal(
+    userId: string,
+    wr: { id: string; net: number; method: string; network?: string; address?: string; destination?: string },
+  ) {
+    const adminTg = process.env.ADMIN_TELEGRAM_ID;
+    if (!adminTg) return;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const name = user?.username ?? user?.firstName ?? userId.slice(0, 8);
+    const network = wr.network ?? wr.method.replace('USDT_', '');
+    const addr = wr.address ?? wr.destination ?? '—';
+    await this.botService.notify(
+      adminTg,
+      `💸 <b>Новая заявка на вывод</b>\n` +
+        `Игрок: ${name}\n` +
+        `Сумма: <b>${wr.net.toFixed(0)} ₽</b> → USDT\n` +
+        `Сеть: <b>${network}</b>\n` +
+        `Кошелёк: <code>${addr}</code>\n` +
+        `ID: <code>${wr.id}</code>`,
+    );
   }
 
   /** Список заявок на вывод пользователя. */

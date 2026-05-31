@@ -17,6 +17,7 @@ import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
 import { formatMoney } from '../lib/format';
+import { MIN_WAGER, MAX_WAGER } from '../lib/config';
 
 const ALL_RANKS: Rank[] = [
   { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
@@ -56,9 +57,9 @@ function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose:
   );
 }
 
-const PRESETS = [5, 10, 25, 50, 100];
-const WAGER_MIN = 1;
-const WAGER_ABS_MAX = 10_000; // сервер проверит баланс, здесь просто верхний ввод
+const PRESETS = [100, 250, 500, 1000, 5000];
+const WAGER_MIN = MIN_WAGER;
+const WAGER_ABS_MAX = MAX_WAGER;
 
 export default function MatchmakingScreen() {
   const user = useAuthStore((s) => s.user);
@@ -66,7 +67,7 @@ export default function MatchmakingScreen() {
   const setLastWager = useSettingsStore((s) => s.setLastWager);
   const navigate = useNavigate();
   // rawInput: то, что юзер видит в поле ввода (строка, может быть пустой при наборе)
-  const [rawInput, setRawInput] = useState(String(lastWager));
+  const [rawInput, setRawInput] = useState(String(Math.max(WAGER_MIN, lastWager)));
   const wager = Math.max(WAGER_MIN, Math.min(WAGER_ABS_MAX, Number(rawInput) || WAGER_MIN));
   const balance = user?.balance ?? 0;
   const overBalance = wager > balance;
@@ -236,9 +237,9 @@ export default function MatchmakingScreen() {
           <div className="flex items-center justify-between gap-3 mb-4">
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-panel border-2 border-line flex items-center justify-center text-main transition active:scale-95 disabled:opacity-30"
-              onClick={() => setWager(wager - 5)}
+              onClick={() => setWager(wager - 25)}
               disabled={wager <= WAGER_MIN}
-              aria-label="-5"
+              aria-label="-25"
             >
               <Icon name="minus" size={26} />
             </button>
@@ -263,9 +264,9 @@ export default function MatchmakingScreen() {
             </div>
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
-              onClick={() => setWager(wager + 5)}
+              onClick={() => setWager(wager + 25)}
               disabled={wager >= WAGER_ABS_MAX}
-              aria-label="+5"
+              aria-label="+25"
             >
               <Icon name="plus" size={26} />
             </button>

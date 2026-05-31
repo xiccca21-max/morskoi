@@ -363,7 +363,7 @@ export class TelegramBotService implements OnModuleInit {
 
   async notifyWithdrawal(userId: string, amount: number, status: 'paid' | 'rejected', note?: string) {
     if (status === 'paid') {
-      await this.notifyUser(userId, `💸 Вывод ${amount.toFixed(0)} ₽ выполнен. Проверьте @CryptoBot.`);
+      await this.notifyUser(userId, `💸 Вывод ${amount.toFixed(0)} ₽ (USDT) отправлен на ваш кошелёк.`);
     } else {
       await this.notifyUser(userId, `↩️ Заявка на вывод отклонена${note ? `: ${note}` : ''}. Средства возвращены на баланс.`);
     }

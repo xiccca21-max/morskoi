@@ -18,7 +18,7 @@ export const useSettingsStore = create<SettingsState>()(
       sound: true,
       haptics: true,
       onboardingDone: false,
-      lastWager: 10,
+      lastWager: 100,
       setSound: (v) => set({ sound: v }),
       setHaptics: (v) => set({ haptics: v }),
       setOnboardingDone: (v) => set({ onboardingDone: v }),

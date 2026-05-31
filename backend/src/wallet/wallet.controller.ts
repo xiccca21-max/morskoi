@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsNumber, IsPositive, IsString, IsIn, IsOptional, Max, MaxLength } from 'class-validator';
+import { IsNumber, IsPositive, IsString, IsIn, Max, MaxLength, MinLength } from 'class-validator';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/auth.service';
+import { USDT_NETWORK_IDS } from './withdraw.constants';
 
 class WithdrawDto {
   @IsNumber()
@@ -12,15 +13,14 @@ class WithdrawDto {
   @Max(1_000_000)
   amount!: number;
 
-  // Вывод только через @CryptoBot: TON или USDT (CRYPTO)
   @IsString()
-  @IsIn(['TON', 'CRYPTO'])
-  method!: string;
+  @IsIn(USDT_NETWORK_IDS)
+  network!: string;
 
-  @IsOptional()
   @IsString()
+  @MinLength(10)
   @MaxLength(128)
-  destination?: string;
+  address!: string;
 }
 
 @Controller('wallet')
@@ -43,13 +43,15 @@ export class WalletController {
     return this.wallet.listWithdrawals(u.sub);
   }
 
-  // Пополнение перенесено в PaymentsController (/payments/deposit),
-  // чтобы деньги всегда проходили через платёжного провайдера.
+  @Get('withdraw/networks')
+  withdrawNetworks() {
+    return this.wallet.listWithdrawNetworks();
+  }
 
-  /** Создаёт заявку на вывод. Средства холдятся сразу, выплата — после обработки. */
+  /** Создаёт заявку на вывод USDT. Средства холдятся сразу, выплата — до 24 ч. */
   @Post('withdraw')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   withdraw(@CurrentUser() u: JwtPayload, @Body() dto: WithdrawDto) {
-    return this.wallet.requestWithdrawal(u.sub, dto.amount, dto.method, dto.destination ?? '');
+    return this.wallet.requestWithdrawal(u.sub, dto.amount, dto.network, dto.address);
   }
 }

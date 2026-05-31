@@ -16,7 +16,7 @@ export class MatchmakingService {
   ) {}
 
   async enqueue(userId: string, wagerAmount: number) {
-    const min = Number(process.env.MIN_WAGER ?? 1);
+    const min = Number(process.env.MIN_WAGER ?? 100);
     const max = Number(process.env.MAX_WAGER ?? 1000);
     if (wagerAmount < min || wagerAmount > max) {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);

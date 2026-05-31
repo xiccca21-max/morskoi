@@ -45,8 +45,10 @@ export const WalletAPI = {
   txs:     () => api.get('/wallet/transactions').then(r => r.data),
   withdrawals: () => api.get<Withdrawal[]>('/wallet/withdrawals').then(r => r.data),
   deposit: (amount: number) => api.post<DepositResult>('/payments/deposit', { amount }).then(r => r.data),
-  withdraw: (amount: number, method: string, destination: string) =>
-    api.post('/wallet/withdraw', { amount, method, destination }).then(r => r.data),
+  withdraw: (amount: number, network: string, address: string) =>
+    api.post('/wallet/withdraw', { amount, network, address }).then(r => r.data),
+  withdrawNetworks: () =>
+    api.get<{ id: string; label: string; hint: string }[]>('/wallet/withdraw/networks').then(r => r.data),
 };
 
 export interface OpenMatch {

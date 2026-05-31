@@ -2,13 +2,21 @@ import { useEffect, useState } from 'react';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic, tgOpenLink } from '../lib/telegram';
-import { Icon, IconName } from '../components/Icon';
+import { Icon } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
 import { playSound } from '../lib/audio';
+import {
+  USDT_NETWORKS,
+  MIN_WITHDRAW,
+  validateUsdtAddress,
+  formatWithdrawMethod,
+  truncateAddress,
+  type UsdtNetworkId,
+} from '../lib/withdraw';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
@@ -17,16 +25,8 @@ const GAME_TYPES = new Set(['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE']);
 
 const MIN_DEPOSIT = 10;
 const MAX_DEPOSIT = 100000;
-const MIN_WITHDRAW = 100;
 
 type Tab = 'deposit' | 'withdraw';
-
-type Method = { id: string; label: string; icon: IconName };
-// Вывод только через @CryptoBot — на привязанный к Telegram аккаунт
-const METHODS: Method[] = [
-  { id: 'CRYPTO', label: 'USDT', icon: 'coins' },
-  { id: 'TON', label: 'TON', icon: 'wave' },
-];
 
 function CopyId({ label, value }: { label: string; value: string }) {
   const copy = () => {
@@ -59,7 +59,9 @@ export default function WalletScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [method, setMethod] = useState<string>('CRYPTO');
+  const [network, setNetwork] = useState<UsdtNetworkId>('TRC20');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
   const [awaitingPayment, setAwaitingPayment] = useState(false);
@@ -102,7 +104,8 @@ export default function WalletScreen() {
   const bonus = Math.max(0, balance - withdrawable);
 
   const validDeposit = Number.isFinite(amount) && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
-  const validWithdraw = Number.isFinite(amount) && amount >= MIN_WITHDRAW && amount <= withdrawable;
+  const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;
+  const validWithdraw = Number.isFinite(amount) && amount >= MIN_WITHDRAW && amount <= withdrawable && !addressError && walletAddress.trim().length >= 10;
 
   const deposit = async () => {
     if (!validDeposit) { setError(`Сумма от ${MIN_DEPOSIT} до ${MAX_DEPOSIT} ₽`); return; }
@@ -130,17 +133,28 @@ export default function WalletScreen() {
       return;
     }
     setAmount(Math.min(Math.max(MIN_WITHDRAW, Math.floor(withdrawable)), Math.floor(withdrawable)));
+    setWalletAddress('');
+    setNetwork('TRC20');
+    setConfirmWithdraw(false);
     setError(null);
     setShowWithdraw(true);
   };
 
   const submitWithdraw = async () => {
-    if (!validWithdraw) { setError(`Сумма от ${MIN_WITHDRAW} до ${withdrawable.toFixed(0)} ₽`); return; }
+    if (!validWithdraw) {
+      if (addressError) setError(addressError);
+      else setError(`Сумма от ${MIN_WITHDRAW} до ${withdrawable.toFixed(0)} ₽`);
+      return;
+    }
+    if (!confirmWithdraw) {
+      setError('Подтвердите, что адрес кошелька указан верно');
+      return;
+    }
     setBusy(true); setError(null);
     try {
-      await WalletAPI.withdraw(amount, method, '');
+      await WalletAPI.withdraw(amount, network, walletAddress.trim());
       tgHaptic('success');
-      toast('Заявка на вывод создана', 'success', 'minus');
+      toast('Заявка на вывод создана — обработка до 24 ч', 'success', 'minus');
       setShowWithdraw(false);
       refresh();
     } catch (e: any) {
@@ -235,8 +249,9 @@ export default function WalletScreen() {
             <span className="text-muted text-xs tabular-nums">Доступно: {withdrawable.toFixed(0)} ₽</span>
           </div>
           <p className="text-xs text-muted leading-relaxed">
-            Вывод через <b className="text-main">@CryptoBot</b> (USDT/TON) на твой Telegram-аккаунт.
-            Минимум — {MIN_WITHDRAW} ₽. Выводятся только реальные средства (депозиты и выигрыши).
+            Вывод только в <b className="text-main">USDT</b> на ваш криптокошелёк.
+            Минимум — {MIN_WITHDRAW} ₽. Обработка заявки — <b className="text-main">до 24 часов</b>.
+            Выводятся только реальные средства (депозиты и выигрыши).
           </p>
           <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < MIN_WITHDRAW}>
             <Icon name="minus" size={16} /> Создать заявку на вывод
@@ -256,8 +271,10 @@ export default function WalletScreen() {
                           {st.label}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-muted text-[11px]">{methodLabel(w.method)} · {new Date(w.createdAt).toLocaleDateString('ru-RU')}</span>
+                      <div className="flex items-center justify-between mt-1 gap-2">
+                        <span className="text-muted text-[11px] truncate">
+                          {formatWithdrawMethod(w.method)} · {truncateAddress(w.destination)}
+                        </span>
                         <CopyId label={`#${shortId(w.id)}`} value={w.id} />
                       </div>
                       {w.status === 'REJECTED' && w.note && (
@@ -272,47 +289,82 @@ export default function WalletScreen() {
         </section>
       )}
 
-      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Вывод через @CryptoBot" icon="minus">
+      <Modal open={showWithdraw} onClose={() => setShowWithdraw(false)} title="Вывод USDT" icon="minus">
         <div className="space-y-3">
-          <div className="flex items-start gap-2 bg-panel rounded-lg p-3">
-            <Icon name="info" size={15} className="text-muted shrink-0 mt-0.5" />
-            <p className="text-[11px] text-muted leading-relaxed">
-              Выплата придёт на твой аккаунт в <b className="text-main">@CryptoBot</b> (тот же Telegram).
-              Реквизиты вводить не нужно — просто выбери валюту и сумму.
+          <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
+            <Icon name="info" size={15} className="text-warning shrink-0 mt-0.5" />
+            <p className="text-[11px] text-main leading-relaxed">
+              Заявка обрабатывается вручную в течение <b>до 24 часов</b>.
+              USDT отправляется на указанный адрес. Проверьте сеть и адрес — ошибочный перевод не возвращается.
             </p>
           </div>
+
           <div>
-            <p className="eyebrow mb-1.5">Валюта</p>
+            <p className="eyebrow mb-1.5">Сеть USDT</p>
             <div className="grid grid-cols-2 gap-1.5">
-              {METHODS.map((m) => (
+              {USDT_NETWORKS.map((n) => (
                 <button
-                  key={m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={['py-2.5 rounded-lg text-xs font-display transition flex items-center justify-center gap-1.5', method === m.id ? 'bg-danger text-white' : 'bg-panel text-muted'].join(' ')}
+                  key={n.id}
+                  onClick={() => { setNetwork(n.id); setError(null); }}
+                  className={['py-2.5 px-2 rounded-lg text-left transition border', network === n.id ? 'bg-danger text-white border-danger' : 'bg-panel text-muted border-line hover:text-main'].join(' ')}
                 >
-                  <Icon name={m.icon} size={16} />
-                  {m.label}
+                  <div className="font-display text-xs">{n.label}</div>
+                  <div className={['text-[10px] mt-0.5', network === n.id ? 'text-white/80' : 'text-muted'].join(' ')}>{n.sub}</div>
                 </button>
               ))}
             </div>
+            <p className="text-[10px] text-muted mt-1.5">
+              {USDT_NETWORKS.find((n) => n.id === network)?.hint}
+            </p>
           </div>
+
           <div>
-            <p className="eyebrow mb-1.5">Сумма</p>
+            <p className="eyebrow mb-1.5">Адрес кошелька</p>
+            <input
+              type="text"
+              value={walletAddress}
+              onChange={(e) => { setError(null); setWalletAddress(e.target.value); setConfirmWithdraw(false); }}
+              placeholder="Вставьте адрес USDT-кошелька"
+              autoComplete="off"
+              spellCheck={false}
+              className={['w-full px-3 py-2.5 rounded-lg bg-panel border text-main outline-none text-sm font-mono', addressError && walletAddress.trim() ? 'border-danger' : 'border-line'].join(' ')}
+            />
+            {addressError && walletAddress.trim() && (
+              <p className="text-danger text-[11px] mt-1">{addressError}</p>
+            )}
+          </div>
+
+          <div>
+            <p className="eyebrow mb-1.5">Сумма (₽)</p>
             <input
               type="number" min={MIN_WITHDRAW} max={Math.floor(withdrawable)}
               value={Number.isFinite(amount) ? amount : ''}
               onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
-              className={['w-full px-3 py-2.5 rounded-lg bg-panel border text-main outline-none tabular-nums', validWithdraw ? 'border-line' : 'border-danger'].join(' ')}
+              className={['w-full px-3 py-2.5 rounded-lg bg-panel border text-main outline-none tabular-nums', validWithdraw || !amount ? 'border-line' : 'border-danger'].join(' ')}
             />
             <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums">
               <span>мин {MIN_WITHDRAW} ₽</span>
-              <button className="text-danger" onClick={() => setAmount(Math.floor(withdrawable))}>всё ({withdrawable.toFixed(0)} ₽)</button>
+              <button type="button" className="text-danger" onClick={() => setAmount(Math.floor(withdrawable))}>всё ({withdrawable.toFixed(0)} ₽)</button>
             </div>
+            <p className="text-[10px] text-muted mt-1">Эквивалент в USDT рассчитывается по курсу на момент выплаты.</p>
           </div>
+
+          <label className="flex items-start gap-2 cursor-pointer select-none bg-panel rounded-lg p-3">
+            <input
+              type="checkbox"
+              checked={confirmWithdraw}
+              onChange={(e) => { setConfirmWithdraw(e.target.checked); setError(null); }}
+              className="mt-0.5 w-4 h-4 accent-danger shrink-0"
+            />
+            <span className="text-[11px] text-muted leading-relaxed">
+              Я проверил(а) адрес и сеть <b className="text-main">{network}</b>. Понимаю, что перевод на неверный адрес невозможно отменить.
+            </span>
+          </label>
+
           {error && <p className="text-danger text-sm">{error}</p>}
           <div className="space-y-2 pt-1">
-            <button className="btn-primary w-full" onClick={submitWithdraw} disabled={busy || !validWithdraw}>
-              {busy ? 'Отправляем…' : `Вывести ${Number.isFinite(amount) ? amount : 0} ₽`}
+            <button className="btn-primary w-full" onClick={submitWithdraw} disabled={busy || !validWithdraw || !confirmWithdraw}>
+              {busy ? 'Отправляем…' : `Вывести ${Number.isFinite(amount) ? amount : 0} ₽ в USDT`}
             </button>
             <button className="btn-ghost w-full" onClick={() => setShowWithdraw(false)}>Отмена</button>
           </div>
@@ -371,15 +423,6 @@ export default function WalletScreen() {
       </section>
     </div>
   );
-}
-
-function methodLabel(m: string) {
-  switch (m) {
-    case 'CARD': return 'Карта';
-    case 'TON': return 'TON';
-    case 'CRYPTO': return 'USDT';
-    default: return m;
-  }
 }
 
 function txLabel(t: string) {
