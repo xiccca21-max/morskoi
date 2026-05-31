@@ -469,6 +469,8 @@ export class TelegramBotService implements OnModuleInit {
   ) {
     const u = await this.prisma.user.findUnique({ where: { id: userId } }) as any;
     if (!u) return;
+    // Боты — без реального Telegram-чата
+    if (typeof u.telegramId === 'string' && u.telegramId.startsWith('bot:')) return;
     if (opts?.pref === 'matchFound' && u.notifyMatchFound === false) return;
     if (opts?.pref === 'payout' && u.notifyPayout === false) return;
     if (opts?.pref === 'rematch' && u.notifyRematch === false) return;

@@ -14,10 +14,12 @@ import { GameService } from './game.service';
 import { MatchmakingService } from '../matchmaking/matchmaking.service';
 import { LobbyService } from '../matchmaking/lobby.service';
 import { RedisService } from '../redis/redis.service';
-import { ShipPlacement } from './engine/types';
+import { ShipPlacement, AttackCell } from './engine/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { MatchEventsService } from '../common/match-events.service';
+import { BotsService } from '../bots/bots.service';
+import { chooseBotMove, BOT_SKILL_STRONG, BOT_SKILL_WEAK } from '../bots/bot-engine';
 
 interface AuthedSocket extends Socket {
   data: {
@@ -53,6 +55,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private placementTimers = new Map<string, NodeJS.Timeout>();
   // Rate limit: userId:event → { count, resetAt }
   private socketRates = new Map<string, { count: number; resetAt: number }>();
+  // Матчи, где бот сейчас «думает» над ходом (защита от двойного запуска)
+  private botThinking = new Set<string>();
 
   constructor(
     private readonly auth: AuthService,
@@ -63,6 +67,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     private readonly prisma: PrismaService,
     private readonly botService: TelegramBotService,
     private readonly matchEvents: MatchEventsService,
+    private readonly bots: BotsService,
   ) {}
 
   onModuleInit() {
@@ -167,6 +172,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
         if (count >= maxMissed) {
           this.afkCounters.delete(matchId);
+          this.bots.forgetMatch(matchId);
           const res = await this.game.surrender(matchId, timedOut);
           this.clearTurnTimer(matchId);
           this.server.to(`match:${matchId}`).emit('match:finished', {
@@ -184,7 +190,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
         // Перепланируем следующий тайм-аут (иначе при двойном AFK ходы не идут)
         const gs = await this.prisma.gameState.findUnique({ where: { matchId } });
-        if (gs?.gameStatus === 'IN_PROGRESS') this.scheduleTurnTimeout(matchId, gs.turnDeadline ?? null);
+        if (gs?.gameStatus === 'IN_PROGRESS') {
+          this.scheduleTurnTimeout(matchId, gs.turnDeadline ?? null);
+          // ход мог перейти к боту — пусть походит
+          void this.driveBotIfNeeded(matchId);
+        }
       } catch (e: any) {
         this.logger.warn(`turn timeout error: ${e?.message}`);
       }
@@ -226,6 +236,94 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const t = this.placementTimers.get(matchId);
     if (t) clearTimeout(t);
     this.placementTimers.delete(matchId);
+  }
+
+  // ============= Ходы бота =============
+
+  /** Если сейчас ход бота — запланировать его выстрел с «человеческой» задержкой. */
+  private async driveBotIfNeeded(matchId: string) {
+    try {
+      const gs = await this.prisma.gameState.findUnique({ where: { matchId } });
+      if (!gs || gs.gameStatus !== 'IN_PROGRESS' || !gs.currentTurn) return;
+      if (!this.bots.isBot(gs.currentTurn)) return;
+      if (this.botThinking.has(matchId)) return;
+      this.botThinking.add(matchId);
+
+      const min = Number(process.env.BOT_MIN_DELAY_MS ?? 900);
+      const max = Number(process.env.BOT_MAX_DELAY_MS ?? 2300);
+      const delay = min + Math.floor(Math.random() * Math.max(1, max - min));
+      setTimeout(() => {
+        this.performBotMove(matchId)
+          .catch((e: any) => this.logger.warn(`bot move ${matchId}: ${e?.message}`))
+          .finally(() => this.botThinking.delete(matchId));
+      }, delay);
+    } catch (e: any) {
+      this.logger.warn(`driveBot ${matchId}: ${e?.message}`);
+      this.botThinking.delete(matchId);
+    }
+  }
+
+  private async performBotMove(matchId: string) {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId }, include: { gameState: true } });
+    if (!match || !match.gameState || match.status !== 'IN_PROGRESS') return;
+    const gs = match.gameState;
+    const botId = gs.currentTurn;
+    if (!botId || !this.bots.isBot(botId)) return;
+
+    // Бот атакует доску соперника-человека.
+    const botIsP1 = match.player1Id === botId;
+    const humanBoardJson = (botIsP1 ? gs.player2Board : gs.player1Board) as unknown as string;
+    let attacks: AttackCell[] = [];
+    try { attacks = JSON.parse(humanBoardJson)?.attacksReceived ?? []; } catch { /* пустая история */ }
+
+    const skill = this.bots.skillForMatch(matchId) === 'weak' ? BOT_SKILL_WEAK : BOT_SKILL_STRONG;
+    const move = chooseBotMove(attacks, skill);
+
+    const r = await this.game.attack(matchId, botId, move.x, move.y);
+
+    this.server.to(`match:${matchId}`).emit('match:attack', {
+      by: botId,
+      x: move.x,
+      y: move.y,
+      hit: r.result.hit,
+      sunk: r.result.sunk,
+      sunkShip: r.result.sunkShip,
+      nextTurn: r.nextTurn,
+      gameStatus: r.gameStatus,
+      winnerId: r.winnerId,
+    });
+    await this.broadcastStateToBothPlayers(matchId);
+
+    if (r.gameStatus === 'IN_PROGRESS') {
+      const ngs = await this.prisma.gameState.findUnique({ where: { matchId } });
+      this.scheduleTurnTimeout(matchId, ngs?.turnDeadline ?? null);
+      // попадание — ход остаётся у бота, продолжаем серию
+      if (ngs?.currentTurn && this.bots.isBot(ngs.currentTurn)) {
+        void this.driveBotIfNeeded(matchId);
+      }
+    } else if (r.gameStatus === 'FINISHED') {
+      this.bots.forgetMatch(matchId);
+      await this.emitMatchFinished(matchId, r.winnerId ?? null);
+    }
+  }
+
+  /** Общая рассылка финала: событие + обновление балансов игроков. */
+  private async emitMatchFinished(matchId: string, winnerId: string | null) {
+    this.clearTurnTimer(matchId);
+    this.afkCounters.delete(matchId);
+    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+    this.server.to(`match:${matchId}`).emit('match:finished', {
+      matchId,
+      winnerId,
+      prizePool: match ? Number(match.prizePool) : 0,
+      rakeAmount: match ? Number(match.rakeAmount) : 0,
+    });
+    if (match) {
+      for (const uid of [match.player1Id, match.player2Id].filter(Boolean) as string[]) {
+        const u = await this.prisma.user.findUnique({ where: { id: uid }, select: { balance: true } });
+        if (u) this.server.to(`user:${uid}`).emit('wallet:update', Number(u.balance));
+      }
+    }
   }
 
   // ============= Matchmaking =============
@@ -344,6 +442,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           firstTurn: gs?.currentTurn ?? null,
           deadline: gs?.turnDeadline ?? null,
         });
+        // если первый ход за ботом — пусть походит
+        void this.driveBotIfNeeded(body.matchId);
       }
       return { ok: true };
     } catch (e: any) {
@@ -390,9 +490,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       if (r.gameStatus === 'IN_PROGRESS') {
         const gs = await this.prisma.gameState.findUnique({ where: { matchId: body.matchId } });
         this.scheduleTurnTimeout(body.matchId, gs?.turnDeadline ?? null);
+        // ход мог перейти к боту — запускаем его
+        void this.driveBotIfNeeded(body.matchId);
       } else if (r.gameStatus === 'FINISHED') {
         this.clearTurnTimer(body.matchId);
         this.afkCounters.delete(body.matchId);
+        this.bots.forgetMatch(body.matchId);
         const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
         this.server.to(`match:${body.matchId}`).emit('match:finished', {
           matchId: body.matchId,
@@ -439,6 +542,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       await this.broadcastStateToBothPlayers(body.matchId);
       this.clearTurnTimer(body.matchId);
       this.afkCounters.delete(body.matchId);
+      this.bots.forgetMatch(body.matchId);
       return { ok: true };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'surrender error' };

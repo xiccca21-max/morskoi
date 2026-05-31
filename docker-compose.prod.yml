@@ -47,6 +47,13 @@ services:
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}
       # Серия входов (достижения, без денег)
       DAILY_BONUS_MAX_STREAK: ${DAILY_BONUS_MAX_STREAK:-7}
+      # Боты-соперники (пока мало живых игроков)
+      BOTS_ENABLED: ${BOTS_ENABLED:-true}
+      BOTS_COUNT: ${BOTS_COUNT:-50}
+      BOT_WIN_RATE: ${BOT_WIN_RATE:-0.62}
+      BOT_MATCH_WAIT_SEC: ${BOT_MATCH_WAIT_SEC:-10}
+      BOT_MIN_DELAY_MS: ${BOT_MIN_DELAY_MS:-900}
+      BOT_MAX_DELAY_MS: ${BOT_MAX_DELAY_MS:-2300}
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
     volumes:
       - naval-data:/data
