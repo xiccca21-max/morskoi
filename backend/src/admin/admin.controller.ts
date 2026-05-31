@@ -48,6 +48,11 @@ export class AdminController {
     return this.admin.stats();
   }
 
+  @Get('logs')
+  logs(@Query('limit') limit?: string) {
+    return this.admin.listActionLogs(limit ? Number(limit) : 50);
+  }
+
   @Get('users')
   users(@Query('q') q?: string) {
     return this.admin.listUsers(q);

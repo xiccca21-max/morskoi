@@ -19,11 +19,12 @@ import { RatesModule } from './rates/rates.module';
 import { BackupModule } from './backup/backup.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { HealthController } from './common/health.controller';
-import { AuditService } from './common/audit.service';
+import { AuditModule } from './common/audit.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    AuditModule,
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       { ttl: 60_000, limit: 120 }, // 120 req / 60s per IP
@@ -44,6 +45,6 @@ import { AuditService } from './common/audit.service';
     TelegramBotModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }, AuditService],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

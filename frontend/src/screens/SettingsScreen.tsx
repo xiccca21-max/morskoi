@@ -100,7 +100,13 @@ export default function SettingsScreen() {
               onClick={() => setTheme(t.id)}
               className={['w-full py-2.5 px-3 rounded-lg text-sm text-left flex items-center justify-between border transition', theme === t.id ? 'bg-base border-line text-main' : 'border-transparent text-muted hover:text-main'].join(' ')}
             >
-              <span>{t.name}</span>
+              <span className="flex items-center gap-2.5">
+                <span className="flex shrink-0 -space-x-1">
+                  <span className="w-4 h-4 rounded-full border border-line/50" style={{ background: t.base }} />
+                  <span className="w-4 h-4 rounded-full border border-line/50" style={{ background: t.accent }} />
+                </span>
+                {t.name}
+              </span>
               {theme === t.id && <Icon name="check" size={16} className="text-danger" />}
             </button>
           ))}

@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
+import { AuditService } from '../common/audit.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletService,
+    private readonly audit: AuditService,
   ) {}
 
   private publicUser(u: any) {
@@ -69,11 +71,14 @@ export class AdminService {
   }
 
   async credit(id: string, amount: number, reason: string, makeWithdrawable: boolean) {
-    return this.wallet.adminAdjust(id, amount, reason, makeWithdrawable);
+    const r = await this.wallet.adminAdjust(id, amount, reason, makeWithdrawable);
+    this.audit.log(id, amount > 0 ? 'ADMIN_CREDIT' : 'ADMIN_DEBIT', { amount, reason, makeWithdrawable });
+    return r;
   }
 
   async setBan(id: string, banned: boolean) {
     const u = await this.prisma.user.update({ where: { id }, data: { banned } });
+    this.audit.log(id, banned ? 'ADMIN_BAN' : 'ADMIN_UNBAN', {});
     return this.publicUser(u);
   }
 
@@ -114,5 +119,19 @@ export class AdminService {
       pendingWithdrawals: pending,
       totalBalance: Number(agg._sum.balance ?? 0),
     };
+  }
+
+  async listActionLogs(limit = 50) {
+    const logs = await (this.prisma as any).actionLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 200),
+    });
+    return logs.map((l: any) => ({
+      id: l.id,
+      userId: l.userId,
+      action: l.action,
+      meta: l.meta ? JSON.parse(l.meta) : null,
+      createdAt: l.createdAt,
+    }));
   }
 }

@@ -83,6 +83,9 @@ export class WalletService {
         });
         return Number(u.balance);
       });
+    }).then((balance) => {
+      this.audit.log(userId, 'DEPOSIT', { amount, real, ...(meta ?? {}) });
+      return balance;
     });
   }
 
@@ -239,6 +242,9 @@ export class WalletService {
         });
         return { credited: true };
       });
+    }).then((r) => {
+      if (r.credited) this.audit.log(userId, 'DEPOSIT', { amount, invoiceId, source: 'cryptobot' });
+      return r;
     });
   }
 

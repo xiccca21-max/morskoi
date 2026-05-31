@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
+import { useSettingsStore } from '../stores/settings-store';
 import { useMatchStore } from '../stores/match-store';
 import { GameAPI } from '../api/endpoints';
 import { tgHaptic } from '../lib/telegram';
@@ -13,6 +14,7 @@ import { MIN_WAGER } from '../lib/config';
 export default function HomeScreen() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const lastWager = useSettingsStore((s) => s.lastWager);
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
 
@@ -95,6 +97,16 @@ export default function HomeScreen() {
       )}
 
       {/* Главная кнопка */}
+      {balance >= MIN_WAGER && !activeMatch && (
+        <button
+          onClick={() => { tgHaptic('medium'); navigate('/matchmaking?quick=1'); }}
+          className="btn-danger w-full py-4 flex items-center justify-center gap-2"
+        >
+          <Icon name="target" size={18} />
+          Быстрый бой · {Math.max(MIN_WAGER, lastWager)} ₽
+        </button>
+      )}
+
       <button
         onClick={() => { tgHaptic('medium'); navigate('/matchmaking'); }}
         className="w-full card card-press p-5 text-left flex items-center justify-between hover:border-line transition group"

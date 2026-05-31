@@ -17,6 +17,7 @@ import { RedisService } from '../redis/redis.service';
 import { ShipPlacement } from './engine/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { MatchEventsService } from '../common/match-events.service';
 
 interface AuthedSocket extends Socket {
   data: {
@@ -50,6 +51,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private afkCounters = new Map<string, { userId: string; count: number }>();
   // Таймауты фазы расстановки: matchId → NodeJS.Timeout
   private placementTimers = new Map<string, NodeJS.Timeout>();
+  // Rate limit: userId:event → { count, resetAt }
+  private socketRates = new Map<string, { count: number; resetAt: number }>();
 
   constructor(
     private readonly auth: AuthService,
@@ -59,10 +62,25 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
     private readonly botService: TelegramBotService,
+    private readonly matchEvents: MatchEventsService,
   ) {}
 
   onModuleInit() {
+    this.matchEvents.setHandler((id) => this.notifyMatchFound(id));
     this.logger.log('Game gateway initialised');
+  }
+
+  private checkSocketRate(userId: string, event: string, limit = 40, windowMs = 10_000): boolean {
+    const key = `${userId}:${event}`;
+    const now = Date.now();
+    const entry = this.socketRates.get(key);
+    if (!entry || now > entry.resetAt) {
+      this.socketRates.set(key, { count: 1, resetAt: now + windowMs });
+      return true;
+    }
+    if (entry.count >= limit) return false;
+    entry.count++;
+    return true;
   }
 
   // ============= Подключение =============
@@ -218,12 +236,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() body: { wagerAmount: number; nonce?: string },
   ) {
     const s = this.requireAuth(client);
+    if (!this.checkSocketRate(s.data.userId, 'mm:join', 20)) {
+      return { ok: false, error: 'Слишком много запросов' };
+    }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.mm.enqueue(s.data.userId, body.wagerAmount);
       if (r.matched && r.matchId) {
-        // оповещаем обоих
-        await this.notifyMatchFound(r.matchId);
         return { ok: true, matched: true, matchId: r.matchId };
       }
       return { ok: true, matched: false };
@@ -340,6 +359,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() body: { matchId: string; x: number; y: number; nonce?: string },
   ) {
     const s = this.requireAuth(client);
+    if (!this.checkSocketRate(s.data.userId, 'game:attack', 30)) {
+      return { ok: false, error: 'Слишком много ходов' };
+    }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       if (body.x < 0 || body.x > 9 || body.y < 0 || body.y > 9) {
@@ -468,7 +490,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       ready: members,
     });
 
+    if (opponentId && !members.includes(opponentId)) {
+      this.botService.notifyRematch(opponentId, s.data.userId).catch(() => undefined);
+    }
+
     if (members.includes(match.player1Id) && members.includes(match.player2Id!)) {
+      const wager = Number(match.wagerAmount);
+      const [p1, p2] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: match.player1Id } }),
+        this.prisma.user.findUnique({ where: { id: match.player2Id! } }),
+      ]);
+      if (!p1 || !p2 || Number(p1.balance) < wager || Number(p2.balance) < wager) {
+        await this.redis.client.del(key);
+        return { ok: false, error: 'Недостаточно средств для реванша' };
+      }
       // оба согласны — создаём новый матч с теми же условиями
       const newMatch = await this.game.createMatch(
         match.player1Id,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic, tgOpenLink } from '../lib/telegram';
+import { tgHaptic, tgOpenLink, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
@@ -126,6 +126,16 @@ export default function WalletScreen() {
       tgHaptic('error'); setError(e?.response?.data?.message ?? 'Не удалось пополнить');
     } finally { setBusy(false); }
   };
+
+  useEffect(() => {
+    if (!isTelegram() || tab !== 'deposit' || showWithdraw) return;
+    return tgMainButton({
+      text: validDeposit ? `Пополнить ${amount} ₽` : 'Пополнить',
+      onClick: deposit,
+      active: validDeposit && !busy && !awaitingPayment,
+      progress: busy,
+    });
+  }, [tab, amount, validDeposit, busy, awaitingPayment, showWithdraw]); // eslint-disable-line
 
   const openWithdraw = () => {
     if (withdrawable < MIN_WITHDRAW) {

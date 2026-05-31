@@ -3,6 +3,7 @@ import { CryptoPayService } from './crypto-pay.service';
 import { WalletService } from '../wallet/wallet.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { AuditService } from '../common/audit.service';
 
 @Injectable()
 export class PaymentsService {
@@ -13,6 +14,7 @@ export class PaymentsService {
     private readonly wallet: WalletService,
     private readonly prisma: PrismaService,
     private readonly bot: TelegramBotService,
+    private readonly audit: AuditService,
   ) {}
 
   get provider() {
@@ -83,6 +85,7 @@ export class PaymentsService {
 
     if (action === 'reject') {
       const res = await this.wallet.resolveWithdrawal(id, 'REJECTED', note);
+      this.audit.log(wr.userId, 'WITHDRAW_REJECTED', { id, amount: wr.amount, note });
       this.bot.notifyWithdrawal?.(wr.userId, wr.amount, 'rejected', note).catch(() => {});
       return res;
     }
@@ -104,6 +107,7 @@ export class PaymentsService {
     }
     // Для CARD или демо — считаем выплаченной вручную
     const res = await this.wallet.resolveWithdrawal(id, 'PAID');
+    this.audit.log(wr.userId, 'WITHDRAW_PAID', { id, net: wr.net, method: wr.method });
     this.bot.notifyWithdrawal?.(wr.userId, wr.net, 'paid').catch(() => {});
     return res;
   }

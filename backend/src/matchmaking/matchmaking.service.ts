@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GameService } from '../game/game.service';
+import { MatchEventsService } from '../common/match-events.service';
 
 /**
  * Matchmaking — ищем второго игрока с той же (или близкой) ставкой.
@@ -14,6 +15,7 @@ export class MatchmakingService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly game: GameService,
+    private readonly matchEvents: MatchEventsService,
   ) {}
 
   async enqueue(userId: string, wagerAmount: number) {
@@ -143,6 +145,7 @@ export class MatchmakingService {
       where: { userId: { in: [userId, opponentId] } },
     });
     const match = await this.game.createMatch(opponentId, userId, wagerAmount);
+    void this.matchEvents.notifyMatchFound(match.id);
     return { matched: true as const, matchId: match.id, opponentId };
   }
 

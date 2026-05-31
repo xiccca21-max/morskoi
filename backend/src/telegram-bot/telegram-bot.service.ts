@@ -503,6 +503,16 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
+  async notifyRematch(opponentId: string, requesterId: string) {
+    const req = await this.prisma.user.findUnique({ where: { id: requesterId } });
+    const name = req?.username ?? req?.firstName ?? 'Соперник';
+    await this.notifyUser(
+      opponentId,
+      `🔄 <b>${name}</b> предлагает реванш! Открой игру и нажми «Реванш».`,
+      { withPlay: true, pref: 'rematch' },
+    );
+  }
+
   /** Отправить файл админу (off-site бэкап). */
   async sendDocument(telegramId: string, filePath: string, caption?: string) {
     if (!this.bot) return;

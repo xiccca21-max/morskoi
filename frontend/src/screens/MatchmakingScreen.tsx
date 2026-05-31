@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
 import { MatchmakingAPI, OpenMatch } from '../api/endpoints';
@@ -54,6 +54,7 @@ const WAGER_MIN = MIN_WAGER;
 const WAGER_ABS_MAX = MAX_WAGER;
 
 export default function MatchmakingScreen() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const lastWager = useSettingsStore((s) => s.lastWager);
   const setLastWager = useSettingsStore((s) => s.setLastWager);
@@ -77,7 +78,12 @@ export default function MatchmakingScreen() {
     prevOver.current = overBalance;
   }, [overBalance]);
 
-  const [tab, setTab] = useState<'browse' | 'private'>('browse');
+  const [tab, setTab] = useState<'queue' | 'browse' | 'private'>('queue');
+  const [inQueue, setInQueue] = useState(false);
+  const [queueSearching, setQueueSearching] = useState(false);
+  const [queueSince, setQueueSince] = useState<number | null>(null);
+  const [queueTick, setQueueTick] = useState(Date.now());
+  const quickStarted = useRef(false);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showFundsModal, setShowFundsModal] = useState(false);
@@ -100,10 +106,75 @@ export default function MatchmakingScreen() {
 
   useEffect(() => {
     const sock = getSocket();
-    const onFound = (data: any) => { tgHaptic('success'); navigate(`/placement/${data.matchId}`); };
+    const onFound = (data: any) => {
+      setInQueue(false);
+      setQueueSearching(false);
+      tgHaptic('success');
+      navigate(`/placement/${data.matchId}`);
+    };
     sock.on('match:found', onFound);
     return () => { sock.off('match:found', onFound); };
   }, [navigate]);
+
+  const startQueue = useCallback(() => {
+    if (overBalance) { tgVibrate(60); setShowFundsModal(true); return; }
+    setError(null);
+    setQueueSearching(true);
+    getSocket().emit('mm:join', { wagerAmount: wager, nonce: newNonce() }, (ack: any) => {
+      setQueueSearching(false);
+      if (!ack?.ok) {
+        setError(ack?.error ?? 'Не удалось встать в очередь');
+        setInQueue(false);
+        return;
+      }
+      if (ack.matched && ack.matchId) {
+        setInQueue(false);
+        navigate(`/placement/${ack.matchId}`);
+        return;
+      }
+      setInQueue(true);
+      setQueueSince(Date.now());
+      tgHaptic('success');
+    });
+  }, [overBalance, wager, navigate]);
+
+  const cancelQueue = useCallback(async () => {
+    setQueueSearching(true);
+    try {
+      getSocket().emit('mm:leave', {}, () => undefined);
+      await MatchmakingAPI.leave();
+    } catch { /* ignore */ }
+    setInQueue(false);
+    setQueueSince(null);
+    setQueueSearching(false);
+    tgHaptic('light');
+  }, []);
+
+  useEffect(() => {
+    MatchmakingAPI.status()
+      .then((s: any) => {
+        if (s.inQueue) {
+          setInQueue(true);
+          setQueueSince(s.since ? new Date(s.since).getTime() : Date.now());
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get('quick') === '1' && !quickStarted.current && user) {
+      quickStarted.current = true;
+      setTab('queue');
+      setSearchParams({}, { replace: true });
+      if (!inQueue && !queueSearching) startQueue();
+    }
+  }, [searchParams, user, inQueue, queueSearching, startQueue, setSearchParams]);
+
+  useEffect(() => {
+    if (!inQueue) return;
+    const t = setInterval(() => setQueueTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [inQueue]);
 
   const fetchList = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoadingList(true);
@@ -219,7 +290,8 @@ export default function MatchmakingScreen() {
       )}
 
       <div className="card p-1 flex gap-1">
-        <TabBtn active={tab === 'browse'} onClick={() => setTab('browse')} icon="swords">Поиск матча</TabBtn>
+        <TabBtn active={tab === 'queue'} onClick={() => setTab('queue')} icon="target">Быстро</TabBtn>
+        <TabBtn active={tab === 'browse'} onClick={() => setTab('browse')} icon="swords">Лобби</TabBtn>
         <TabBtn active={tab === 'private'} onClick={() => setTab('private')} icon="lock">С другом</TabBtn>
       </div>
 
@@ -336,7 +408,46 @@ export default function MatchmakingScreen() {
         </div>
       </Modal>
 
-      {tab === 'browse' ? (
+      {tab === 'queue' ? (
+        <div className="space-y-3">
+          <div className="card p-4 space-y-4">
+            <p className="eyebrow">Ставка</p>
+            <div className="flex items-center justify-center gap-2">
+              <button className="w-12 h-12 rounded-xl bg-panel border border-line flex items-center justify-center" onClick={() => setWager(wager - 25)} disabled={wager <= WAGER_MIN || inQueue}>
+                <Icon name="minus" size={20} />
+              </button>
+              <span className="font-display text-4xl tabular-nums text-main">{wager} ₽</span>
+              <button className="w-12 h-12 rounded-xl bg-danger flex items-center justify-center text-white" onClick={() => setWager(wager + 25)} disabled={wager >= WAGER_ABS_MAX || inQueue}>
+                <Icon name="plus" size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {PRESETS.map((p) => (
+                <button key={p} disabled={inQueue} onClick={() => setWager(p)} className={['py-2 rounded-lg text-xs font-display tabular-nums border', wager === p ? 'bg-danger text-white border-danger' : 'bg-panel border-line text-muted'].join(' ')}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {inQueue ? (
+            <div className="card p-5 text-center space-y-3">
+              <Spinner />
+              <p className="text-main font-display">Ищем соперника…</p>
+              <p className="text-muted text-xs">
+                Ставка {formatMoney(wager)}
+                {queueSince ? ` · ${Math.floor((queueTick - queueSince) / 1000)} сек` : ''}
+              </p>
+              <p className="text-muted text-[11px]">Через 30 сек расширим диапазон ставок ±10%</p>
+              <button className="btn-ghost w-full" onClick={cancelQueue} disabled={queueSearching}>Отменить поиск</button>
+            </div>
+          ) : (
+            <button className="btn-primary w-full py-4" onClick={startQueue} disabled={queueSearching || overBalance}>
+              {queueSearching ? 'Подключаемся…' : `Найти соперника · ${wager} ₽`}
+            </button>
+          )}
+        </div>
+      ) : tab === 'browse' ? (
         <div className="space-y-3">
           {/* Создать / статус своего боя */}
           {myOpen ? (

@@ -17,6 +17,8 @@ import { newAchievementIds } from '../lib/achievements';
 import { referralBotLink } from '../lib/referral';
 import { getRank } from '../lib/rank';
 
+const REMATCH_WAIT_MS = 120_000;
+
 export default function ResultScreen() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
@@ -27,6 +29,8 @@ export default function ResultScreen() {
   const updateBalance = useAuthStore((s) => s.updateBalance);
   const applyMatchResult = useAuthStore((s) => s.applyMatchResult);
   const [waitingRematch, setWaitingRematch] = useState(false);
+  const [rematchOffer, setRematchOffer] = useState(false);
+  const rematchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -39,7 +43,8 @@ export default function ResultScreen() {
     const onRematch = (e: any) => { if (e.newMatchId) navigate(`/placement/${e.newMatchId}`); };
     const onRematchReq = (e: any) => {
       if (e?.by === me?.id) return;
-      toast('Соперник ждёт реванша — нажми «Реванш»', 'info', 'swords');
+      setRematchOffer(true);
+      toast('Соперник ждёт реванша', 'info', 'swords');
     };
     sock.on('match:rematchStarted', onRematch);
     sock.on('match:rematchRequested', onRematchReq);
@@ -48,6 +53,10 @@ export default function ResultScreen() {
       sock.off('match:rematchRequested', onRematchReq);
     };
   }, [navigate, me?.id]);
+
+  useEffect(() => () => {
+    if (rematchTimer.current) clearTimeout(rematchTimer.current);
+  }, []);
 
   const resultApplied = useRef(false);
   const achievementsShown = useRef(false);
@@ -72,15 +81,31 @@ export default function ResultScreen() {
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;
   const useNative = isTelegram();
-  // Повышение звания: после победы новое звание отличается от прежнего (wins-1)
   const rankedUp = !!(won && me && getRank(me.wins).title !== getRank(Math.max(0, me.wins - 1)).title);
   const newRank = me ? getRank(me.wins) : null;
+  const canAffordRematch = (me?.balance ?? 0) >= (matchState?.wagerAmount ?? 0);
 
   const rematch = () => {
     if (!matchId) return;
+    if (!canAffordRematch) {
+      toast('Недостаточно средств для реванша', 'error', 'coins');
+      return;
+    }
     setWaitingRematch(true);
+    setRematchOffer(false);
+    if (rematchTimer.current) clearTimeout(rematchTimer.current);
+    rematchTimer.current = setTimeout(() => {
+      setWaitingRematch(false);
+      toast('Время ожидания реванша истекло', 'info');
+    }, REMATCH_WAIT_MS);
     getSocket().emit('match:rematch', { matchId, nonce: newNonce() }, (ack: any) => {
-      if (!ack?.ok) { setWaitingRematch(false); }
+      if (!ack?.ok) {
+        setWaitingRematch(false);
+        if (rematchTimer.current) clearTimeout(rematchTimer.current);
+        toast(ack?.error ?? 'Не удалось запросить реванш', 'error');
+        return;
+      }
+      if (ack.newMatchId) navigate(`/placement/${ack.newMatchId}`);
     });
   };
 
@@ -90,16 +115,15 @@ export default function ResultScreen() {
     tgShare(link, `Только что выиграл ${payout} ₽ в морской дуэли! Сразись со мной 🚢`);
   };
 
-  // Нативная кнопка Telegram = Реванш
   useEffect(() => {
     if (!useNative) return;
     return tgMainButton({
-      text: waitingRematch ? 'Ждём соперника' : 'Реванш',
+      text: waitingRematch ? 'Ждём соперника' : rematchOffer ? 'Принять реванш' : 'Реванш',
       onClick: rematch,
       progress: waitingRematch,
-      active: !waitingRematch,
+      active: !waitingRematch && canAffordRematch,
     });
-  }, [useNative, waitingRematch]); // eslint-disable-line
+  }, [useNative, waitingRematch, rematchOffer, canAffordRematch]); // eslint-disable-line
 
   const pool = matchState?.prizePool ?? 0;
   const rake = matchState?.rakeAmount ?? 0;
@@ -121,6 +145,14 @@ export default function ResultScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-5 pt-6">
+      {rematchOffer && !waitingRematch && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="card p-3 border-danger flex items-center gap-3">
+          <Icon name="swords" size={18} className="text-danger shrink-0" />
+          <p className="flex-1 text-sm text-main">Соперник предлагает реванш</p>
+          <button className="btn-primary px-4 py-2 text-xs" onClick={rematch}>Принять</button>
+        </motion.div>
+      )}
+
       <motion.section
         initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -174,7 +206,6 @@ export default function ResultScreen() {
           </motion.div>
         )}
 
-        {/* Тонущий корабль при поражении */}
         {!won && !draw && (
           <div className="mx-auto w-24 mt-3 animate-sink"><Ship kind="cruiser" size={3} orientation="H" sunk /></div>
         )}
@@ -201,11 +232,14 @@ export default function ResultScreen() {
 
       <div className="space-y-2">
         {!useNative && (
-          <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch}>
-            {waitingRematch ? 'Ждём соперника…' : 'Реванш'}
+          <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch || !canAffordRematch}>
+            {waitingRematch ? 'Ждём соперника…' : rematchOffer ? 'Принять реванш' : 'Реванш'}
           </button>
         )}
-        <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking'); }}>Новый бой</button>
+        {!canAffordRematch && (
+          <p className="text-center text-xs text-warning">Нужно {formatMoney(matchState.wagerAmount)} ₽ для реванша</p>
+        )}
+        <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking?quick=1'); }}>Новый бой</button>
         {won && (
           <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Поделиться победой</button>
         )}
