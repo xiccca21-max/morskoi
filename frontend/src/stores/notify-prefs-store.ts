@@ -21,3 +21,25 @@ export const useNotifyPrefsStore = create<NotifyPrefs>()(
     { name: 'notify-prefs' },
   ),
 );
+
+const API_KEYS = {
+  matchFound: 'notifyMatchFound',
+  payout: 'notifyPayout',
+  rematch: 'notifyRematch',
+  referral: 'notifyReferral',
+} as const;
+
+/** Подтянуть настройки с сервера после логина. */
+export function syncNotifyFromServer(user: Partial<Record<'notifyMatchFound' | 'notifyPayout' | 'notifyRematch' | 'notifyReferral', boolean>>) {
+  const s = useNotifyPrefsStore.getState();
+  if (user.notifyMatchFound != null) s.set('matchFound', user.notifyMatchFound);
+  if (user.notifyPayout != null) s.set('payout', user.notifyPayout);
+  if (user.notifyRematch != null) s.set('rematch', user.notifyRematch);
+  if (user.notifyReferral != null) s.set('referral', user.notifyReferral);
+}
+
+export async function saveNotifyPref(k: keyof typeof API_KEYS, v: boolean) {
+  useNotifyPrefsStore.getState().set(k, v);
+  const { UsersAPI } = await import('../api/endpoints');
+  await UsersAPI.setNotify({ [API_KEYS[k]]: v });
+}

@@ -49,10 +49,17 @@ export class BackupService implements OnModuleInit {
       await this.prune(dir);
       await this.notifyAdmin(
         `✅ <b>Бэкап БД создан</b>\n` +
-          `Файл: <code>${dest.split('/').pop()}</code>\n` +
+          `Файл: <code>${dest.split(/[/\\]/).pop()}</code>\n` +
           `Размер: ${sizeMb} MB\n` +
           `Хранится копий: ${this.keep}`,
       );
+      if (this.adminTgId && stat.size < 48 * 1024 * 1024) {
+        await this.bot.sendDocument(
+          this.adminTgId,
+          dest,
+          `📦 Ежедневный бэкап БД (${sizeMb} MB)`,
+        );
+      }
     } catch (e: any) {
       const msg = e?.message || String(e);
       this.logger.warn(`backup failed: ${msg}`);

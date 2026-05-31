@@ -14,4 +14,9 @@ export class HistoryController {
     const lim = Math.min(Math.max(Number(limit ?? 50), 1), 200);
     return this.h.listForUser(u.sub, lim);
   }
+
+  @Get('stats/week')
+  weekStats(@CurrentUser() u: JwtPayload) {
+    return this.h.weeklyStats(u.sub);
+  }
 }

@@ -8,7 +8,7 @@ export interface Rank {
   next?: number;
 }
 
-const RANKS: Rank[] = [
+export const ALL_RANKS: Rank[] = [
   { title: 'Юнга', icon: 'anchor', min: 0, next: 3 },
   { title: 'Матрос', icon: 'ship', min: 3, next: 8 },
   { title: 'Боцман', icon: 'compass', min: 8, next: 15 },
@@ -16,6 +16,8 @@ const RANKS: Rank[] = [
   { title: 'Капитан', icon: 'medal', min: 30, next: 60 },
   { title: 'Адмирал', icon: 'crown', min: 60 },
 ];
+
+const RANKS = ALL_RANKS;
 
 export function getRank(wins: number): Rank {
   let r = RANKS[0];

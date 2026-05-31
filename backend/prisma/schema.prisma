@@ -49,6 +49,12 @@ model User {
   lastDailyClaimAt DateTime?
   loginStreak      Int      @default(0)
 
+  // Уведомления в Telegram-боте
+  notifyMatchFound Boolean  @default(true)
+  notifyPayout     Boolean  @default(true)
+  notifyRematch    Boolean  @default(true)
+  notifyReferral   Boolean  @default(true)
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

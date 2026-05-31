@@ -464,19 +464,31 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
-  async notifyUser(userId: string, text: string, withPlay = false) {
-    const u = await this.prisma.user.findUnique({ where: { id: userId } });
+  async notifyUser(
+    userId: string,
+    text: string,
+    opts?: { withPlay?: boolean; pref?: 'matchFound' | 'payout' | 'rematch' | 'referral' },
+  ) {
+    const u = await this.prisma.user.findUnique({ where: { id: userId } }) as any;
     if (!u) return;
-    await this.notify(u.telegramId, text, withPlay);
+    if (opts?.pref === 'matchFound' && u.notifyMatchFound === false) return;
+    if (opts?.pref === 'payout' && u.notifyPayout === false) return;
+    if (opts?.pref === 'rematch' && u.notifyRematch === false) return;
+    if (opts?.pref === 'referral' && u.notifyReferral === false) return;
+    await this.notify(u.telegramId, text, opts?.withPlay);
   }
 
   async notifyMatchFound(p1Id: string, p2Id: string, wager: number) {
-    const text = `⚔️ Соперник найден! Ставка: ${wager} ₽. Открой игру и расставь корабли (30 сек).`;
-    await Promise.all([this.notifyUser(p1Id, text, true), this.notifyUser(p2Id, text, true)]);
+    const sec = Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60);
+    const text = `⚔️ Соперник найден! Ставка: ${wager} ₽. Открой игру и расставь корабли (${sec} сек).`;
+    await Promise.all([
+      this.notifyUser(p1Id, text, { withPlay: true, pref: 'matchFound' }),
+      this.notifyUser(p2Id, text, { withPlay: true, pref: 'matchFound' }),
+    ]);
   }
 
   async notifyPayout(userId: string, amount: number) {
-    await this.notifyUser(userId, `🏆 Победа! Выплата: ${amount.toFixed(0)} ₽`, true);
+    await this.notifyUser(userId, `🏆 Победа! Выплата: ${amount.toFixed(0)} ₽`, { withPlay: true, pref: 'payout' });
   }
 
   async notifyDeposit(userId: string, amount: number) {
@@ -485,9 +497,22 @@ export class TelegramBotService implements OnModuleInit {
 
   async notifyWithdrawal(userId: string, amount: number, status: 'paid' | 'rejected', note?: string) {
     if (status === 'paid') {
-      await this.notifyUser(userId, `💸 Вывод ${amount.toFixed(0)} ₽ (USDT) отправлен на ваш кошелёк.`);
+      await this.notifyUser(userId, `💸 Вывод ${amount.toFixed(0)} ₽ (USDT) отправлен на ваш кошелёк.`, { pref: 'payout' });
     } else {
       await this.notifyUser(userId, `↩️ Заявка на вывод отклонена${note ? `: ${note}` : ''}. Средства возвращены на баланс.`);
+    }
+  }
+
+  /** Отправить файл админу (off-site бэкап). */
+  async sendDocument(telegramId: string, filePath: string, caption?: string) {
+    if (!this.bot) return;
+    try {
+      await this.bot.sendDocument(Number(telegramId), filePath, {
+        caption: caption?.slice(0, 1024),
+        parse_mode: 'HTML',
+      });
+    } catch (e: any) {
+      this.logger.warn(`sendDocument ${telegramId} failed: ${e?.message}`);
     }
   }
 

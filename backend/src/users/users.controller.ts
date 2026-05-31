@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, UseGuards } from '@nestjs/common';
-import { IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, Min } from 'class-validator';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -17,6 +17,24 @@ class LimitsDto {
   selfExcludeDays?: number;
 }
 
+class NotifyPrefsDto {
+  @IsOptional()
+  @IsBoolean()
+  notifyMatchFound?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyPayout?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyRematch?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyReferral?: boolean;
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -25,6 +43,11 @@ export class UsersController {
   @Get('me')
   me(@CurrentUser() u: JwtPayload) {
     return this.users.getMe(u.sub);
+  }
+
+  @Patch('me/notify')
+  setNotify(@CurrentUser() u: JwtPayload, @Body() dto: NotifyPrefsDto) {
+    return this.users.setNotifyPrefs(u.sub, dto);
   }
 
   @Patch('me/limits')

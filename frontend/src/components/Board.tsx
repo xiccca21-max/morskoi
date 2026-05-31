@@ -63,7 +63,7 @@ export function Board({
   const cellPct = 100 / BOARD_SIZE;
 
   return (
-    <div className="relative w-full max-w-[440px] mx-auto select-none">
+    <div className="relative w-full max-w-[480px] mx-auto select-none">
       {/* Графитовая рама */}
       <div
         className="rounded-xl p-2"

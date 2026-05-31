@@ -365,6 +365,12 @@ export class GameService {
       { ships: [], attacksReceived: [], placed: false },
     );
 
+    const placementSec = Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60);
+    const placementDeadline =
+      match.status === MatchStatus.PLACEMENT && match.startedAt
+        ? new Date(match.startedAt.getTime() + placementSec * 1000)
+        : null;
+
     return {
       matchId: match.id,
       status: match.status,
@@ -375,6 +381,8 @@ export class GameService {
       winnerId: match.winnerId,
       currentTurn: match.gameState.currentTurn,
       turnDeadline: match.gameState.turnDeadline,
+      placementDeadline,
+      placementStartedAt: match.startedAt,
       me: {
         userId,
         own: publicOwnView(myBoard),

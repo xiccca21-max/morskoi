@@ -16,6 +16,8 @@ export const UsersAPI = {
   byId: (id: string) => api.get(`/users/${id}`).then(r => r.data),
   setLimits: (p: { dailyDepositLimit?: number; selfExcludeDays?: number }) =>
     api.patch('/users/me/limits', p).then(r => r.data),
+  setNotify: (p: { notifyMatchFound?: boolean; notifyPayout?: boolean; notifyRematch?: boolean; notifyReferral?: boolean }) =>
+    api.patch('/users/me/notify', p).then(r => r.data),
   deleteMe: () => api.delete('/users/me').then(r => r.data),
 };
 
@@ -93,6 +95,7 @@ export const GameAPI = {
 
 export const HistoryAPI = {
   list: (limit = 50) => api.get(`/history?limit=${limit}`).then(r => r.data),
+  weekStats: () => api.get<{ wins: number; losses: number; net: number; matches: number }>('/history/stats/week').then(r => r.data),
 };
 
 export const LeaderboardAPI = {

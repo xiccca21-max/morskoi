@@ -18,6 +18,10 @@ export interface User {
   agreedToTerms?: boolean;
   dailyDepositLimit?: number;
   selfExcludedUntil?: string | null;
+  notifyMatchFound?: boolean;
+  notifyPayout?: boolean;
+  notifyRematch?: boolean;
+  notifyReferral?: boolean;
   createdAt?: string;
 }
 

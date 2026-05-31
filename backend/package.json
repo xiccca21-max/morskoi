@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "lint": "eslint \"src/**/*.ts\""
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "node --require ts-node/register/transpile-only --test src/game/engine/board.spec.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

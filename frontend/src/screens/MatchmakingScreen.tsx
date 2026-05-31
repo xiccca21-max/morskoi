@@ -8,8 +8,7 @@ import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVibrate } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Modal, ConfirmDialog } from '../components/Modal';
-import { getRank } from '../lib/rank';
-import type { Rank } from '../lib/rank';
+import { getRank, ALL_RANKS, type Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
 import { Spinner } from '../components/Spinner';
 import { SkeletonList } from '../components/Skeleton';
@@ -19,14 +18,7 @@ import { useDebounce } from '../lib/hooks';
 import { formatMoney } from '../lib/format';
 import { MIN_WAGER, MAX_WAGER } from '../lib/config';
 
-const ALL_RANKS: Rank[] = [
-  { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
-  { title: 'Матрос',  icon: 'ship',    min: 3,  next: 8  },
-  { title: 'Боцман',  icon: 'compass', min: 8,  next: 15 },
-  { title: 'Штурман', icon: 'wheel',   min: 15, next: 30 },
-  { title: 'Капитан', icon: 'medal',   min: 30, next: 60 },
-  { title: 'Адмирал', icon: 'crown',   min: 60             },
-];
+const ALL_RANKS_LOCAL = ALL_RANKS;
 
 function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose: () => void; highlightTitle?: string }) {
   return (
@@ -35,7 +27,7 @@ function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose:
         Звание растёт с каждой победой. Чем выше звание — тем опытнее капитан.
       </p>
       <ul className="space-y-2">
-        {ALL_RANKS.map((r) => {
+        {ALL_RANKS_LOCAL.map((r) => {
           const isHighlight = r.title === highlightTitle;
           return (
             <li key={r.title} className={['flex items-center gap-3 rounded-lg px-3 py-2', isHighlight ? 'bg-danger/10 border border-danger' : 'bg-panel'].join(' ')}>

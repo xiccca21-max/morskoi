@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
@@ -11,27 +11,34 @@ import { useAuthStore } from './stores/auth-store';
 import { useMatchStore } from './stores/match-store';
 import { useThemeStore } from './stores/theme-store';
 import { useNotifyPrefsStore } from './stores/notify-prefs-store';
+import { syncNotifyFromServer } from './stores/notify-prefs-store';
 import { playSound, unlockAudio } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
 import DevLoginScreen from './screens/DevLoginScreen';
-import HomeScreen from './screens/HomeScreen';
-import WalletScreen from './screens/WalletScreen';
-import MatchmakingScreen from './screens/MatchmakingScreen';
-import LobbyScreen from './screens/LobbyScreen';
-import PlacementScreen from './screens/PlacementScreen';
-import BattleScreen from './screens/BattleScreen';
-import ResultScreen from './screens/ResultScreen';
-import HistoryScreen from './screens/HistoryScreen';
-import LeaderboardScreen from './screens/LeaderboardScreen';
-import ProfileScreen from './screens/ProfileScreen';
-import SettingsScreen from './screens/SettingsScreen';
-import HowItWorksScreen from './screens/HowItWorksScreen';
-import PlayerScreen from './screens/PlayerScreen';
-import RulesScreen from './screens/RulesScreen';
 import { Layout } from './components/Layout';
 import { ConsentGate } from './components/ConsentGate';
 import { TelegramAuthError } from './components/TelegramAuthError';
+import { Spinner } from './components/Spinner';
+
+const HomeScreen = lazy(() => import('./screens/HomeScreen'));
+const WalletScreen = lazy(() => import('./screens/WalletScreen'));
+const MatchmakingScreen = lazy(() => import('./screens/MatchmakingScreen'));
+const LobbyScreen = lazy(() => import('./screens/LobbyScreen'));
+const PlacementScreen = lazy(() => import('./screens/PlacementScreen'));
+const BattleScreen = lazy(() => import('./screens/BattleScreen'));
+const ResultScreen = lazy(() => import('./screens/ResultScreen'));
+const HistoryScreen = lazy(() => import('./screens/HistoryScreen'));
+const LeaderboardScreen = lazy(() => import('./screens/LeaderboardScreen'));
+const ProfileScreen = lazy(() => import('./screens/ProfileScreen'));
+const SettingsScreen = lazy(() => import('./screens/SettingsScreen'));
+const HowItWorksScreen = lazy(() => import('./screens/HowItWorksScreen'));
+const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
+const RulesScreen = lazy(() => import('./screens/RulesScreen'));
+
+function LazyScreen({ children }: { children: JSX.Element }) {
+  return <Suspense fallback={<div className="flex justify-center py-16"><Spinner /></div>}>{children}</Suspense>;
+}
 
 function Protected({ children }: { children: JSX.Element }) {
   const { authenticated, ready } = useAuthStore();
@@ -128,6 +135,7 @@ export default function App() {
           if (cancelled) return;
           setAuthToken(res.token);
           setUser({ ...res.user, balance: Number(res.user.balance) });
+          syncNotifyFromServer(res.user);
           if (res.dailyBonus?.claimed && res.dailyBonus.amount) {
             toast(
               `Ежедневный бонус +${res.dailyBonus.amount} ₽ · стрик ${res.dailyBonus.streak} дн.`,
@@ -140,6 +148,7 @@ export default function App() {
           try {
             const me = await UsersAPI.me();
             setUser({ ...me, balance: Number(me.balance) });
+            syncNotifyFromServer(me);
           } catch {
             setAuthToken(null);
             if (isTelegramWebView()) {
@@ -289,20 +298,20 @@ export default function App() {
     <Routes>
       <Route path="/" element={<SplashScreen />} />
       <Route element={<Protected><Layout /></Protected>}>
-        <Route path="/home" element={<HomeScreen />} />
-        <Route path="/wallet" element={<WalletScreen />} />
-        <Route path="/matchmaking" element={<MatchmakingScreen />} />
-        <Route path="/lobby/:code" element={<LobbyScreen />} />
-        <Route path="/placement/:matchId" element={<PlacementScreen />} />
-        <Route path="/battle/:matchId" element={<BattleScreen />} />
-        <Route path="/result/:matchId" element={<ResultScreen />} />
-        <Route path="/history" element={<HistoryScreen />} />
-        <Route path="/leaderboard" element={<LeaderboardScreen />} />
-        <Route path="/profile" element={<ProfileScreen />} />
-        <Route path="/player/:id" element={<PlayerScreen />} />
-        <Route path="/settings" element={<SettingsScreen />} />
-        <Route path="/how-it-works" element={<HowItWorksScreen />} />
-        <Route path="/rules" element={<RulesScreen />} />
+        <Route path="/home" element={<LazyScreen><HomeScreen /></LazyScreen>} />
+        <Route path="/wallet" element={<LazyScreen><WalletScreen /></LazyScreen>} />
+        <Route path="/matchmaking" element={<LazyScreen><MatchmakingScreen /></LazyScreen>} />
+        <Route path="/lobby/:code" element={<LazyScreen><LobbyScreen /></LazyScreen>} />
+        <Route path="/placement/:matchId" element={<LazyScreen><PlacementScreen /></LazyScreen>} />
+        <Route path="/battle/:matchId" element={<LazyScreen><BattleScreen /></LazyScreen>} />
+        <Route path="/result/:matchId" element={<LazyScreen><ResultScreen /></LazyScreen>} />
+        <Route path="/history" element={<LazyScreen><HistoryScreen /></LazyScreen>} />
+        <Route path="/leaderboard" element={<LazyScreen><LeaderboardScreen /></LazyScreen>} />
+        <Route path="/profile" element={<LazyScreen><ProfileScreen /></LazyScreen>} />
+        <Route path="/player/:id" element={<LazyScreen><PlayerScreen /></LazyScreen>} />
+        <Route path="/settings" element={<LazyScreen><SettingsScreen /></LazyScreen>} />
+        <Route path="/how-it-works" element={<LazyScreen><HowItWorksScreen /></LazyScreen>} />
+        <Route path="/rules" element={<LazyScreen><RulesScreen /></LazyScreen>} />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>

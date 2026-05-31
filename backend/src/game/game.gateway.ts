@@ -242,6 +242,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private async notifyMatchFound(matchId: string) {
     const match = await this.prisma.match.findUnique({ where: { id: matchId } });
     if (!match) return;
+    const placementSec = Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60);
+    const placementDeadline = match.startedAt
+      ? new Date(match.startedAt.getTime() + placementSec * 1000).toISOString()
+      : null;
     const players = [match.player1Id, match.player2Id].filter(Boolean) as string[];
     for (const uid of players) {
       const sId = this.userSockets.get(uid);
@@ -253,10 +257,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         matchId,
         wagerAmount: Number(match.wagerAmount),
         opponentId: uid === match.player1Id ? match.player2Id : match.player1Id,
+        placementDeadline,
       });
     }
+    if (match.player1Id && match.player2Id) {
+      this.botService
+        .notifyMatchFound(match.player1Id, match.player2Id, Number(match.wagerAmount))
+        .catch(() => undefined);
+    }
     await this.broadcastStateToBothPlayers(matchId);
-    // Если кто-то не расставит флот вовремя — матч отменится
     this.schedulePlacementTimeout(matchId);
   }
 
@@ -377,11 +386,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
             const u = await this.prisma.user.findUnique({ where: { id: uid }, select: { balance: true } });
             if (u) this.server.to(`user:${uid}`).emit('wallet:update', Number(u.balance));
           }
-          // Пуш уведомление для обоих
+          // Пуш победителю
           if (r.winnerId && match.player1Id && match.player2Id) {
-            this.botService.notifyMatchFound(match.player1Id, match.player2Id, Number(match.wagerAmount)).catch(() => {});
+            this.botService.notifyPayout(r.winnerId, pool - rake).catch(() => undefined);
           }
-          void pool; void rake;
         }
       }
       return { ok: true, result: r.result };

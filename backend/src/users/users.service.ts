@@ -2,6 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { MatchStatus } from '../common/enums';
 
+export interface NotifyPrefsDto {
+  notifyMatchFound?: boolean;
+  notifyPayout?: boolean;
+  notifyRematch?: boolean;
+  notifyReferral?: boolean;
+}
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,10 +34,25 @@ export class UsersService {
       referralCount: u.referralCount ?? 0,
       loginStreak: u.loginStreak ?? 0,
       agreedToTerms: !!u.agreedToTermsAt,
+      notifyMatchFound: u.notifyMatchFound !== false,
+      notifyPayout: u.notifyPayout !== false,
+      notifyRematch: u.notifyRematch !== false,
+      notifyReferral: u.notifyReferral !== false,
       dailyDepositLimit: u.dailyDepositLimit ?? 0,
       selfExcludedUntil: u.selfExcludedUntil ?? null,
       createdAt: u.createdAt,
     };
+  }
+
+  async setNotifyPrefs(userId: string, prefs: NotifyPrefsDto) {
+    const data: Record<string, boolean> = {};
+    if (prefs.notifyMatchFound != null) data.notifyMatchFound = prefs.notifyMatchFound;
+    if (prefs.notifyPayout != null) data.notifyPayout = prefs.notifyPayout;
+    if (prefs.notifyRematch != null) data.notifyRematch = prefs.notifyRematch;
+    if (prefs.notifyReferral != null) data.notifyReferral = prefs.notifyReferral;
+    if (!Object.keys(data).length) throw new BadRequestException('Nothing to update');
+    await this.prisma.user.update({ where: { id: userId }, data: data as any });
+    return this.getMe(userId);
   }
 
   /** Лимиты ответственной игры / самоисключение. */

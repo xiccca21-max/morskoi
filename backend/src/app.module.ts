@@ -19,6 +19,7 @@ import { RatesModule } from './rates/rates.module';
 import { BackupModule } from './backup/backup.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { HealthController } from './common/health.controller';
+import { AuditService } from './common/audit.service';
 
 @Module({
   imports: [
@@ -43,6 +44,6 @@ import { HealthController } from './common/health.controller';
     TelegramBotModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }, AuditService],
 })
 export class AppModule {}

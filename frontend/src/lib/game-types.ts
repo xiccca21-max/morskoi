@@ -41,6 +41,8 @@ export interface MatchState {
   winnerId: string | null;
   currentTurn: string | null;
   turnDeadline: string | null;
+  placementDeadline?: string | null;
+  placementStartedAt?: string | null;
   me: {
     userId: string;
     own: { ships: ShipPlacement[]; attacks: AttackCell[] };

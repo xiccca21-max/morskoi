@@ -51,8 +51,22 @@ export default function PlacementScreen() {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
-  const [deadline] = useState<number>(Date.now() + 30_000);
   const [now, setNow] = useState(Date.now());
+
+  const deadline = useMemo(() => {
+    const fromState = matchState?.placementDeadline;
+    if (fromState) return new Date(fromState).getTime();
+    return Date.now() + 60_000;
+  }, [matchState?.placementDeadline]);
+
+  const totalSec = useMemo(() => {
+    const end = matchState?.placementDeadline;
+    const start = matchState?.placementStartedAt;
+    if (end && start) {
+      return Math.max(10, Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 1000));
+    }
+    return 60;
+  }, [matchState?.placementDeadline, matchState?.placementStartedAt]);
 
   const placedShips = useMemo(
     () => fleet.filter((f) => f.placed).map((f) => f.placed!) as ShipPlacement[],
@@ -147,7 +161,7 @@ export default function PlacementScreen() {
 
   const allPlaced = placedShips.length === fleet.length;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
-  const fuse = Math.max(0, Math.min(100, (remaining / 30) * 100));
+  const fuse = Math.max(0, Math.min(100, (remaining / totalSec) * 100));
 
   // Автостановка: если время вышло и игрок не отправил флот —
   // ставим корабли автоматически и отправляем, чтобы не потерять матч.

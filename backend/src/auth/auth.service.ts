@@ -73,9 +73,10 @@ export class AuthService {
         const referrer = await this.prisma.user.findUnique({ where: { id: refId } });
         if (referrer) {
           const bonus = Number(process.env.REFERRAL_BONUS ?? 25);
+          const inviteeBonus = Number(process.env.INVITEE_BONUS ?? 10);
           await this.prisma.user.update({
             where: { id: user.id },
-            data: { referredById: refId } as any,
+            data: { referredById: refId, balance: { increment: inviteeBonus } } as any,
           });
           await this.prisma.user.update({
             where: { id: refId },
@@ -84,11 +85,24 @@ export class AuthService {
           await this.prisma.transaction.create({
             data: { userId: refId, type: 'DEPOSIT', amount: bonus, status: 'COMPLETED', meta: JSON.stringify({ source: 'referral', invited: user.id }) },
           });
+          if (inviteeBonus > 0) {
+            await this.prisma.transaction.create({
+              data: { userId: user.id, type: 'DEPOSIT', amount: inviteeBonus, status: 'COMPLETED', meta: JSON.stringify({ source: 'referral_invitee', referrer: refId }) },
+            });
+          }
           const invName = tg.username ?? tg.first_name ?? 'Новый игрок';
           this.bot.notifyUser(
             refId,
             `🎉 <b>Реферал!</b> ${invName} зарегистрировался по твоей ссылке.\n+${bonus} ₽ на баланс.`,
+            { pref: 'referral' },
           ).catch(() => undefined);
+          if (inviteeBonus > 0) {
+            this.bot.notifyUser(
+              user.id,
+              `🎁 Бонус за регистрацию по приглашению: <b>+${inviteeBonus} ₽</b>`,
+              { pref: 'referral' },
+            ).catch(() => undefined);
+          }
         }
       }
     }
@@ -131,6 +145,10 @@ export class AuthService {
       referralCount: user.referralCount ?? 0,
       loginStreak: user.loginStreak ?? 0,
       agreedToTerms: !!user.agreedToTermsAt,
+      notifyMatchFound: user.notifyMatchFound !== false,
+      notifyPayout: user.notifyPayout !== false,
+      notifyRematch: user.notifyRematch !== false,
+      notifyReferral: user.notifyReferral !== false,
       createdAt: user.createdAt,
     };
   }

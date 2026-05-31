@@ -42,4 +42,37 @@ export class HistoryService {
       };
     });
   }
+
+  async weeklyStats(userId: string) {
+    const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+    const matches = await this.prisma.match.findMany({
+      where: {
+        status: 'FINISHED',
+        endedAt: { gte: since },
+        OR: [{ player1Id: userId }, { player2Id: userId }],
+      },
+      select: {
+        player1Id: true,
+        winnerId: true,
+        wagerAmount: true,
+        prizePool: true,
+        rakeAmount: true,
+      },
+    });
+
+    let wins = 0;
+    let losses = 0;
+    let net = 0;
+    for (const m of matches) {
+      const won = m.winnerId === userId;
+      if (won) {
+        wins++;
+        net += Number(m.prizePool) - Number(m.rakeAmount);
+      } else if (m.winnerId) {
+        losses++;
+        net -= Number(m.wagerAmount);
+      }
+    }
+    return { wins, losses, net, matches: matches.length, since: since.toISOString() };
+  }
 }

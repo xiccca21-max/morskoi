@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { TxType, TxStatus } from '../common/enums';
+import { AuditService } from '../common/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
@@ -24,6 +25,7 @@ export class WalletService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly botService: TelegramBotService,
+    private readonly audit: AuditService,
   ) {}
 
   async getBalance(userId: string): Promise<number> {
@@ -159,6 +161,7 @@ export class WalletService {
 
     setImmediate(() => {
       this.notifyAdminNewWithdrawal(userId, result).catch(() => undefined);
+      this.audit.log(userId, 'WITHDRAW_REQUEST', { ...result });
     });
 
     return result;
