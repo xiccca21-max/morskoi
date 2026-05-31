@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
+import { ConfirmDialog } from '../components/Modal';
 import { formatMoney } from '../lib/format';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
@@ -20,6 +21,7 @@ export default function LobbyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmJoin, setConfirmJoin] = useState(false);
 
   const load = () => {
     if (!code) return;
@@ -67,12 +69,20 @@ export default function LobbyScreen() {
     }
   };
 
-  const accept = () => {
+  const requestAccept = () => {
     if (!lobby || !code) return;
     if (user && user.balance < lobby.wagerAmount) {
       setError('Недостаточно средств для этой ставки');
       return;
     }
+    setError(null);
+    tgHaptic('light');
+    setConfirmJoin(true);
+  };
+
+  const accept = () => {
+    if (!lobby || !code) return;
+    setConfirmJoin(false);
     setError(null);
     setJoining(true);
     tgHaptic('medium');
@@ -156,7 +166,7 @@ export default function LobbyScreen() {
               <p className="eyebrow">вызывает вас на дуэль</p>
             </div>
           </div>
-          <button className="btn-primary w-full" onClick={accept} disabled={joining || lowFunds}>
+          <button className="btn-primary w-full" onClick={requestAccept} disabled={joining || lowFunds}>
             <Icon name="swords" size={18} /> {joining ? 'Подключение…' : 'Принять вызов'}
           </button>
           {lowFunds && (
@@ -167,6 +177,24 @@ export default function LobbyScreen() {
           <button className="btn-ghost w-full" onClick={() => navigate('/home')}>Отклонить</button>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmJoin}
+        title="Принять бой?"
+        icon="swords"
+        message={
+          <>
+            Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span> спишется
+            при старте боя (когда оба расставят флот). Победителю —{' '}
+            <span className="text-main font-display">{formatMoney(win)}</span>.
+            Вы точно согласны?
+          </>
+        }
+        confirmLabel="Да, в бой"
+        cancelLabel="Отмена"
+        onConfirm={accept}
+        onCancel={() => setConfirmJoin(false)}
+      />
     </div>
   );
 }

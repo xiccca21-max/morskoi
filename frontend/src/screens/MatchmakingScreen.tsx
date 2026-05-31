@@ -104,6 +104,7 @@ export default function MatchmakingScreen() {
   const [sortAsc, setSortAsc] = useState(true); // true = от меньшего к большему
   const [myOpen, setMyOpen] = useState<{ code: string; wager: number } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingMatch, setPendingMatch] = useState<OpenMatch | null>(null);
 
   useEffect(() => {
     const sock = getSocket();
@@ -243,8 +244,17 @@ export default function MatchmakingScreen() {
   const acceptMatch = (m: OpenMatch) => {
     if (m.isMine) return;
     if (!user || user.balance < m.wagerAmount) { tgVibrate(60); setShowFundsModal(true); return; }
+    tgHaptic('light');
+    setPendingMatch(m);
+  };
+
+  const confirmAcceptMatch = () => {
+    const m = pendingMatch;
+    setPendingMatch(null);
+    if (!m) return;
     setError(null);
     setBusyId(m.id);
+    tgHaptic('medium');
     getSocket().emit('lobby:join', { code: m.code, nonce: newNonce() }, (ack: any) => {
       setBusyId(null);
       if (!ack?.ok) { setError(ack?.error ?? 'Не удалось войти в бой'); fetchList(); return; }
@@ -391,6 +401,26 @@ export default function MatchmakingScreen() {
         confirmLabel="Создать"
         onCancel={() => { setBigWagerConfirm(false); setShowCreateModal(true); }}
         onConfirm={() => { setBigWagerConfirm(false); doCreate(); }}
+      />
+
+      {/* Подтверждение входа в чужой бой */}
+      <ConfirmDialog
+        open={pendingMatch !== null}
+        title="Принять бой?"
+        icon="swords"
+        message={
+          pendingMatch ? (
+            <>
+              Бой против <strong>{pendingMatch.host.firstName || pendingMatch.host.username || 'соперника'}</strong>.
+              Ставка <strong>{pendingMatch.wagerAmount} ₽</strong> спишется при старте боя
+              (когда оба расставят флот). Вы точно согласны?
+            </>
+          ) : null
+        }
+        confirmLabel="Да, в бой"
+        cancelLabel="Отмена"
+        onConfirm={confirmAcceptMatch}
+        onCancel={() => setPendingMatch(null)}
       />
 
       {/* Модалька: система званий */}

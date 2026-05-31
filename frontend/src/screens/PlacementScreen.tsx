@@ -11,10 +11,11 @@ import {
   validatePlacement,
 } from '../lib/game-types';
 import { getSocket, newNonce } from '../api/socket';
-import { tgHaptic, tgVerticalSwipes, tgMainButton, isTelegram } from '../lib/telegram';
+import { tgHaptic, tgVerticalSwipes, tgMainButton, tgBackButton, isTelegram } from '../lib/telegram';
 import { toast as showToast } from '../stores/toast-store';
 import { useMatchStore } from '../stores/match-store';
 import { Icon } from '../components/Icon';
+import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
 
 interface SlotShip {
@@ -52,6 +53,7 @@ export default function PlacementScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [showExit, setShowExit] = useState(false);
 
   const deadline = useMemo(() => {
     const fromState = matchState?.placementDeadline;
@@ -91,6 +93,29 @@ export default function PlacementScreen() {
   useEffect(() => {
     if (matchState?.gameStatus === 'IN_PROGRESS' && matchId) navigate(`/battle/${matchId}`);
   }, [matchState?.gameStatus, matchId, navigate]);
+
+  // Выход во время расстановки разрешён (бой ещё не начался, ставка не списана).
+  // Нативная кнопка «Назад» открывает подтверждение выхода.
+  useEffect(() => tgBackButton(true, () => setShowExit(true)), []);
+
+  const leaveMatch = () => {
+    setShowExit(false);
+    if (matchId) getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
+    tgHaptic('warning');
+    navigate('/home');
+  };
+
+  // Если соперник вышел во время расстановки — матч отменяется, уходим домой.
+  useEffect(() => {
+    const sock = getSocket();
+    const onFinished = () => {
+      showToast('Бой отменён — соперник вышел. Ставка не списана.', 'info', 'flag');
+      tgHaptic('warning');
+      navigate('/home');
+    };
+    sock.on('match:finished', onFinished);
+    return () => { sock.off('match:finished', onFinished); };
+  }, [navigate]);
 
   const selected = fleet.find((f) => f.id === selectedId) ?? fleet.find((f) => !f.placed) ?? null;
 
@@ -199,9 +224,18 @@ export default function PlacementScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-3">
-      <header className="flex items-center justify-between">
-        <h2 className="title text-main text-base">Расставь флот</h2>
-        <span className={['text-xs font-display uppercase tracking-wider flex items-center gap-1.5', matchState?.opponentReady ? 'text-main' : 'text-muted'].join(' ')}>
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => setShowExit(true)}
+            className="btn-ghost text-xs py-1.5 px-2 shrink-0"
+            title="Выйти из боя"
+          >
+            <Icon name="logout" size={16} />
+          </button>
+          <h2 className="title text-main text-base truncate">Расставь флот</h2>
+        </div>
+        <span className={['text-xs font-display uppercase tracking-wider flex items-center gap-1.5 shrink-0', matchState?.opponentReady ? 'text-main' : 'text-muted'].join(' ')}>
           {matchState?.opponentReady ? <Icon name="check" size={14} /> : null}
           {matchState?.opponentReady ? 'соперник готов' : 'соперник готовится'}
         </span>
@@ -277,6 +311,24 @@ export default function PlacementScreen() {
       ) : null}
 
       <p className="text-center text-muted text-xs tabular-nums">До автостановки: {remaining} c</p>
+
+      <ConfirmDialog
+        open={showExit}
+        title="Выйти из боя?"
+        icon="logout"
+        danger
+        message={
+          <>
+            Сейчас идёт расстановка — бой ещё не начался, поэтому
+            ставка <span className="text-main font-display">не спишется</span>.
+            Матч будет отменён для обоих игроков. После начала боя выйти без поражения уже нельзя.
+          </>
+        }
+        confirmLabel="Выйти"
+        cancelLabel="Остаться"
+        onConfirm={leaveMatch}
+        onCancel={() => setShowExit(false)}
+      />
     </div>
   );
 }
