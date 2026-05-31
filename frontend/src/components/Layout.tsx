@@ -55,7 +55,7 @@ export function Layout() {
       <Toaster />
       <OfflineBanner />
       <header
-        className={['px-4 h-14 flex items-center justify-between sticky top-0 z-30 bg-panel border-b border-line transition-shadow', scrolled ? 'shadow-[0_4px_16px_rgba(0,0,0,0.12)]' : ''].join(' ')}
+        className={['px-4 h-14 flex items-center justify-between sticky top-0 z-30 border-b border-line/50 backdrop-blur-xl bg-panel/80 transition-shadow', scrolled ? 'shadow-[0_4px_20px_rgba(0,0,0,0.15)]' : ''].join(' ')}
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
       >
         <NavLink to="/home" className="flex items-center gap-2 text-main" aria-label="На палубу">
@@ -88,7 +88,7 @@ export function Layout() {
 
       {!hideNav && (
         <nav
-          className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line bg-panel"
+          className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line/50 bg-panel/85 backdrop-blur-xl"
           style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
         >
           <ul className="flex items-end justify-around">

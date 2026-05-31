@@ -38,6 +38,9 @@ export default function HomeScreen() {
 
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
 
+  const streak = user?.loginStreak ?? 0;
+  const nextBonus = 10 + Math.min(Math.max(streak, 0), 6) * 5;
+
   return (
     <div className="max-w-md mx-auto space-y-4">
       <Onboarding />
@@ -47,6 +50,16 @@ export default function HomeScreen() {
         <h2 className="font-display text-2xl text-main leading-tight mt-0.5">
           {user?.nickname ?? user?.firstName ?? user?.username ?? 'без имени'}
         </h2>
+
+        {streak > 0 && (
+          <div className="mt-3 flex items-center gap-2 plate px-3 py-2 text-sm">
+            <Icon name="coins" size={16} className="text-danger shrink-0" />
+            <span className="text-main">
+              Стрик входа: <span className="font-display tabular-nums">{streak}</span> дн.
+            </span>
+            <span className="text-muted text-xs ml-auto">завтра +{nextBonus} ₽</span>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
           <Stat icon="trophy" label="Победы" value={wins} />

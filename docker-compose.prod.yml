@@ -37,6 +37,13 @@ services:
       CRYPTO_PAY_API: ${CRYPTO_PAY_API:-https://pay.crypt.bot/api}
       # Ключ для админских действий (обработка выводов)
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+      # Telegram ID админа — уведомления о бэкапах
+      ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}
+      # Ежедневный бонус за вход
+      DAILY_BONUS_BASE: ${DAILY_BONUS_BASE:-10}
+      DAILY_BONUS_STEP: ${DAILY_BONUS_STEP:-5}
+      DAILY_BONUS_MAX_STREAK: ${DAILY_BONUS_MAX_STREAK:-7}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
     volumes:
       - naval-data:/data
     expose:

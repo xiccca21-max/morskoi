@@ -25,6 +25,7 @@ export class UsersService {
       totalWagered: Number(u.totalWagered),
       totalWon: Number(u.totalWon),
       referralCount: u.referralCount ?? 0,
+      loginStreak: u.loginStreak ?? 0,
       agreedToTerms: !!u.agreedToTermsAt,
       dailyDepositLimit: u.dailyDepositLimit ?? 0,
       selfExcludedUntil: u.selfExcludedUntil ?? null,

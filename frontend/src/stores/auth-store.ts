@@ -14,6 +14,7 @@ export interface User {
   losses: number;
   draws?: number;
   referralCount?: number;
+  loginStreak?: number;
   agreedToTerms?: boolean;
   dailyDepositLimit?: number;
   selfExcludedUntil?: string | null;

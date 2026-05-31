@@ -2,7 +2,7 @@ import { api } from './http';
 
 export const AuthAPI = {
   login: (initData: string) =>
-    api.post<{ token: string; user: any; startParam?: string }>('/auth/telegram', { initData })
+    api.post<{ token: string; user: any; startParam?: string; dailyBonus?: { claimed: boolean; amount?: number; streak?: number } }>('/auth/telegram', { initData })
        .then(r => r.data),
   devLogin: (nickname: string) =>
     api.post<{ token: string; user: any }>('/auth/dev', { nickname })
@@ -94,8 +94,9 @@ export const HistoryAPI = {
 };
 
 export const LeaderboardAPI = {
-  top: (type: 'wins' | 'earnings' = 'wins', limit = 50) =>
-    api.get(`/leaderboard?type=${type}&limit=${limit}`).then(r => r.data),
+  top: (type: 'wins' | 'earnings' | 'season' = 'wins', limit = 50) =>
+    api.get(`/leaderboard?type=${type === 'season' ? 'season' : type === 'earnings' ? 'earnings' : 'wins'}&limit=${limit}`).then(r => r.data),
+  seasonInfo: () => api.get<{ name: string; start: string; end: string }>('/leaderboard/season').then(r => r.data),
 };
 
 export interface Rates { RUB: number; USDT: number; STARS: number; ts: number; live: boolean }

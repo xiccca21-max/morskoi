@@ -121,11 +121,18 @@ export default function App() {
       const initData = getInitData();
       try {
         if (initData) {
-          // если есть Telegram — всегда апдейтим (или создаём)
-          const { token, user } = await AuthAPI.login(initData);
+          const res = await AuthAPI.login(initData);
           if (cancelled) return;
-          setAuthToken(token);
-          setUser({ ...user, balance: Number(user.balance) });
+          setAuthToken(res.token);
+          setUser({ ...res.user, balance: Number(res.user.balance) });
+          if (res.dailyBonus?.claimed && res.dailyBonus.amount) {
+            toast(
+              `Ежедневный бонус +${res.dailyBonus.amount} ₽ · стрик ${res.dailyBonus.streak} дн.`,
+              'success',
+              'coins',
+            );
+            playSound('win');
+          }
         } else if (existing) {
           // без Telegram — пробуем GET /users/me чтобы валидировать токен
           try {

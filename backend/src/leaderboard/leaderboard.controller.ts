@@ -10,6 +10,12 @@ export class LeaderboardController {
   @Get()
   top(@Query('type') type?: string, @Query('limit') limit?: string) {
     const lim = Math.min(Math.max(Number(limit ?? 50), 1), 200);
+    if (type === 'season') return this.lb.topSeason(lim);
     return type === 'earnings' ? this.lb.topByEarnings(lim) : this.lb.topByWins(lim);
+  }
+
+  @Get('season')
+  seasonInfo() {
+    return this.lb.getSeason();
   }
 }

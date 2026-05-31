@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { HistoryAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
 import { SkeletonList } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
+import { Spinner } from '../components/Spinner';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
+import { usePullToRefresh } from '../lib/usePullToRefresh';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
@@ -30,9 +32,19 @@ export default function HistoryScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    HistoryAPI.list(50).then(setItems).catch(() => {}).finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setItems(await HistoryAPI.list(50));
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+  const { refreshing } = usePullToRefresh(load);
 
   const wins = items.filter((m) => m.result === 'win').length;
   const losses = items.filter((m) => m.result === 'loss').length;
@@ -44,7 +56,10 @@ export default function HistoryScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-3">
-      <h2 className="title text-main text-lg">Журнал боёв</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="title text-main text-lg">Журнал боёв</h2>
+        {refreshing && <Spinner size={16} />}
+      </div>
       {!loading && items.length > 0 && (
         <div className="card p-3 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
           <div className="bg-panel p-2 text-center">
@@ -63,7 +78,7 @@ export default function HistoryScreen() {
           </div>
         </div>
       )}
-      {loading && <SkeletonList rows={5} />}
+      {loading && !refreshing && <SkeletonList rows={5} />}
       {!loading && items.length === 0 && (
         <EmptyState icon="scroll" title="Журнал пуст" subtitle="Сыграйте первый бой — он появится здесь" />
       )}
@@ -107,6 +122,7 @@ export default function HistoryScreen() {
           );
         })}
       </ul>
+      <p className="text-center text-muted text-[10px] pt-1">Потяните вниз для обновления</p>
     </div>
   );
 }

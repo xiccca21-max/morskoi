@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { validateAndParseInitData } from './telegram-init-data';
+import { DailyBonusService } from './daily-bonus.service';
 
 export interface JwtPayload {
   sub: string;       // userId
@@ -14,6 +15,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly dailyBonus: DailyBonusService,
   ) {}
 
   async loginWithTelegram(initData: string) {
@@ -90,10 +92,17 @@ export class AuthService {
       username: user.username ?? undefined,
     } as JwtPayload);
 
+    const dailyBonus = await this.dailyBonus.tryClaim(user.id).catch(() => ({ claimed: false }));
+
+    const fresh = dailyBonus.claimed
+      ? await this.prisma.user.findUnique({ where: { id: user.id } })
+      : user;
+
     return {
       token,
-      user: this.publicUser(user),
+      user: this.publicUser(fresh ?? user),
       startParam: parsed.startParam,
+      dailyBonus,
     };
   }
 
@@ -113,6 +122,7 @@ export class AuthService {
       losses: user.losses,
       draws: user.draws,
       referralCount: user.referralCount ?? 0,
+      loginStreak: user.loginStreak ?? 0,
       agreedToTerms: !!user.agreedToTermsAt,
       createdAt: user.createdAt,
     };

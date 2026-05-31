@@ -1,25 +1,26 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 
 /**
  * Автоматический бэкап SQLite-базы (где лежат реальные балансы игроков).
  * Раз в сутки копирует файл БД в подпапку backups/ рядом с базой,
- * хранит последние N копий. Перед копированием делает WAL-checkpoint,
- * чтобы снимок был консистентным.
- *
- * Включается только при DATABASE_URL вида file:/path/to.db (SQLite).
- * Кол-во хранимых копий — BACKUP_KEEP (по умолчанию 7).
+ * хранит последние N копий. Уведомляет админа в Telegram (ADMIN_TELEGRAM_ID).
  */
 @Injectable()
 export class BackupService implements OnModuleInit {
   private readonly logger = new Logger('Backup');
   private readonly dbPath: string | null;
   private readonly keep = Math.max(1, Number(process.env.BACKUP_KEEP || 7));
+  private readonly adminTgId = process.env.ADMIN_TELEGRAM_ID || '';
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bot: TelegramBotService,
+  ) {
     const url = process.env.DATABASE_URL || '';
     this.dbPath = url.startsWith('file:') ? url.slice('file:'.length) : null;
   }
@@ -37,24 +38,38 @@ export class BackupService implements OnModuleInit {
     if (!this.dbPath) return;
     const dir = join(dirname(this.dbPath), 'backups');
     try {
-      // Сбрасываем WAL в основной файл, чтобы копия была полной.
       await this.prisma.$executeRawUnsafe('PRAGMA wal_checkpoint(TRUNCATE);').catch(() => undefined);
       await fs.mkdir(dir, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
       const dest = join(dir, `naval-${stamp}.db`);
       await fs.copyFile(this.dbPath, dest);
-      this.logger.log(`backup created: ${dest}`);
+      const stat = await fs.stat(dest);
+      const sizeMb = (stat.size / 1024 / 1024).toFixed(2);
+      this.logger.log(`backup created: ${dest} (${sizeMb} MB)`);
       await this.prune(dir);
+      await this.notifyAdmin(
+        `✅ <b>Бэкап БД создан</b>\n` +
+          `Файл: <code>${dest.split('/').pop()}</code>\n` +
+          `Размер: ${sizeMb} MB\n` +
+          `Хранится копий: ${this.keep}`,
+      );
     } catch (e: any) {
-      this.logger.warn(`backup failed: ${e?.message || e}`);
+      const msg = e?.message || String(e);
+      this.logger.warn(`backup failed: ${msg}`);
+      await this.notifyAdmin(`❌ <b>Бэкап БД не удался</b>\n${msg}`);
     }
+  }
+
+  private async notifyAdmin(text: string) {
+    if (!this.adminTgId) return;
+    await this.bot.notify(this.adminTgId, text).catch(() => undefined);
   }
 
   private async prune(dir: string) {
     try {
       const files = (await fs.readdir(dir))
         .filter((f) => f.startsWith('naval-') && f.endsWith('.db'))
-        .sort(); // имена с ISO-меткой сортируются хронологически
+        .sort();
       const excess = files.length - this.keep;
       for (let i = 0; i < excess; i++) {
         await fs.unlink(join(dir, files[i])).catch(() => undefined);
