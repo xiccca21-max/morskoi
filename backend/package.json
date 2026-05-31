@@ -12,7 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "node --require ts-node/register/transpile-only --test src/game/engine/board.spec.ts"
+    "test": "node --require ts-node/register/transpile-only --test src/game/engine/board.spec.ts src/common/money.spec.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

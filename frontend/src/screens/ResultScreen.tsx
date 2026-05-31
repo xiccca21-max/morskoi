@@ -13,7 +13,7 @@ import { Skeleton } from '../components/Skeleton';
 import { playSound } from '../lib/audio';
 import { formatMoney } from '../lib/format';
 import { toast } from '../stores/toast-store';
-import { newAchievementIds } from '../lib/achievements';
+import { ACHIEVEMENTS, newAchievementIds, statsFromUser, newStreakAchievements } from '../lib/achievements';
 import { referralBotLink } from '../lib/referral';
 import { getRank } from '../lib/rank';
 
@@ -64,9 +64,10 @@ export default function ResultScreen() {
     if (matchState?.winnerId && me?.id && matchState.matchId === matchId && !resultApplied.current) {
       resultApplied.current = true;
       const isWin = matchState.winnerId === me.id;
-      const before = { wins: me.wins, losses: me.losses };
+      const before = statsFromUser(me);
       applyMatchResult(isWin);
-      const after = { wins: me.wins + (isWin ? 1 : 0), losses: me.losses + (isWin ? 0 : 1) };
+      const afterUser = useAuthStore.getState().user!;
+      const after = statsFromUser(afterUser);
       if (!achievementsShown.current) {
         achievementsShown.current = true;
         for (const a of newAchievementIds(before, after)) {

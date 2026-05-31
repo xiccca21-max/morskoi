@@ -103,6 +103,7 @@
       <button data-tab="users" class="active">Игроки</button>
       <button data-tab="withdrawals">Выводы</button>
       <button data-tab="stats">Статистика</button>
+      <button data-tab="logs">Журнал</button>
     </div>
 
     <!-- USERS -->
@@ -145,6 +146,22 @@
     <!-- STATS -->
     <div id="tab-stats" class="hidden">
       <div class="card"><div id="statsBox" class="stat-grid"></div></div>
+    </div>
+
+    <!-- LOGS -->
+    <div id="tab-logs" class="hidden">
+      <div class="card">
+        <div class="row">
+          <button id="logsRefresh">Обновить журнал</button>
+        </div>
+        <div id="logsErr" class="err"></div>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Когда</th><th>Действие</th><th>User</th><th>Детали</th></tr></thead>
+          <tbody id="logsBody"><tr><td colspan="4" class="muted">Загрузка…</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -191,13 +208,14 @@
     function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
     // ---- tabs ----
-    const tabs = ['users','withdrawals','stats'];
+    const tabs = ['users','withdrawals','stats','logs'];
     function switchTab(name) {
       document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       tabs.forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
       document.getElementById('tab-user').classList.add('hidden');
       if (name === 'stats') loadStats();
       if (name === 'withdrawals') loadWithdrawals();
+      if (name === 'logs') loadLogs();
     }
     document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
@@ -348,6 +366,27 @@
           <div class="stat"><div class="v">${fmt(s.pendingWithdrawals)}</div><div class="l">Выводов в ожидании</div></div>
           <div class="stat"><div class="v">${fmt(s.banned)}</div><div class="l">Забанено</div></div>`;
       } catch (e) { box.innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+    }
+
+    // ---- action logs ----
+    document.getElementById('logsRefresh').onclick = loadLogs;
+    async function loadLogs() {
+      const errEl = document.getElementById('logsErr'); errEl.textContent = '';
+      const body = document.getElementById('logsBody');
+      body.innerHTML = '<tr><td colspan="4" class="muted">Загрузка…</td></tr>';
+      try {
+        const logs = await api('/logs?limit=80');
+        if (!logs.length) { body.innerHTML = '<tr><td colspan="4" class="muted">Пусто</td></tr>'; return; }
+        body.innerHTML = logs.map(l => {
+          const meta = l.meta ? JSON.stringify(l.meta).slice(0, 120) : '—';
+          return `<tr>
+            <td>${dt(l.createdAt)}</td>
+            <td><code>${esc(l.action)}</code></td>
+            <td class="id">${esc(l.userId || '—')}</td>
+            <td class="muted">${esc(meta)}</td>
+          </tr>`;
+        }).join('');
+      } catch (e) { errEl.textContent = e.message; body.innerHTML = ''; }
     }
 
     // init

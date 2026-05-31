@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { TxType, TxStatus } from '../common/enums';
 import { AuditService } from '../common/audit.service';
+import { roundRub } from '../common/money';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
@@ -136,8 +137,8 @@ export class WalletService {
           throw new BadRequestException(`Превышен дневной лимит вывода (${DAILY_LIMIT} ₽)`);
         }
 
-        const fee = +(amount * (FEE_PERCENT / 100)).toFixed(2);
-        const net = +(amount - fee).toFixed(2);
+        const fee = roundRub(amount * (FEE_PERCENT / 100));
+        const net = roundRub(amount - fee);
 
         await tx.user.update({
           where: { id: userId },
@@ -430,8 +431,8 @@ export class WalletService {
           }
 
           const pool = wagerAmount * 2;
-          const rake = +(pool * (rakePercent / 100)).toFixed(2);
-          const winnerPayout = +(pool - rake).toFixed(2);
+          const rake = roundRub(pool * (rakePercent / 100));
+          const winnerPayout = roundRub(pool - rake);
           const loserId = winnerId === p1Id ? p2Id : p1Id;
 
           await tx.user.update({

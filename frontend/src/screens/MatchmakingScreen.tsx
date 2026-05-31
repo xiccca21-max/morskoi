@@ -16,6 +16,7 @@ import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
 import { formatMoney } from '../lib/format';
+import { playSound } from '../lib/audio';
 import { MIN_WAGER, MAX_WAGER } from '../lib/config';
 
 const ALL_RANKS_LOCAL = ALL_RANKS;
@@ -110,6 +111,7 @@ export default function MatchmakingScreen() {
       setInQueue(false);
       setQueueSearching(false);
       tgHaptic('success');
+      playSound('win');
       navigate(`/placement/${data.matchId}`);
     };
     sock.on('match:found', onFound);

@@ -5,25 +5,17 @@ import { AuthAPI, UsersAPI } from '../api/endpoints';
 import { setAuthToken } from '../api/http';
 import { tgShare, tgPhotoUrl, tgHaptic, tgOpenLink } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
-import { getRank, rankProgress, nextRank, winsToNext } from '../lib/rank';
-import type { Rank } from '../lib/rank';
+import { getRank, rankProgress, nextRank, winsToNext, ALL_RANKS } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { ReferralCard } from '../components/ReferralCard';
 import { WeeklyStats } from '../components/WeeklyStats';
 import { StreakWidget } from '../components/StreakWidget';
-import { ACHIEVEMENTS } from '../lib/achievements';
+import { ACHIEVEMENTS, statsFromUser } from '../lib/achievements';
 import { referralBotLink, referralShareText } from '../lib/referral';
 import { Modal, ConfirmDialog } from '../components/Modal';
 
-const ALL_RANKS: Rank[] = [
-  { title: 'Юнга',    icon: 'anchor',  min: 0,  next: 3  },
-  { title: 'Матрос',  icon: 'ship',    min: 3,  next: 8  },
-  { title: 'Боцман',  icon: 'compass', min: 8,  next: 15 },
-  { title: 'Штурман', icon: 'wheel',   min: 15, next: 30 },
-  { title: 'Капитан', icon: 'medal',   min: 30, next: 60 },
-  { title: 'Адмирал', icon: 'crown',   min: 60             },
-];
+const ALL_RANKS_LOCAL = ALL_RANKS;
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
@@ -173,7 +165,7 @@ export default function ProfileScreen() {
           Звание растёт с каждой победой. Чем выше звание — тем статуснее профиль в таблице лидеров.
         </p>
         <ul className="space-y-2">
-          {ALL_RANKS.map((r) => {
+          {ALL_RANKS_LOCAL.map((r) => {
             const isCurrent = r.title === rank.title;
             return (
               <li
@@ -206,7 +198,7 @@ export default function ProfileScreen() {
         <Stat label="Точность" value={`${wr}%`} />
       </section>
 
-      <Achievements wins={user.wins} losses={user.losses} games={total} wr={wr} />
+      <Achievements user={user} />
 
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
@@ -267,9 +259,9 @@ function plural(n: number): string {
   return 'побед';
 }
 
-function Achievements({ wins, losses, games, wr }: { wins: number; losses: number; games: number; wr: number }) {
-  const stats = { wins, losses, games, wr };
-  const badges = ACHIEVEMENTS.map((a) => ({ ...a, earned: a.earned(stats) }));
+function Achievements({ user }: { user: { wins: number; losses: number; loginStreak?: number; referralCount?: number } }) {
+  const stats = statsFromUser({ ...user, wins: user.wins, losses: user.losses });
+  const badges = ACHIEVEMENTS.map((a) => ({ ...a, earned: a.earned(stats), pct: Math.round(a.progress(stats)) }));
   const earnedCount = badges.filter((b) => b.earned).length;
   return (
     <section className="card p-4">
@@ -280,13 +272,18 @@ function Achievements({ wins, losses, games, wr }: { wins: number; losses: numbe
       <div className="grid grid-cols-3 gap-2">
         {badges.map((b) => (
           <div
-            key={b.title}
-            className={['rounded-lg p-3 flex flex-col items-center text-center gap-1 border transition', b.earned ? 'bg-danger/10 border-danger/40' : 'bg-panel border-line opacity-50'].join(' ')}
+            key={b.id}
+            className={['rounded-lg p-3 flex flex-col items-center text-center gap-1 border transition relative overflow-hidden', b.earned ? 'bg-danger/10 border-danger/40' : 'bg-panel border-line'].join(' ')}
             title={b.desc}
           >
+            {!b.earned && b.pct > 0 && (
+              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-line">
+                <div className="h-full bg-danger/60" style={{ width: `${b.pct}%` }} />
+              </div>
+            )}
             <Icon name={b.earned ? b.icon : 'lock'} size={20} className={b.earned ? 'text-danger' : 'text-muted'} />
-            <span className="text-[11px] font-display text-main leading-tight">{b.title}</span>
-            <span className="text-[9px] text-muted leading-tight">{b.desc}</span>
+            <span className={['text-[11px] font-display leading-tight', b.earned ? 'text-main' : 'text-muted'].join(' ')}>{b.title}</span>
+            <span className="text-[9px] text-muted leading-tight">{b.earned ? b.desc : `${b.pct}%`}</span>
           </div>
         ))}
       </div>

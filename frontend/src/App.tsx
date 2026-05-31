@@ -12,6 +12,7 @@ import { useMatchStore } from './stores/match-store';
 import { useThemeStore } from './stores/theme-store';
 import { useNotifyPrefsStore } from './stores/notify-prefs-store';
 import { syncNotifyFromServer } from './stores/notify-prefs-store';
+import { newStreakAchievements } from './lib/achievements';
 import { playSound, unlockAudio } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
@@ -49,6 +50,7 @@ function Protected({ children }: { children: JSX.Element }) {
 
 export default function App() {
   const setUser = useAuthStore((s) => s.setUser);
+  const patchUser = useAuthStore((s) => s.patchUser);
   const setReady = useAuthStore((s) => s.setReady);
   const updateBalance = useAuthStore((s) => s.updateBalance);
   const updateWallet = useAuthStore((s) => s.updateWallet);
@@ -137,12 +139,18 @@ export default function App() {
           setUser({ ...res.user, balance: Number(res.user.balance) });
           syncNotifyFromServer(res.user);
           if (res.dailyBonus?.claimed && res.dailyBonus.amount) {
+            const prevStreak = Math.max(0, (res.dailyBonus.streak ?? 1) - 1);
+            const nextStreak = res.dailyBonus.streak ?? 1;
             toast(
-              `Ежедневный бонус +${res.dailyBonus.amount} ₽ · стрик ${res.dailyBonus.streak} дн.`,
+              `Ежедневный бонус +${res.dailyBonus.amount} ₽ · стрик ${nextStreak} дн.`,
               'success',
               'coins',
             );
             playSound('win');
+            for (const a of newStreakAchievements(prevStreak, nextStreak)) {
+              setTimeout(() => toast(`Достижение: ${a.title}`, 'success', a.icon), 600);
+            }
+            patchUser({ loginStreak: nextStreak });
           }
         } else if (existing) {
           try {
@@ -171,7 +179,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [setReady, setUser]);
+  }, [setReady, setUser, patchUser]);
 
   // Подключение к сокету после логина + глобальные обработчики (регистрируем один раз)
   const authenticated = useAuthStore((s) => s.authenticated);
@@ -242,6 +250,15 @@ export default function App() {
     sock.on('match:rematchRequested', onRematchReq);
     sock.on('match:cancelled', onCancelled);
     sock.on('wallet:update', onWalletUpdate);
+    const onMatchFound = (e: any) => { // eslint-disable-line
+      if (!e?.matchId) return;
+      playSound('win');
+      const path = window.location.pathname;
+      if (!path.includes('/placement/') && !path.includes('/battle/')) {
+        navigate(`/placement/${e.matchId}`);
+      }
+    };
+    sock.on('match:found', onMatchFound);
 
     return () => {
       sock.off('connect_error', onConnectError);
@@ -254,6 +271,7 @@ export default function App() {
       sock.off('match:rematchRequested', onRematchReq);
       sock.off('match:cancelled', onCancelled);
       sock.off('wallet:update', onWalletUpdate);
+      sock.off('match:found', onMatchFound);
       if (toastTimer) clearTimeout(toastTimer);
       closeSocket();
     };
