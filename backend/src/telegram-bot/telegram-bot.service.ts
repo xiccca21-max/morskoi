@@ -537,6 +537,7 @@ export class TelegramBotService implements OnModuleInit {
       this.logger.warn(`notifyLobbyJoined: host ${hostId} not found`);
       return;
     }
+    if (typeof user.telegramId === 'string' && user.telegramId.startsWith('bot:')) return;
     const url = process.env.TELEGRAM_WEBAPP_URL;
     const text =
       `🚢 <b>${joinerName}</b> принял твой вызов!\n` +

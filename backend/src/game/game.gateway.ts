@@ -397,6 +397,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.lobbies.join(body.code.toUpperCase(), s.data.userId);
+      // если хост — бот, расставляем его флот и фиксируем уровень игры
+      await this.bots.prepareBotMatch(r.matchId);
       await this.notifyMatchFound(r.matchId);
 
       // Пуш-уведомление создателю лобби: кто-то принял его вызов

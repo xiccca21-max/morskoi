@@ -40,6 +40,13 @@ interface BotProfile {
 const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
 const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 
+function genLobbyCode(len = 6): string {
+  const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < len; i++) s += a[Math.floor(Math.random() * a.length)];
+  return s;
+}
+
 function buildBotProfile(index: number): BotProfile {
   const female = index % 3 === 0;
   const first = female ? pick(FEMALE_NAMES) : pick(MALE_NAMES);
@@ -98,6 +105,7 @@ export class BotsService implements OnModuleInit {
   private readonly targetCount = Number(process.env.BOTS_COUNT ?? 50);
   private readonly winRate = Number(process.env.BOT_WIN_RATE ?? 0.62);
   private readonly waitSec = Number(process.env.BOT_MATCH_WAIT_SEC ?? 10);
+  private readonly openLobbies = Number(process.env.BOT_OPEN_LOBBIES ?? 6);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -113,6 +121,7 @@ export class BotsService implements OnModuleInit {
     }
     try {
       await this.ensureBots();
+      await this.lobbyFillTick();
     } catch (e: any) {
       this.logger.warn(`ensureBots failed: ${e?.message}`);
     }
@@ -128,6 +137,42 @@ export class BotsService implements OnModuleInit {
 
   forgetMatch(matchId: string) {
     this.matchSkill.delete(matchId);
+  }
+
+  /**
+   * Готовит матч с участием бота: фиксирует уровень игры и авто-расставляет
+   * флот бота, если он ещё не расставлен. Возвращает true, если бот в матче.
+   * Используется и для matchmaking, и для публичных лобби.
+   */
+  async prepareBotMatch(matchId: string): Promise<boolean> {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: { gameState: true },
+    });
+    if (!match || !match.gameState) return false;
+    const botId = this.isBot(match.player1Id)
+      ? match.player1Id
+      : this.isBot(match.player2Id)
+        ? match.player2Id
+        : null;
+    if (!botId) return false;
+
+    if (!this.matchSkill.has(matchId)) {
+      this.matchSkill.set(matchId, Math.random() < this.winRate ? 'strong' : 'weak');
+    }
+
+    const isP1 = match.player1Id === botId;
+    const boardJson = (isP1 ? match.gameState.player1Board : match.gameState.player2Board) as unknown as string;
+    let placed = false;
+    try { placed = JSON.parse(boardJson)?.placed === true; } catch { /* пусто */ }
+    if (!placed) {
+      try {
+        await this.game.submitPlacement(matchId, botId, 'auto');
+      } catch (e: any) {
+        this.logger.warn(`bot placement ${matchId}: ${e?.message}`);
+      }
+    }
+    return true;
   }
 
   /** Идемпотентно создаёт недостающих ботов до targetCount. */
@@ -227,10 +272,70 @@ export class BotsService implements OnModuleInit {
 
       // человек — player1 (ходит первым), бот — player2
       const match = await this.game.createMatch(userId, bot.id, wager);
-      await this.game.submitPlacement(match.id, bot.id, 'auto');
-      this.matchSkill.set(match.id, Math.random() < this.winRate ? 'strong' : 'weak');
+      await this.prepareBotMatch(match.id);
       await this.matchEvents.notifyMatchFound(match.id);
       this.logger.log(`Bot match ${match.id}: ${userId} vs bot ${bot.id} @ ${wager}₽ (${this.matchSkill.get(match.id)})`);
+    });
+  }
+
+  // ============= Публичные лобби с ботами =============
+
+  /** Каждые 30 секунд держим открытыми ~BOT_OPEN_LOBBIES публичных вызовов от ботов. */
+  @Cron('*/30 * * * * *')
+  async lobbyFillTick() {
+    if (!this.enabled || this.openLobbies <= 0) return;
+    const now = new Date();
+
+    // Закрываем протухшие лобби ботов, чтобы не копились.
+    await this.prisma.lobby.updateMany({
+      where: { status: 'OPEN', expiresAt: { lte: now }, host: { telegramId: { startsWith: 'bot:' } } } as any,
+      data: { status: 'CLOSED' },
+    });
+
+    const openBot = await this.prisma.lobby.findMany({
+      where: { isPublic: true, status: 'OPEN', expiresAt: { gt: now }, host: { telegramId: { startsWith: 'bot:' } } } as any,
+      select: { hostId: true },
+    });
+    const need = this.openLobbies - openBot.length;
+    if (need <= 0) return;
+
+    const busy = new Set(openBot.map((l) => l.hostId));
+    const min = Number(process.env.MIN_WAGER ?? 100);
+    const max = Number(process.env.MAX_WAGER ?? 10000);
+    const wagerSet = [100, 200, 300, 500, 1000, 2000, 3000, 5000].filter((w) => w >= min && w <= max);
+
+    const poolBots = await this.prisma.user.findMany({
+      where: { telegramId: { startsWith: 'bot:' }, banned: false },
+      select: { id: true, balance: true },
+    });
+    const avail = poolBots.filter((b) => !busy.has(b.id));
+
+    for (let i = 0; i < need && avail.length; i++) {
+      const bot = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
+      const affordable = (wagerSet.length ? wagerSet : [min]).filter((w) => Number(bot.balance) >= w);
+      if (!affordable.length) continue;
+      try {
+        await this.createBotLobby(bot.id, pick(affordable));
+      } catch (e: any) {
+        this.logger.warn(`createBotLobby failed: ${e?.message}`);
+      }
+    }
+  }
+
+  private async createBotLobby(botId: string, wager: number) {
+    await this.prisma.lobby.updateMany({
+      where: { hostId: botId, status: 'OPEN' },
+      data: { status: 'CLOSED' },
+    });
+    let code = '';
+    for (let i = 0; i < 5; i++) {
+      code = genLobbyCode(6);
+      const exists = await this.prisma.lobby.findUnique({ where: { code } });
+      if (!exists) break;
+    }
+    const expiresAt = new Date(Date.now() + rnd(20, 45) * 60 * 1000);
+    await this.prisma.lobby.create({
+      data: { code, hostId: botId, wagerAmount: wager, expiresAt, status: 'OPEN', isPublic: true } as any,
     });
   }
 }
