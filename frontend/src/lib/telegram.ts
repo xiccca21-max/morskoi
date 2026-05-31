@@ -81,6 +81,26 @@ export function tgMainButton(opts: MainButtonOpts | null) {
       mb.hide();
     } else {
       mb.setText(opts.text.toUpperCase());
+      // Перекрашиваем нативную кнопку в фирменный красный (вместо синего Telegram),
+      // подхватывая активную тему через CSS-переменную --c-danger-rgb.
+      try {
+        const rgb = getComputedStyle(document.documentElement)
+          .getPropertyValue('--c-danger-rgb')
+          .trim();
+        if (rgb) {
+          const [r, g, b] = rgb.split(/[\s,]+/).map((v) => Number(v));
+          if ([r, g, b].every((v) => Number.isFinite(v))) {
+            const hex =
+              '#' +
+              [r, g, b]
+                .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'))
+                .join('');
+            mb.setParams?.({ color: hex, text_color: '#ffffff' });
+          }
+        }
+      } catch {
+        /* ignore — оставим тему Telegram по умолчанию */
+      }
       if (opts.active === false) mb.disable();
       else mb.enable();
       if (opts.progress) mb.showProgress?.(false);
