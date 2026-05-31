@@ -7,6 +7,8 @@ import { Explosion, Splash } from '../components/Effects';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
+import { UsersAPI } from '../api/endpoints';
+import { Avatar } from '../components/Avatar';
 import { tgHaptic, tgNotify, tgVibrate, tgBackButton, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
 import { SHIP_FLEET, ShipKind } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
@@ -41,6 +43,17 @@ export default function BattleScreen() {
   const [showSurrender, setShowSurrender] = useState(false);
   const [connected, setConnected] = useState(true);
   const [reactionCooldown, setReactionCooldown] = useState(false);
+  const [opponent, setOpponent] = useState<{ name: string; avatar?: string | null; wins: number; losses: number } | null>(null);
+
+  const enemyId = state?.enemy.userId;
+  useEffect(() => {
+    if (!enemyId) { setOpponent(null); return; }
+    let cancelled = false;
+    UsersAPI.byId(enemyId)
+      .then((u: any) => { if (!cancelled) setOpponent({ name: u.username, avatar: u.avatar, wins: u.wins, losses: u.losses }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [enemyId]);
 
   useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
 
@@ -231,6 +244,34 @@ export default function BattleScreen() {
 
   return (
     <div className={['max-w-md mx-auto space-y-3', shake ? 'fx-shake' : ''].join(' ')}>
+      {/* Соперник */}
+      <div className="card p-2.5 flex items-center gap-3">
+        <div className="relative">
+          <Avatar name={opponent?.name} src={opponent?.avatar} size={38} />
+          {!myTurn && state.gameStatus === 'IN_PROGRESS' && (
+            <motion.span
+              className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-danger border-2 border-panel"
+              animate={{ scale: [1, 1.35, 1], opacity: [1, 0.5, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-sm text-main truncate">{opponent?.name ?? 'Соперник'}</p>
+          <p className="text-[10px] text-muted tabular-nums">
+            {opponent ? `${opponent.wins} побед · ${opponent.losses} поражений` : 'загрузка…'}
+          </p>
+        </div>
+        <span
+          className={[
+            'text-[10px] font-display uppercase tracking-wider px-2 py-1 rounded',
+            !myTurn && state.gameStatus === 'IN_PROGRESS' ? 'bg-danger/15 text-danger' : 'text-muted',
+          ].join(' ')}
+        >
+          {!myTurn && state.gameStatus === 'IN_PROGRESS' ? 'целится…' : 'соперник'}
+        </span>
+      </div>
+
       {/* HUD */}
       <div className="card p-3 flex items-center justify-between">
         <div>

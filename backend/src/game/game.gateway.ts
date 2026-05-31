@@ -249,8 +249,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       if (this.botThinking.has(matchId)) return;
       this.botThinking.add(matchId);
 
-      const min = Number(process.env.BOT_MIN_DELAY_MS ?? 900);
-      const max = Number(process.env.BOT_MAX_DELAY_MS ?? 2300);
+      const min = Number(process.env.BOT_MIN_DELAY_MS ?? 1000);
+      const max = Number(process.env.BOT_MAX_DELAY_MS ?? 3000);
       const delay = min + Math.floor(Math.random() * Math.max(1, max - min));
       setTimeout(() => {
         this.performBotMove(matchId)

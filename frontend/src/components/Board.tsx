@@ -182,7 +182,7 @@ export function Board({
                     {inAimLine && !att && (
                       <span className="absolute inset-0 pointer-events-none bg-danger/10" />
                     )}
-                    {att && !onSunk && <Marker hit={att.hit} sunk={false} />}
+                    {att && !onSunk && <Marker hit={att.hit} />}
                     {isHighlight && isClickable && <Crosshair />}
                   </div>
                 );
@@ -221,28 +221,46 @@ export function Board({
   );
 }
 
-function Marker({ hit, sunk }: { hit: boolean; sunk: boolean }) {
+function Marker({ hit }: { hit: boolean }) {
   if (!hit) {
+    // Промах: мягко «вливающаяся» точка + расходящееся кольцо по воде.
     return (
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'repeating-linear-gradient(45deg, var(--c-muted) 0px, var(--c-muted) 2px, transparent 2px, transparent 6px)',
-          opacity: 0.35,
-        }}
-      />
+      <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <motion.span
+          initial={{ scale: 0.2, opacity: 0 }}
+          animate={{ scale: 1, opacity: 0.6 }}
+          transition={{ duration: 0.32, ease: 'easeOut' }}
+          className="rounded-full bg-muted"
+          style={{ width: '26%', height: '26%' }}
+        />
+        <motion.span
+          initial={{ scale: 0.3, opacity: 0.55 }}
+          animate={{ scale: 1.6, opacity: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="absolute rounded-full border border-muted"
+          style={{ width: '42%', height: '42%' }}
+        />
+      </span>
     );
   }
+  // Попадание: «впечатывающийся» красный квадрат + ударное кольцо.
   return (
-    <motion.span
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      className={["absolute inset-[14%] rounded-sm flex items-center justify-center shadow-[2px_2px_0px_#000]", sunk ? "bg-panel border-2 border-danger text-danger" : "bg-danger text-white"].join(' ')}
-    >
-      <span className="font-display text-[14px] leading-none">✕</span>
-    </motion.span>
+    <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
+      <motion.span
+        initial={{ scale: 0, rotate: -18, opacity: 0 }}
+        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 17 }}
+        className="absolute inset-[14%] rounded-sm bg-danger text-white flex items-center justify-center shadow-[2px_2px_0px_#000]"
+      >
+        <span className="font-display text-[14px] leading-none">✕</span>
+      </motion.span>
+      <motion.span
+        initial={{ scale: 0.3, opacity: 0.7 }}
+        animate={{ scale: 2, opacity: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="absolute inset-[12%] rounded-full border-2 border-danger"
+      />
+    </span>
   );
 }
 
