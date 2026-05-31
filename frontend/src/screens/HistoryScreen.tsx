@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { HistoryAPI } from '../api/endpoints';
 import { Icon } from '../components/Icon';
@@ -29,6 +30,7 @@ function CopyId({ id }: { id: string }) {
 }
 
 export default function HistoryScreen() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -110,7 +112,15 @@ export default function HistoryScreen() {
                   </span>
                   <CopyId id={m.id} />
                 </div>
-                <div className="text-sm text-main truncate">против {m.opponent?.name ?? 'неизвестного'}</div>
+                <div className="text-sm text-main truncate">
+                  {m.opponent?.id ? (
+                    <button className="hover:text-danger transition" onClick={() => navigate(`/player/${m.opponent.id}`)}>
+                      против {m.opponent.name ?? 'неизвестного'}
+                    </button>
+                  ) : (
+                    <>против {m.opponent?.name ?? 'неизвестного'}</>
+                  )}
+                </div>
                 <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString('ru-RU') : '—'}</div>
               </div>
               <div className={['font-display tabular-nums shrink-0', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>

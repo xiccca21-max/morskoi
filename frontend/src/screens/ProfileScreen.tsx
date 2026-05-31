@@ -9,6 +9,11 @@ import { getRank, rankProgress, nextRank, winsToNext } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { Icon, IconName } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
+import { ReferralCard } from '../components/ReferralCard';
+import { WeeklyStats } from '../components/WeeklyStats';
+import { StreakWidget } from '../components/StreakWidget';
+import { ACHIEVEMENTS } from '../lib/achievements';
+import { referralBotLink, referralShareText } from '../lib/referral';
 import { Modal, ConfirmDialog } from '../components/Modal';
 
 const ALL_RANKS: Rank[] = [
@@ -53,8 +58,8 @@ export default function ProfileScreen() {
 
   const shareProfile = () => {
     tgHaptic('success');
-    const link = `https://t.me/${bot}`;
-    tgShare(link, `${displayName} — ${rank.title} в «Морском Бою»: ${user.wins} побед, точность ${wr}%. Сразись со мной на ставку!`);
+    const link = referralBotLink(user.id);
+    tgShare(link, referralShareText(displayName));
   };
 
   const openNick = () => { setNick(user.nickname ?? ''); setShowNick(true); };
@@ -154,8 +159,13 @@ export default function ProfileScreen() {
         {next && (
           <p className="text-muted text-xs mt-2">Ещё {toNext} {plural(toNext)} до следующего звания</p>
         )}
-
+        <div className="mt-4">
+          <StreakWidget streak={user.loginStreak ?? 0} />
+        </div>
       </section>
+
+      <ReferralCard userId={user.id} displayName={displayName} referralCount={user.referralCount} />
+      <WeeklyStats />
 
       {/* Модаль: система званий */}
       <Modal open={showRanks} onClose={() => setShowRanks(false)} title="Система званий" icon="medal">
@@ -197,7 +207,6 @@ export default function ProfileScreen() {
       </section>
 
       <Achievements wins={user.wins} losses={user.losses} games={total} wr={wr} />
-
 
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
@@ -259,14 +268,8 @@ function plural(n: number): string {
 }
 
 function Achievements({ wins, losses, games, wr }: { wins: number; losses: number; games: number; wr: number }) {
-  const badges: { icon: IconName; title: string; desc: string; earned: boolean }[] = [
-    { icon: 'swords', title: 'Первая кровь', desc: 'Первая победа', earned: wins >= 1 },
-    { icon: 'ship', title: 'Морской волк', desc: '10 боёв', earned: games >= 10 },
-    { icon: 'target', title: 'Снайпер', desc: 'Точность 70%+', earned: games >= 5 && wr >= 70 },
-    { icon: 'medal', title: 'Десятка', desc: '10 побед', earned: wins >= 10 },
-    { icon: 'crown', title: 'Полста', desc: '50 побед', earned: wins >= 50 },
-    { icon: 'shield', title: 'Несокрушимый', desc: '5 побед без поражений', earned: wins >= 5 && losses === 0 },
-  ];
+  const stats = { wins, losses, games, wr };
+  const badges = ACHIEVEMENTS.map((a) => ({ ...a, earned: a.earned(stats) }));
   const earnedCount = badges.filter((b) => b.earned).length;
   return (
     <section className="card p-4">

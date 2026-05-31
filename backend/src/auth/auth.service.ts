@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { validateAndParseInitData } from './telegram-init-data';
 import { DailyBonusService } from './daily-bonus.service';
 
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly dailyBonus: DailyBonusService,
+    private readonly bot: TelegramBotService,
   ) {}
 
   async loginWithTelegram(initData: string) {
@@ -82,6 +84,11 @@ export class AuthService {
           await this.prisma.transaction.create({
             data: { userId: refId, type: 'DEPOSIT', amount: bonus, status: 'COMPLETED', meta: JSON.stringify({ source: 'referral', invited: user.id }) },
           });
+          const invName = tg.username ?? tg.first_name ?? 'Новый игрок';
+          this.bot.notifyUser(
+            refId,
+            `🎉 <b>Реферал!</b> ${invName} зарегистрировался по твоей ссылке.\n+${bonus} ₽ на баланс.`,
+          ).catch(() => undefined);
         }
       }
     }

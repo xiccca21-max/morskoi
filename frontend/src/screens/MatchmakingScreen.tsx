@@ -215,6 +215,17 @@ export default function MatchmakingScreen() {
         )}
       </div>
 
+      {balance < WAGER_MIN && (
+        <button
+          onClick={() => navigate('/wallet')}
+          className="w-full card card-press p-3 flex items-center gap-3 border-warning text-left"
+        >
+          <Icon name="coins" size={18} className="text-warning shrink-0" />
+          <span className="flex-1 text-main text-sm">Баланс {balance.toFixed(0)} ₽ — для боя нужно минимум {WAGER_MIN} ₽</span>
+          <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
+        </button>
+      )}
+
       <div className="card p-1 flex gap-1">
         <TabBtn active={tab === 'browse'} onClick={() => setTab('browse')} icon="swords">Поиск матча</TabBtn>
         <TabBtn active={tab === 'private'} onClick={() => setTab('private')} icon="lock">С другом</TabBtn>

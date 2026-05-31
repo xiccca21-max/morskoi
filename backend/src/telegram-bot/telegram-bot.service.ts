@@ -201,6 +201,7 @@ export class TelegramBotService implements OnModuleInit {
         { command: 'rules', description: '📜 Правила игры' },
         { command: 'support', description: '🆘 Поддержка' },
         { command: 'help', description: 'ℹ️ Помощь и команды' },
+        { command: 'invite', description: '🔗 Пригласить друга' },
       ],
     });
   }
@@ -306,6 +307,7 @@ export class TelegramBotService implements OnModuleInit {
           `🏆 Побед: <b>${user.wins}</b> · 💀 Поражений: <b>${user.losses}</b>\n` +
           `🎯 Точность: <b>${wr}%</b>\n` +
           (streak > 0 ? `🔥 Стрик входа: <b>${streak}</b> дн.\n` : '') +
+          `👥 Приглашено друзей: <b>${(user as any).referralCount ?? 0}</b>\n` +
           `\nОткрой игру, чтобы сменить ник и посмотреть достижения.`,
         { parse_mode: 'HTML', ...kb() },
       );
@@ -361,6 +363,26 @@ export class TelegramBotService implements OnModuleInit {
       await sendSupport(msg.chat.id);
     });
 
+    bot.onText(/^\/invite\b/, async (msg) => {
+      const tgId = String(msg.from?.id ?? msg.chat.id);
+      const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
+      const botName = process.env.TELEGRAM_BOT_USERNAME ?? 'NavalClashBot';
+      if (!user) {
+        await bot.sendMessage(msg.chat.id, 'Сначала нажми «⚔️ В бой», чтобы создать аккаунт.', kb());
+        return;
+      }
+      const bonus = Number(process.env.REFERRAL_BONUS ?? 25);
+      const link = `https://t.me/${botName}?start=ref_${user.id}`;
+      await bot.sendMessage(
+        msg.chat.id,
+        `🔗 <b>Пригласи друга</b>\n\n` +
+          `Твоя ссылка:\n<code>${link}</code>\n\n` +
+          `За каждого нового игрока — <b>+${bonus} ₽</b>.\n` +
+          `Приглашено: <b>${(user as any).referralCount ?? 0}</b>`,
+        { parse_mode: 'HTML', ...kb() },
+      );
+    });
+
     bot.onText(/^\/help\b/, async (msg) => {
       const text =
         'ℹ️ <b>Помощь</b>\n\n' +
@@ -374,7 +396,7 @@ export class TelegramBotService implements OnModuleInit {
       await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', ...kb() });
     });
 
-    const KNOWN = /^\/(start|play|balance|stats|top|rules|support|help)\b/;
+    const KNOWN = /^\/(start|play|balance|stats|top|rules|support|help|invite)\b/;
     bot.on('message', async (msg) => {
       if (msg.chat.type !== 'private') return;
       const text = msg.text?.trim();
@@ -403,6 +425,16 @@ export class TelegramBotService implements OnModuleInit {
         case BTN.SUPPORT:
           await sendSupport(msg.chat.id);
           return;
+        default:
+          break;
+      }
+
+      if (text.startsWith('https://t.me/') && text.includes('start=ref_')) {
+        await bot.sendMessage(msg.chat.id, 'Это реферальная ссылка — отправь её другу, не себе 🙂', kb());
+        return;
+      }
+
+      switch (text) {
         default:
           await bot.sendMessage(
             msg.chat.id,

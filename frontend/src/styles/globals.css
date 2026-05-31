@@ -70,6 +70,27 @@
   color-scheme: dark;
 }
 
+[data-theme="depth"] {
+  --c-base-rgb: 8 18 32;
+  --c-panel-rgb: 14 28 48;
+  --c-main-rgb: 220 235 255;
+  --c-muted-rgb: 120 150 190;
+  --c-accent-rgb: 56 189 248;
+  --c-danger-rgb: 248 113 113;
+  --c-success-rgb: 52 211 153;
+  --c-warning-rgb: 251 191 36;
+  --c-line-rgb: 40 70 110;
+  --c-water: rgba(56, 189, 248, 0.06);
+  --radius-card: 12px;
+  --radius-btn: 10px;
+  --border-w: 1px;
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --font-display: 'Oswald', Impact, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --bg-pattern: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 55%);
+  color-scheme: dark;
+}
+
 /* Производные hex-подобные переменные для сырого CSS (background: var(--c-danger)). */
 :root {
   --c-base: rgb(var(--c-base-rgb));

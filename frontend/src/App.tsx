@@ -10,6 +10,7 @@ import { getSocket, closeSocket } from './api/socket';
 import { useAuthStore } from './stores/auth-store';
 import { useMatchStore } from './stores/match-store';
 import { useThemeStore } from './stores/theme-store';
+import { useNotifyPrefsStore } from './stores/notify-prefs-store';
 import { playSound, unlockAudio } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
@@ -26,6 +27,7 @@ import LeaderboardScreen from './screens/LeaderboardScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import HowItWorksScreen from './screens/HowItWorksScreen';
+import PlayerScreen from './screens/PlayerScreen';
 import RulesScreen from './screens/RulesScreen';
 import { Layout } from './components/Layout';
 import { ConsentGate } from './components/ConsentGate';
@@ -204,6 +206,13 @@ export default function App() {
       // Подтягиваем withdrawable (сокет шлёт только баланс)
       WalletAPI.balance().then(updateWallet).catch(() => {});
     };
+    const onRematchReq = (e: any) => { // eslint-disable-line
+      const myId = useAuthStore.getState().user?.id;
+      if (!myId || e?.by === myId) return;
+      if (!useNotifyPrefsStore.getState().rematch) return;
+      toast('Соперник предлагает реванш!', 'info', 'swords');
+      playSound('click');
+    };
     const onCancelled = (e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
       clearMatch();
       if (e?.reason === 'placement_timeout') {
@@ -221,6 +230,7 @@ export default function App() {
     sock.on('match:state', onState);
     sock.on('match:attack', onAttack);
     sock.on('match:finished', onFinished);
+    sock.on('match:rematchRequested', onRematchReq);
     sock.on('match:cancelled', onCancelled);
     sock.on('wallet:update', onWalletUpdate);
 
@@ -232,6 +242,7 @@ export default function App() {
       sock.off('match:state', onState);
       sock.off('match:attack', onAttack);
       sock.off('match:finished', onFinished);
+      sock.off('match:rematchRequested', onRematchReq);
       sock.off('match:cancelled', onCancelled);
       sock.off('wallet:update', onWalletUpdate);
       if (toastTimer) clearTimeout(toastTimer);
@@ -241,14 +252,20 @@ export default function App() {
 
   const ready = useAuthStore((s) => s.ready);
 
-  // Диплинк-приглашение: ?startapp=lobby_CODE → открыть лобби
+  // Диплинки: lobby_CODE, wallet, profile_ID
   useEffect(() => {
     if (!ready || !authenticated || deepLinkHandled.current) return;
     deepLinkHandled.current = true;
     const sp = getStartParam();
-    if (sp && sp.startsWith('lobby_')) {
+    if (!sp) return;
+    if (sp.startsWith('lobby_')) {
       const code = sp.slice('lobby_'.length).toUpperCase();
       if (code) navigate(`/lobby/${code}`);
+    } else if (sp === 'wallet') {
+      navigate('/wallet');
+    } else if (sp.startsWith('profile_')) {
+      const id = sp.slice('profile_'.length);
+      if (id) navigate(`/player/${id}`);
     }
   }, [ready, authenticated, navigate]);
 
@@ -282,6 +299,7 @@ export default function App() {
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="/player/:id" element={<PlayerScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="/how-it-works" element={<HowItWorksScreen />} />
         <Route path="/rules" element={<RulesScreen />} />

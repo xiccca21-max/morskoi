@@ -12,6 +12,9 @@ import { Icon, IconName } from '../components/Icon';
 import { Skeleton } from '../components/Skeleton';
 import { playSound } from '../lib/audio';
 import { formatMoney } from '../lib/format';
+import { toast } from '../stores/toast-store';
+import { newAchievementIds } from '../lib/achievements';
+import { referralBotLink } from '../lib/referral';
 import { getRank } from '../lib/rank';
 
 export default function ResultScreen() {
@@ -34,16 +37,33 @@ export default function ResultScreen() {
   useEffect(() => {
     const sock = getSocket();
     const onRematch = (e: any) => { if (e.newMatchId) navigate(`/placement/${e.newMatchId}`); };
+    const onRematchReq = (e: any) => {
+      if (e?.by === me?.id) return;
+      toast('Соперник ждёт реванша — нажми «Реванш»', 'info', 'swords');
+    };
     sock.on('match:rematchStarted', onRematch);
-    return () => { sock.off('match:rematchStarted', onRematch); };
-  }, [navigate]);
+    sock.on('match:rematchRequested', onRematchReq);
+    return () => {
+      sock.off('match:rematchStarted', onRematch);
+      sock.off('match:rematchRequested', onRematchReq);
+    };
+  }, [navigate, me?.id]);
 
   const resultApplied = useRef(false);
+  const achievementsShown = useRef(false);
   useEffect(() => {
     if (matchState?.winnerId && me?.id && matchState.matchId === matchId && !resultApplied.current) {
       resultApplied.current = true;
       const isWin = matchState.winnerId === me.id;
+      const before = { wins: me.wins, losses: me.losses };
       applyMatchResult(isWin);
+      const after = { wins: me.wins + (isWin ? 1 : 0), losses: me.losses + (isWin ? 0 : 1) };
+      if (!achievementsShown.current) {
+        achievementsShown.current = true;
+        for (const a of newAchievementIds(before, after)) {
+          toast(`Достижение: ${a.title}`, 'success', a.icon);
+        }
+      }
       tgHaptic(isWin ? 'success' : 'error');
       playSound(isWin ? 'win' : 'lose');
     }
@@ -65,9 +85,9 @@ export default function ResultScreen() {
   };
 
   const shareResult = () => {
-    const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
     const payout = +(((matchState?.prizePool ?? 0) - (matchState?.rakeAmount ?? 0))).toFixed(0);
-    tgShare(`https://t.me/${bot}`, `Только что выиграл ${payout} ₽ в морской дуэли! Сразись со мной 🚢`);
+    const link = me ? referralBotLink(me.id) : `https://t.me/${import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot'}`;
+    tgShare(link, `Только что выиграл ${payout} ₽ в морской дуэли! Сразись со мной 🚢`);
   };
 
   // Нативная кнопка Telegram = Реванш
@@ -187,7 +207,7 @@ export default function ResultScreen() {
         )}
         <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking'); }}>Новый бой</button>
         {won && (
-          <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Похвастаться</button>
+          <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Поделиться победой</button>
         )}
         <button className="btn-ghost w-full" onClick={() => { clearMatch(); navigate('/home'); }}>На палубу</button>
       </div>

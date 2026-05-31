@@ -6,7 +6,9 @@ import { useMatchStore } from '../stores/match-store';
 import { GameAPI } from '../api/endpoints';
 import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
+import { StreakWidget } from '../components/StreakWidget';
 import { Onboarding } from '../components/Onboarding';
+import { MIN_WAGER } from '../lib/config';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
@@ -39,7 +41,6 @@ export default function HomeScreen() {
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
 
   const streak = user?.loginStreak ?? 0;
-  const nextBonus = 10 + Math.min(Math.max(streak, 0), 6) * 5;
 
   return (
     <div className="max-w-md mx-auto space-y-4">
@@ -51,15 +52,9 @@ export default function HomeScreen() {
           {user?.nickname ?? user?.firstName ?? user?.username ?? 'без имени'}
         </h2>
 
-        {streak > 0 && (
-          <div className="mt-3 flex items-center gap-2 plate px-3 py-2 text-sm">
-            <Icon name="coins" size={16} className="text-danger shrink-0" />
-            <span className="text-main">
-              Стрик входа: <span className="font-display tabular-nums">{streak}</span> дн.
-            </span>
-            <span className="text-muted text-xs ml-auto">завтра +{nextBonus} ₽</span>
-          </div>
-        )}
+        <div className="mt-3">
+          <StreakWidget streak={streak} />
+        </div>
 
         <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
           <Stat icon="trophy" label="Победы" value={wins} />
@@ -74,6 +69,17 @@ export default function HomeScreen() {
           className="btn-danger w-full"
         >
           <Icon name="swords" size={18} /> Вернуться в бой
+        </button>
+      )}
+
+      {balance > 0 && balance < MIN_WAGER && !activeMatch && (
+        <button
+          onClick={() => { tgHaptic('light'); navigate('/wallet'); }}
+          className="w-full card card-press p-3 flex items-center gap-3 border-warning text-left"
+        >
+          <Icon name="coins" size={18} className="text-warning shrink-0" />
+          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {MIN_WAGER} ₽. Пополни казну.</span>
+          <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
       )}
 

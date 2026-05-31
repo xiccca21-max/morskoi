@@ -81,7 +81,7 @@ export class UsersService {
     if (!u) throw new NotFoundException('User not found');
     return {
       id: u.id,
-      username: u.username ?? u.firstName ?? `Player-${u.id.slice(0, 4)}`,
+      username: (u as any).nickname ?? u.username ?? u.firstName ?? `Player-${u.id.slice(0, 4)}`,
       avatar: u.avatar,
       wins: u.wins,
       losses: u.losses,

@@ -7,6 +7,7 @@ import { useSettingsStore } from '../stores/settings-store';
 import { useCurrencyStore, CURRENCY_LIST } from '../stores/currency-store';
 import { tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
+import { useNotifyPrefsStore } from '../stores/notify-prefs-store';
 import { Icon } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 
@@ -24,6 +25,7 @@ export default function SettingsScreen() {
   const { sound, haptics, setSound, setHaptics } = useSettingsStore();
   const currency = useCurrencyStore((s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
+  const notify = useNotifyPrefsStore();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [depLimit, setDepLimit] = useState(user?.dailyDepositLimit ?? 0);
   const [savingLimit, setSavingLimit] = useState(false);
@@ -68,6 +70,14 @@ export default function SettingsScreen() {
       <section className="card p-3 divide-y divide-line">
         <Toggle label="Вибрация" value={haptics} onChange={setHaptics} />
         <Toggle label="Звук" value={sound} onChange={setSound} />
+      </section>
+
+      <section className="card p-3 divide-y divide-line">
+        <p className="eyebrow px-1 pt-1 pb-2">Уведомления в боте</p>
+        <Toggle label="Соперник найден" value={notify.matchFound} onChange={(v) => notify.set('matchFound', v)} />
+        <Toggle label="Выигрыш / выплата" value={notify.payout} onChange={(v) => notify.set('payout', v)} />
+        <Toggle label="Реванш от соперника" value={notify.rematch} onChange={(v) => notify.set('rematch', v)} />
+        <Toggle label="Рефералы" value={notify.referral} onChange={(v) => notify.set('referral', v)} />
       </section>
 
       <section className="card p-5 space-y-3">

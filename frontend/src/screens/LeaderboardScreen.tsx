@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LeaderboardAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
@@ -17,7 +18,9 @@ export default function LeaderboardScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [seasonName, setSeasonName] = useState<string | null>(null);
+  const [seasonEnd, setSeasonEnd] = useState<string | null>(null);
   const meId = useAuthStore((s) => s.user?.id);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,9 +31,11 @@ export default function LeaderboardScreen() {
           LeaderboardAPI.top('season', 50),
         ]);
         setSeasonName(info.name);
+        setSeasonEnd(info.end);
         setItems(list);
       } else {
         setSeasonName(null);
+        setSeasonEnd(null);
         setItems(await LeaderboardAPI.top(tab, 50));
       }
     } catch {
@@ -44,6 +49,10 @@ export default function LeaderboardScreen() {
 
   const { refreshing } = usePullToRefresh(load);
 
+  const seasonLeft = seasonEnd
+    ? Math.max(0, Math.ceil((new Date(seasonEnd).getTime() - Date.now()) / 86400000))
+    : null;
+
   return (
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between">
@@ -51,7 +60,10 @@ export default function LeaderboardScreen() {
         {refreshing && <Spinner size={16} />}
       </div>
       {seasonName && tab === 'season' && (
-        <p className="text-muted text-xs -mt-1">Сезон: <span className="text-main font-display">{seasonName}</span></p>
+        <p className="text-muted text-xs -mt-1">
+          Сезон: <span className="text-main font-display">{seasonName}</span>
+          {seasonLeft != null && <span className="ml-2">· осталось {seasonLeft} дн.</span>}
+        </p>
       )}
       <div className="card p-1 flex gap-1">
         <Tab active={tab === 'wins'} onClick={() => setTab('wins')}>Все время</Tab>
@@ -87,7 +99,9 @@ export default function LeaderboardScreen() {
               </div>
               <Avatar name={u.name} src={u.avatar} size={32} />
               <div className="flex-1 text-sm text-main flex items-center gap-2 min-w-0">
-                <span className="truncate">{u.name}</span>
+                <button type="button" className="truncate text-left hover:text-danger transition" onClick={() => navigate(`/player/${u.id}`)}>
+                  {u.name}
+                </button>
                 {isMe && <span className="text-[9px] uppercase tracking-wide bg-danger text-white rounded px-1.5 py-0.5 shrink-0">вы</span>}
               </div>
               <div className="text-sm font-display tabular-nums text-main shrink-0">

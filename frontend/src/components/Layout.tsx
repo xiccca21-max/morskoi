@@ -63,6 +63,11 @@ export function Layout() {
             <Icon name="anchor" size={16} />
           </span>
           <span className="title text-[13px] leading-none">Морской Бой</span>
+          {(user?.loginStreak ?? 0) > 0 && (
+            <span className="text-[9px] font-display bg-danger/15 text-danger border border-danger/30 rounded px-1.5 py-0.5 tabular-nums">
+              🔥{user!.loginStreak}
+            </span>
+          )}
         </NavLink>
         <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main" aria-label="Кошелёк">
           <Icon name="coins" size={15} className="text-muted" />

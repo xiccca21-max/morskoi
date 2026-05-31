@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Theme = 'brutal' | 'radar' | 'blueprint';
+export type Theme = 'brutal' | 'radar' | 'blueprint' | 'depth';
 
 export const THEMES: { id: Theme; name: string }[] = [
   { id: 'brutal', name: 'Необрутализм' },
   { id: 'radar', name: 'Тактический Радар' },
   { id: 'blueprint', name: 'Чертёж' },
+  { id: 'depth', name: 'Глубина' },
 ];
 
 interface ThemeState {
