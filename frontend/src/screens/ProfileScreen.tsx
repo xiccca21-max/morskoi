@@ -10,7 +10,6 @@ import { Icon, IconName } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { ReferralCard } from '../components/ReferralCard';
 import { WeeklyStats } from '../components/WeeklyStats';
-import { StreakWidget } from '../components/StreakWidget';
 import { ACHIEVEMENTS, statsFromUser } from '../lib/achievements';
 import { referralBotLink, referralShareText } from '../lib/referral';
 import { Modal, ConfirmDialog } from '../components/Modal';
@@ -151,9 +150,6 @@ export default function ProfileScreen() {
         {next && (
           <p className="text-muted text-xs mt-2">Ещё {toNext} {plural(toNext)} до следующего звания</p>
         )}
-        <div className="mt-4">
-          <StreakWidget streak={user.loginStreak ?? 0} />
-        </div>
       </section>
 
       <ReferralCard userId={user.id} displayName={displayName} referralCount={user.referralCount} />

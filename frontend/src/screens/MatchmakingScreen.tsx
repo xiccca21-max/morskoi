@@ -79,7 +79,7 @@ export default function MatchmakingScreen() {
     prevOver.current = overBalance;
   }, [overBalance]);
 
-  const [tab, setTab] = useState<'queue' | 'browse' | 'private'>('queue');
+  const [tab, setTab] = useState<'browse' | 'private'>('browse');
   const [inQueue, setInQueue] = useState(false);
   const [queueSearching, setQueueSearching] = useState(false);
   const [queueSince, setQueueSince] = useState<number | null>(null);
@@ -164,14 +164,10 @@ export default function MatchmakingScreen() {
       .catch(() => undefined);
   }, []);
 
+  // Старый параметр быстрого боя больше не используется — просто очищаем URL.
   useEffect(() => {
-    if (searchParams.get('quick') === '1' && !quickStarted.current && user) {
-      quickStarted.current = true;
-      setTab('queue');
-      setSearchParams({}, { replace: true });
-      if (!inQueue && !queueSearching) startQueue();
-    }
-  }, [searchParams, user, inQueue, queueSearching, startQueue, setSearchParams]);
+    if (searchParams.get('quick') === '1') setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!inQueue) return;
@@ -302,7 +298,6 @@ export default function MatchmakingScreen() {
       )}
 
       <div className="card p-1 flex gap-1">
-        <TabBtn active={tab === 'queue'} onClick={() => setTab('queue')} icon="target">Быстро</TabBtn>
         <TabBtn active={tab === 'browse'} onClick={() => setTab('browse')} icon="swords">Лобби</TabBtn>
         <TabBtn active={tab === 'private'} onClick={() => setTab('private')} icon="lock">С другом</TabBtn>
       </div>
@@ -440,46 +435,7 @@ export default function MatchmakingScreen() {
         </div>
       </Modal>
 
-      {tab === 'queue' ? (
-        <div className="space-y-3">
-          <div className="card p-4 space-y-4">
-            <p className="eyebrow">Ставка</p>
-            <div className="flex items-center justify-center gap-2">
-              <button className="w-12 h-12 rounded-xl bg-panel border border-line flex items-center justify-center" onClick={() => setWager(wager - 25)} disabled={wager <= minWager || inQueue}>
-                <Icon name="minus" size={20} />
-              </button>
-              <span className="font-display text-4xl tabular-nums text-main">{wager} ₽</span>
-              <button className="w-12 h-12 rounded-xl bg-danger flex items-center justify-center text-white" onClick={() => setWager(wager + 25)} disabled={wager >= maxWager || inQueue}>
-                <Icon name="plus" size={20} />
-              </button>
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {PRESETS.map((p) => (
-                <button key={p} disabled={inQueue} onClick={() => setWager(p)} className={['py-2 rounded-lg text-xs font-display tabular-nums border', wager === p ? 'bg-danger text-white border-danger' : 'bg-panel border-line text-muted'].join(' ')}>
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {inQueue ? (
-            <div className="card p-5 text-center space-y-3">
-              <Spinner />
-              <p className="text-main font-display">Ищем соперника…</p>
-              <p className="text-muted text-xs">
-                Ставка {formatMoney(wager)}
-                {queueSince ? ` · ${Math.floor((queueTick - queueSince) / 1000)} сек` : ''}
-              </p>
-              <p className="text-muted text-[11px]">Через 30 сек расширим диапазон ставок ±10%</p>
-              <button className="btn-ghost w-full" onClick={cancelQueue} disabled={queueSearching}>Отменить поиск</button>
-            </div>
-          ) : (
-            <button className="btn-primary w-full py-4" onClick={startQueue} disabled={queueSearching || overBalance}>
-              {queueSearching ? 'Подключаемся…' : `Найти соперника · ${wager} ₽`}
-            </button>
-          )}
-        </div>
-      ) : tab === 'browse' ? (
+      {tab === 'browse' ? (
         <div className="space-y-3">
           {/* Создать / статус своего боя */}
           {myOpen ? (

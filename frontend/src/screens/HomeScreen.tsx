@@ -2,12 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
-import { useSettingsStore } from '../stores/settings-store';
 import { useMatchStore } from '../stores/match-store';
 import { GameAPI } from '../api/endpoints';
 import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
-import { StreakWidget } from '../components/StreakWidget';
 import { Onboarding } from '../components/Onboarding';
 import { useGameConfigStore } from '../stores/game-config-store';
 
@@ -15,7 +13,6 @@ export default function HomeScreen() {
   const navigate = useNavigate();
   const minWager = useGameConfigStore((s) => s.minWager);
   const user = useAuthStore((s) => s.user);
-  const lastWager = useSettingsStore((s) => s.lastWager);
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
 
@@ -43,8 +40,6 @@ export default function HomeScreen() {
 
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
 
-  const streak = user?.loginStreak ?? 0;
-
   return (
     <div className="max-w-md mx-auto space-y-4">
       <Onboarding />
@@ -54,10 +49,6 @@ export default function HomeScreen() {
         <h2 className="font-display text-2xl text-main leading-tight mt-0.5">
           {user?.nickname ?? user?.firstName ?? user?.username ?? 'без имени'}
         </h2>
-
-        <div className="mt-3">
-          <StreakWidget streak={streak} />
-        </div>
 
         <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
           <Stat icon="trophy" label="Победы" value={wins} />
@@ -94,17 +85,6 @@ export default function HomeScreen() {
           <Icon name="coins" size={18} className="text-danger shrink-0" />
           <span className="flex-1 text-main text-sm">Баланс пуст — пополни, чтобы играть на ставку</span>
           <Icon name="arrow-right" size={16} className="text-danger shrink-0" />
-        </button>
-      )}
-
-      {/* Главная кнопка */}
-      {balance >= minWager && !activeMatch && (
-        <button
-          onClick={() => { tgHaptic('medium'); navigate('/matchmaking?quick=1'); }}
-          className="btn-danger w-full py-4 flex items-center justify-center gap-2"
-        >
-          <Icon name="target" size={18} />
-          Быстрый бой · {Math.max(minWager, lastWager)} ₽
         </button>
       )}
 
