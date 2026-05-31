@@ -137,24 +137,20 @@ export class TelegramBotService implements OnModuleInit {
       const caption =
         '⚓ <b>Naval Clash — морской бой с реальными ставками</b>\n\n' +
         '🚢 Расставь флот, вызови соперника и потопи его корабли\n' +
-        '💰 Делай ставки и забирай выигрыш прямо в Telegram\n' +
+        '💰 Делай ставки от 100 ₽ и забирай выигрыш\n' +
         '🏆 Расти в звании: от Юнги до Адмирала\n\n' +
-        'Нажми кнопку ниже — и в бой! 👇';
+        'Выбирай действие кнопками ниже 👇';
+      const keyboard = this.mainReplyKeyboard(launchUrl);
       try {
         await this.bot!.sendPhoto(msg.chat.id, photoUrl, {
           caption,
           parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url: launchUrl } }]],
-          },
+          reply_markup: keyboard,
         });
       } catch {
-        // Фото недоступно — fallback на текстовое сообщение
         await this.bot!.sendMessage(msg.chat.id, caption, {
           parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url: launchUrl } }]],
-          },
+          reply_markup: keyboard,
         });
       }
     });
@@ -209,6 +205,39 @@ export class TelegramBotService implements OnModuleInit {
     });
   }
 
+  /** Тексты кнопок reply-клавиатуры (должны совпадать с mainReplyKeyboard). */
+  private static readonly BTN = {
+    PLAY: '⚔️ В бой',
+    BALANCE: '💰 Баланс',
+    TOP: '🏆 Рейтинг',
+    PROFILE: '👤 Профиль',
+    INFO: 'ℹ️ Информация',
+    SUPPORT: '🆘 Поддержка',
+  } as const;
+
+  /**
+   * Постоянная клавиатура под полем ввода (ReplyKeyboardMarkup).
+   * «В бой» открывает мини-приложение; остальные — текстовые команды.
+   */
+  private mainReplyKeyboard(launchUrl?: string): TelegramBot.ReplyKeyboardMarkup {
+    const url = launchUrl ?? process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
+    const { BTN } = TelegramBotService;
+    return {
+      keyboard: [
+        [{ text: BTN.PLAY, web_app: { url } }],
+        [{ text: BTN.BALANCE }, { text: BTN.TOP }],
+        [{ text: BTN.PROFILE }, { text: BTN.INFO }],
+        [{ text: BTN.SUPPORT }],
+      ],
+      resize_keyboard: true,
+      is_persistent: true,
+    };
+  }
+
+  private replyOpts(launchUrl?: string): { reply_markup: TelegramBot.ReplyKeyboardMarkup } {
+    return { reply_markup: this.mainReplyKeyboard(launchUrl) };
+  }
+
   /** Inline-кнопка «Начать играть», открывающая мини-приложение. */
   private playButton(launchUrl?: string) {
     const url = launchUrl ?? process.env.TELEGRAM_WEBAPP_URL;
@@ -220,43 +249,33 @@ export class TelegramBotService implements OnModuleInit {
   private registerCommands() {
     if (!this.bot) return;
     const bot = this.bot;
-    const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
     const supportUrl = process.env.SUPPORT_URL ?? process.env.VITE_SUPPORT_URL;
+    const { BTN } = TelegramBotService;
+    const kb = () => this.replyOpts();
 
-    bot.onText(/^\/play\b/, async (msg) => {
-      await bot.sendMessage(msg.chat.id, '⚔️ Открывай игру и вызывай соперника на дуэль!', {
-        reply_markup: this.playButton(),
-      });
-    });
-
-    bot.onText(/^\/balance\b/, async (msg) => {
-      const tgId = String(msg.from?.id ?? msg.chat.id);
+    const sendBalance = async (chatId: number, tgId: string) => {
       const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
       if (!user) {
-        await bot.sendMessage(msg.chat.id, 'Сначала зайди в игру, чтобы создать аккаунт 👇', {
-          reply_markup: this.playButton(),
-        });
+        await bot.sendMessage(chatId, 'Сначала нажми «⚔️ В бой», чтобы создать аккаунт.', kb());
         return;
       }
       const balance = Number(user.balance).toLocaleString('ru-RU');
       const withdrawable = Number((user as any).withdrawable ?? 0).toLocaleString('ru-RU');
       await bot.sendMessage(
-        msg.chat.id,
-        `💰 <b>Твой баланс</b>\n\nВсего: <b>${balance} ₽</b>\nМожно вывести: <b>${withdrawable} ₽</b>`,
-        { parse_mode: 'HTML', reply_markup: this.playButton() },
+        chatId,
+        `💰 <b>Баланс</b>\n\nВсего: <b>${balance} ₽</b>\nМожно вывести: <b>${withdrawable} ₽</b>\n\nПополнение и вывод USDT — в разделе «Казна» в игре.`,
+        { parse_mode: 'HTML', ...kb() },
       );
-    });
+    };
 
-    bot.onText(/^\/top\b/, async (msg) => {
+    const sendTop = async (chatId: number) => {
       const top = await this.prisma.user.findMany({
         where: { wins: { gt: 0 } },
         orderBy: [{ wins: 'desc' }],
         take: 10,
       });
       if (top.length === 0) {
-        await bot.sendMessage(msg.chat.id, '🏆 Рейтинг пока пуст. Стань первым капитаном!', {
-          reply_markup: this.playButton(),
-        });
+        await bot.sendMessage(chatId, '🏆 Рейтинг пока пуст. Стань первым капитаном!', kb());
         return;
       }
       const medals = ['🥇', '🥈', '🥉'];
@@ -265,61 +284,132 @@ export class TelegramBotService implements OnModuleInit {
         const name = (u as any).nickname || u.firstName || u.username || 'Капитан';
         return `${place} <b>${this.escapeHtml(name)}</b> — ${u.wins} побед`;
       });
-      await bot.sendMessage(msg.chat.id, `🏆 <b>Топ капитанов</b>\n\n${lines.join('\n')}`, {
+      await bot.sendMessage(chatId, `🏆 <b>Топ капитанов</b>\n\n${lines.join('\n')}`, {
         parse_mode: 'HTML',
-        reply_markup: this.playButton(),
+        ...kb(),
       });
+    };
+
+    const sendProfile = async (chatId: number, tgId: string) => {
+      const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
+      if (!user) {
+        await bot.sendMessage(chatId, 'Сначала нажми «⚔️ В бой», чтобы создать аккаунт.', kb());
+        return;
+      }
+      const name = (user as any).nickname || user.firstName || user.username || 'Капитан';
+      const total = user.wins + user.losses;
+      const wr = total ? Math.round((user.wins / total) * 100) : 0;
+      const streak = (user as any).loginStreak ?? 0;
+      await bot.sendMessage(
+        chatId,
+        `👤 <b>Профиль — ${this.escapeHtml(name)}</b>\n\n` +
+          `🏆 Побед: <b>${user.wins}</b> · 💀 Поражений: <b>${user.losses}</b>\n` +
+          `🎯 Точность: <b>${wr}%</b>\n` +
+          (streak > 0 ? `🔥 Стрик входа: <b>${streak}</b> дн.\n` : '') +
+          `\nОткрой игру, чтобы сменить ник и посмотреть достижения.`,
+        { parse_mode: 'HTML', ...kb() },
+      );
+    };
+
+    const sendInfo = async (chatId: number) => {
+      const text =
+        'ℹ️ <b>Информация</b>\n\n' +
+        '⚓ PvP «Морской Бой» на ставки от <b>100 ₽</b>\n' +
+        '• Победитель забирает 95% банка\n' +
+        '• Вывод USDT — от 100 ₽, до 24 ч\n' +
+        '• Бонусы можно играть, но не выводить\n\n' +
+        '📜 <b>Правила:</b>\n' +
+        '• Флот: 1×4, 2×3, 3×2, 4×1 — корабли не соприкасаются\n' +
+        '• Попадание = ещё один выстрел\n' +
+        '• Пропуск хода или выход = поражение\n\n' +
+        '18+. Играй ответственно.';
+      await bot.sendMessage(chatId, text, { parse_mode: 'HTML', ...kb() });
+    };
+
+    const sendSupport = async (chatId: number) => {
+      const link = supportUrl
+        ? `\n\n<a href="${this.escapeHtml(supportUrl)}">💬 Написать в поддержку</a>`
+        : '';
+      await bot.sendMessage(
+        chatId,
+        '🆘 <b>Поддержка</b>\n\nВопросы по игре, пополнению или выводу — напиши нам.' + link,
+        { parse_mode: 'HTML', ...kb(), disable_web_page_preview: true },
+      );
+    };
+
+    bot.onText(/^\/play\b/, async (msg) => {
+      await bot.sendMessage(msg.chat.id, '⚔️ Нажми «⚔️ В бой» на клавиатуре ниже — откроется игра!', kb());
+    });
+
+    bot.onText(/^\/balance\b/, async (msg) => {
+      await sendBalance(msg.chat.id, String(msg.from?.id ?? msg.chat.id));
+    });
+
+    bot.onText(/^\/stats\b/, async (msg) => {
+      await sendProfile(msg.chat.id, String(msg.from?.id ?? msg.chat.id));
+    });
+
+    bot.onText(/^\/top\b/, async (msg) => {
+      await sendTop(msg.chat.id);
     });
 
     bot.onText(/^\/rules\b/, async (msg) => {
-      const text =
-        '📜 <b>Правила «Морского Боя»</b>\n\n' +
-        '• Флот: 1×4, 2×3, 3×2, 4×1 — корабли не касаются друг друга.\n' +
-        '• Игроки ходят по очереди, попадание даёт право на ещё один выстрел.\n' +
-        '• На ход — ограниченное время; пропустишь — ход перейдёт сопернику.\n' +
-        '• Кто первым потопит весь флот врага — забирает банк (95%).\n' +
-        '• Комиссия платформы — 5%. 18+, играй ответственно.';
-      await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_markup: this.playButton() });
+      await sendInfo(msg.chat.id);
     });
 
     bot.onText(/^\/support\b/, async (msg) => {
-      const text = '🆘 <b>Поддержка</b>\n\nНапиши нам, если возник вопрос по игре, оплате или выводу.';
-      await bot.sendMessage(msg.chat.id, text, {
-        parse_mode: 'HTML',
-        reply_markup: supportUrl
-          ? { inline_keyboard: [[{ text: '💬 Написать в поддержку', url: supportUrl }]] }
-          : undefined,
-      });
+      await sendSupport(msg.chat.id);
     });
 
     bot.onText(/^\/help\b/, async (msg) => {
       const text =
-        'ℹ️ <b>Команды бота</b>\n\n' +
-        '/play — открыть игру и вызвать соперника\n' +
-        '/balance — показать баланс\n' +
-        '/rules — правила игры\n' +
-        '/support — связаться с поддержкой\n' +
-        '/start — главный экран\n\n' +
-        'Кнопка <b>«Начать играть»</b> внизу всегда открывает игру.';
-      await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_markup: this.playButton() });
+        'ℹ️ <b>Помощь</b>\n\n' +
+        'Используй кнопки под полем ввода:\n\n' +
+        `• <b>${BTN.PLAY}</b> — открыть игру\n` +
+        `• <b>${BTN.BALANCE}</b> — баланс и вывод\n` +
+        `• <b>${BTN.TOP}</b> — рейтинг капитанов\n` +
+        `• <b>${BTN.PROFILE}</b> — твоя статистика\n` +
+        `• <b>${BTN.INFO}</b> — правила и лимиты\n` +
+        `• <b>${BTN.SUPPORT}</b> — связь с поддержкой`;
+      await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', ...kb() });
     });
 
-    // Любое текстовое сообщение, не являющееся командой — вежливый ответ с кнопкой игры.
-    const KNOWN = /^\/(start|play|balance|top|rules|support|help)\b/;
+    const KNOWN = /^\/(start|play|balance|stats|top|rules|support|help)\b/;
     bot.on('message', async (msg) => {
-      if (msg.chat.type !== 'private') return; // только в личке
+      if (msg.chat.type !== 'private') return;
       const text = msg.text?.trim();
-      if (!text) return; // не реагируем на фото/стикеры и т.п.
+      if (!text) return;
       if (text.startsWith('/')) {
-        if (KNOWN.test(text)) return; // известную команду обработает свой хендлер
-        await bot.sendMessage(msg.chat.id, 'Не знаю такой команды 🤔 Нажми /help или кнопку ниже.', {
-          reply_markup: this.playButton(),
-        });
+        if (KNOWN.test(text)) return;
+        await bot.sendMessage(msg.chat.id, 'Не знаю такой команды 🤔 Нажми /help или кнопку ниже.', kb());
         return;
       }
-      await bot.sendMessage(msg.chat.id, '⚓ Готов к бою? Открывай игру и вызывай соперника!', {
-        reply_markup: this.playButton(),
-      });
+
+      const tgId = String(msg.from?.id ?? msg.chat.id);
+
+      switch (text) {
+        case BTN.BALANCE:
+          await sendBalance(msg.chat.id, tgId);
+          return;
+        case BTN.TOP:
+          await sendTop(msg.chat.id);
+          return;
+        case BTN.PROFILE:
+          await sendProfile(msg.chat.id, tgId);
+          return;
+        case BTN.INFO:
+          await sendInfo(msg.chat.id);
+          return;
+        case BTN.SUPPORT:
+          await sendSupport(msg.chat.id);
+          return;
+        default:
+          await bot.sendMessage(
+            msg.chat.id,
+            '⚓ Выбери действие на клавиатуре ниже или нажми «⚔️ В бой», чтобы играть!',
+            kb(),
+          );
+      }
     });
   }
 
