@@ -8,8 +8,44 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
+/**
+ * Жёсткая проверка критичных секретов перед стартом в production.
+ * Лучше не подняться вовсе, чем работать с дефолтным ключом (подделка токенов).
+ */
+function assertProductionSecrets() {
+  if (process.env.NODE_ENV !== 'production') return;
+  const fatal: string[] = [];
+  const warn: string[] = [];
+
+  const jwt = process.env.JWT_SECRET;
+  if (!jwt || jwt === 'change_me' || jwt.length < 16) {
+    fatal.push('JWT_SECRET не задан или слишком короткий/дефолтный (нужно ≥16 случайных символов)');
+  }
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || token.startsWith('123456')) {
+    fatal.push('TELEGRAM_BOT_TOKEN не задан');
+  }
+  if (!process.env.ADMIN_API_KEY) {
+    warn.push('ADMIN_API_KEY не задан — админ-API отключён');
+  }
+  if (!process.env.CORS_ORIGINS) {
+    warn.push('CORS_ORIGINS не задан — используется localhost по умолчанию');
+  }
+
+  for (const w of warn) Logger.warn(w, 'Bootstrap');
+  if (fatal.length) {
+    for (const f of fatal) Logger.error(f, 'Bootstrap');
+    throw new Error('Отказ запуска: не настроены критичные секреты (см. ошибки выше)');
+  }
+}
+
 async function bootstrap() {
+  assertProductionSecrets();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: false, rawBody: true });
+
+  // За nginx: доверяем первому прокси, чтобы req.ip брался из X-Forwarded-For.
+  // Без этого rate-limiter и логи видят один IP nginx на всех пользователей.
+  app.set('trust proxy', 1);
 
   // Security-заголовки. CSP и COEP выключены: ломали бы SPA, инлайн-скрипт
   // админки и загрузку из Telegram. Остальные защиты (X-Frame, noSniff и т.д.) активны.
