@@ -20,30 +20,45 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const url = process.env.REDIS_URL?.trim();
     if (url) {
-      this.useMemory = false;
-      this.ioredis = new Redis(url, {
-        maxRetriesPerRequest: 3,
-        lazyConnect: true,
-        connectTimeout: 5000,
-      });
-      await this.ioredis.connect();
-      const safe = url.replace(/:([^:@/]+)@/, ':***@');
-      this.logger.log(`Connected → ${safe}`);
-      this.client = {
-        set: (key: string, value: string, ...args: any[]) =>
-          (this.ioredis!.set as (...a: any[]) => Promise<'OK' | null>)(key, value, ...args),
-        get: (key: string) => this.ioredis!.get(key),
-        del: (...keys: string[]) => this.ioredis!.del(...keys),
-        eval: (script: string, n: number, ...args: any[]) => this.ioredis!.eval(script, n, ...args),
-        sadd: (key: string, ...members: string[]) => this.ioredis!.sadd(key, ...members),
-        smembers: (key: string) => this.ioredis!.smembers(key),
-        expire: (key: string, seconds: number) => this.ioredis!.expire(key, seconds),
-        ping: () => this.ioredis!.ping(),
-      };
-      return;
+      try {
+        this.useMemory = false;
+        this.ioredis = new Redis(url, {
+          maxRetriesPerRequest: 3,
+          lazyConnect: true,
+          connectTimeout: 5000,
+        });
+        await this.ioredis.connect();
+        const safe = url.replace(/:([^:@/]+)@/, ':***@');
+        this.logger.log(`Connected → ${safe}`);
+        this.client = this.buildRedisClient();
+        return;
+      } catch (e: any) {
+        this.logger.warn(`Redis unavailable (${e?.message}), falling back to in-memory`);
+        await this.ioredis?.quit().catch(() => undefined);
+        this.ioredis = undefined;
+        this.useMemory = true;
+      }
     }
 
-    this.logger.log('Using in-memory store (set REDIS_URL for production cluster)');
+    this.initMemoryClient();
+  }
+
+  private buildRedisClient() {
+    return {
+      set: (key: string, value: string, ...args: any[]) =>
+        (this.ioredis!.set as (...a: any[]) => Promise<'OK' | null>)(key, value, ...args),
+      get: (key: string) => this.ioredis!.get(key),
+      del: (...keys: string[]) => this.ioredis!.del(...keys),
+      eval: (script: string, n: number, ...args: any[]) => this.ioredis!.eval(script, n, ...args),
+      sadd: (key: string, ...members: string[]) => this.ioredis!.sadd(key, ...members),
+      smembers: (key: string) => this.ioredis!.smembers(key),
+      expire: (key: string, seconds: number) => this.ioredis!.expire(key, seconds),
+      ping: () => this.ioredis!.ping(),
+    };
+  }
+
+  private initMemoryClient() {
+    this.logger.log('Using in-memory store');
     this.client = {
       set: (...args: any[]) => this.memSet(args),
       get: (key: string) => Promise.resolve(this.memGet(key)),

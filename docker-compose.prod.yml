@@ -41,7 +41,7 @@ services:
       INVITEE_BONUS: ${INVITEE_BONUS:-10}
       AFK_FORFEIT_TIMEOUTS: ${AFK_FORFEIT_TIMEOUTS:-2}
       # Crypto Pay (@CryptoBot) — обязателен для пополнения
-      CRYPTO_PAY_TOKEN: ${CRYPTO_PAY_TOKEN}
+      CRYPTO_PAY_TOKEN: ${CRYPTO_PAY_TOKEN:-}
       CRYPTO_PAY_API: ${CRYPTO_PAY_API:-https://pay.crypt.bot/api}
       # Ключ для админских действий (обработка выводов)
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "80:80"
       - "443:443"

@@ -28,45 +28,31 @@ export class PaymentsService {
     return this.cryptoPay.isEnabled ? 'cryptobot' : 'none';
   }
 
-  /**
-   * Пополнение: пользователь вводит сумму в ₽, платит USDT через @CryptoBot,
-   * на баланс зачисляются рубли по курсу на момент создания счёта.
-   */
+  /** Пополнение через @CryptoBot: счёт в ₽, оплата криптой. Без демо-режима. */
   async createDeposit(userId: string, amountRub: number) {
     if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
 
     if (!this.cryptoPay.isEnabled) {
       throw new ServiceUnavailableException(
-        'Пополнение недоступно. Подключите CRYPTO_PAY_TOKEN (@CryptoBot) на сервере.',
+        'Пополнение недоступно: на сервере не задан CRYPTO_PAY_TOKEN.',
       );
     }
 
     const amount = roundRub(amountRub);
-    const rubPerUsdt = await this.cryptoPay.getRubPerAsset('USDT');
-    const amountUsdt = roundRub(amount / rubPerUsdt);
-    if (amountUsdt < 0.01) {
-      throw new BadRequestException('Слишком маленькая сумма для оплаты в USDT');
-    }
-
     const returnUrl = process.env.TELEGRAM_WEBAPP_URL;
-    const { invoiceId, invoiceUrl } = await this.cryptoPay.createUsdtInvoice({
-      amountUsdt,
+    const { invoiceId, payUrl } = await this.cryptoPay.createInvoice({
+      amountRub: amount,
       payload: userId,
       returnUrl,
-      description: `Пополнение ${amount.toFixed(0)} ₽ · Морской Бой`,
     });
-    await this.wallet.createPendingDeposit(userId, amount, invoiceId, 'cryptobot', {
-      amountUsdt,
-      rubPerUsdt,
-    });
-    this.logger.log(`Invoice ${invoiceId}: user=${userId} ${amount} ₽ ≈ ${amountUsdt} USDT`);
+    await this.wallet.createPendingDeposit(userId, amount, invoiceId, 'cryptobot');
+    this.logger.log(`Invoice ${invoiceId} created for user ${userId} (${amount} ₽)`);
     return {
       mode: 'cryptobot' as const,
-      payUrl: invoiceUrl,
-      invoiceUrl,
+      payUrl,
+      invoiceUrl: payUrl,
       invoiceId,
       amountRub: amount,
-      amountUsdt,
     };
   }
 

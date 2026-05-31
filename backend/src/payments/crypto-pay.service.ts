@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
-import { roundRub } from '../common/money';
 
 /**
- * Crypto Pay API (@CryptoBot). Без CRYPTO_PAY_TOKEN пополнение недоступно.
+ * Crypto Pay API (@CryptoBot).
+ * Фиатный инвойс в RUB — пользователь платит криптой, сумма показывается в ₽.
  */
 @Injectable()
 export class CryptoPayService {
@@ -32,16 +32,17 @@ export class CryptoPayService {
     return json.result as T;
   }
 
-  /** Инвойс в USDT (не фиатный RUB). Пользователь платит криптой. */
-  async createUsdtInvoice(params: {
-    amountUsdt: number;
+  /** Фиатный инвойс в рублях через @CryptoBot (как работало раньше). */
+  async createInvoice(params: {
+    amountRub: number;
     payload: string;
     description?: string;
     returnUrl?: string;
-  }): Promise<{ invoiceId: string; invoiceUrl: string }> {
+  }): Promise<{ invoiceId: string; payUrl: string }> {
     const result = await this.call<any>('createInvoice', {
-      asset: 'USDT',
-      amount: roundRub(params.amountUsdt).toFixed(2),
+      currency_type: 'fiat',
+      fiat: 'RUB',
+      amount: params.amountRub.toFixed(2),
       payload: params.payload,
       description: params.description ?? 'Пополнение баланса · Морской Бой',
       paid_btn_name: params.returnUrl ? 'callback' : undefined,
@@ -49,16 +50,15 @@ export class CryptoPayService {
       allow_comments: false,
       expires_in: 3600,
     });
-    const invoiceUrl =
+    const payUrl =
       result.mini_app_invoice_url ??
       result.web_app_invoice_url ??
       result.bot_invoice_url ??
       result.pay_url;
-    if (!invoiceUrl) throw new Error('Crypto Pay: no invoice URL');
-    return { invoiceId: String(result.invoice_id), invoiceUrl };
+    if (!payUrl) throw new Error('Crypto Pay: no invoice URL');
+    return { invoiceId: String(result.invoice_id), payUrl };
   }
 
-  /** Сколько ₽ за 1 единицу asset (USDT). */
   async getRubPerAsset(asset: string): Promise<number> {
     const rates = await this.call<any[]>('getExchangeRates');
     const r = rates.find((x) => x.source === asset && x.target === 'RUB');

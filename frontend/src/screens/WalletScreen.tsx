@@ -123,8 +123,7 @@ export default function WalletScreen() {
           toast('Оплата не прошла', 'error');
         }
       });
-      const usdtHint = r.amountUsdt != null ? ` (~${r.amountUsdt} USDT)` : '';
-      toast(`Оплатите ${amount} ₽${usdtHint} через @CryptoBot`, 'info', 'coins');
+      toast(`Счёт на ${amount} ₽ — оплатите в @CryptoBot`, 'info', 'coins');
       setAwaitingPayment(true);
     } catch (e: any) {
       tgHaptic('error'); setError(e?.response?.data?.message ?? e?.message ?? 'Не удалось пополнить');
@@ -230,7 +229,7 @@ export default function WalletScreen() {
         <section className="card p-5 space-y-3">
           <p className="eyebrow">Сумма пополнения (₽ на баланс)</p>
           <p className="text-muted text-xs leading-relaxed">
-            Оплата только в <b className="text-main">USDT</b> через @CryptoBot — на баланс зачисляются рубли по текущему курсу.
+            Оплата через @CryptoBot — сумма в ₽, платите криптой.
           </p>
           <input
             type="number" min={MIN_DEPOSIT} max={MAX_DEPOSIT} value={Number.isFinite(amount) ? amount : ''}
@@ -250,7 +249,7 @@ export default function WalletScreen() {
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
           <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit || awaitingPayment}>
-            <Icon name="plus" size={16} /> Оплатить {Number.isFinite(amount) ? amount : 0} ₽ (USDT)
+            <Icon name="plus" size={16} /> Пополнить {Number.isFinite(amount) ? amount : 0} ₽
           </button>
           {awaitingPayment && (
             <div className="flex items-center justify-center gap-2 text-muted text-xs">
