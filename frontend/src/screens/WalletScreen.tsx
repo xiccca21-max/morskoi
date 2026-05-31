@@ -100,8 +100,7 @@ export default function WalletScreen() {
   }, [awaitingPayment, updateWallet]);
 
   const balance = user?.balance ?? 0;
-  const withdrawable = user?.withdrawable ?? 0;
-  const bonus = Math.max(0, balance - withdrawable);
+  const withdrawable = user?.withdrawable ?? balance;
 
   const validDeposit = Number.isFinite(amount) && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
   const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;
@@ -194,23 +193,17 @@ export default function WalletScreen() {
           </div>
           <Icon name="coins" size={32} className="text-muted" />
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-4">
-          <div className="bg-panel rounded-lg px-3 py-2">
+        <div className="mt-4">
+          <div className="bg-panel rounded-lg px-3 py-2 flex items-center justify-between">
             <p className="text-[10px] uppercase tracking-wide text-muted">Можно вывести</p>
             <p className="font-display text-main tabular-nums text-lg">
               <AnimatedNumber value={withdrawable} formatter={formatMoney} />
             </p>
           </div>
-          <div className="bg-panel rounded-lg px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-muted">Бонусы</p>
-            <p className="font-display text-muted tabular-nums text-lg">{formatMoney(bonus)}</p>
-          </div>
-        </div>
-        {bonus > 0 && (
           <p className="text-[11px] text-muted mt-2 leading-relaxed">
-            Бонусные средства можно использовать в боях, но нельзя вывести. Выигрыши с бонусов выводятся.
+            Весь баланс — ваши реальные средства (депозиты и выигрыши) и полностью доступен к выводу.
           </p>
-        )}
+        </div>
       </section>
 
       <section className="card p-1.5 flex gap-1.5">
@@ -267,7 +260,6 @@ export default function WalletScreen() {
           <p className="text-xs text-muted leading-relaxed">
             Вывод только в <b className="text-main">USDT</b> на ваш криптокошелёк.
             Минимум — {MIN_WITHDRAW} ₽. Обработка заявки — <b className="text-main">до 24 часов</b>.
-            Выводятся только реальные средства (депозиты и выигрыши).
           </p>
           <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < MIN_WITHDRAW}>
             <Icon name="minus" size={16} /> Создать заявку на вывод

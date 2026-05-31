@@ -35,16 +35,17 @@ export class WalletService {
     return Number(u.balance);
   }
 
-  /** Полный кошелёк: баланс + сколько можно вывести. */
+  /** Полный кошелёк. Бонусов нет — весь баланс доступен к выводу. */
   async getWallet(userId: string): Promise<{ balance: number; withdrawable: number }> {
     const u = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!u) throw new NotFoundException('User not found');
-    return { balance: Number(u.balance), withdrawable: Number((u as any).withdrawable ?? 0) };
+    return { balance: Number(u.balance), withdrawable: Number(u.balance) };
   }
 
   /**
-   * Пополнение. Реальные деньги (real=true) увеличивают и баланс, и withdrawable.
-   * Бонус (real=false) — только баланс (вывести нельзя).
+   * Пополнение. Бонусных (невыводимых) денег в игре нет — любое начисление
+   * увеличивает и баланс, и доступную к выводу сумму. Параметр `real` оставлен
+   * для совместимости и больше ни на что не влияет.
    */
   async deposit(userId: string, amount: number, meta?: Record<string, any>, real = true) {
     if (amount <= 0) throw new BadRequestException('Amount must be positive');
@@ -67,11 +68,10 @@ export class WalletService {
 
     return this.redis.withLock(`wallet:${userId}`, 3000, async () => {
       return this.prisma.$transaction(async (tx) => {
+        void real;
         const u = await tx.user.update({
           where: { id: userId },
-          data: real
-            ? ({ balance: { increment: amount }, withdrawable: { increment: amount } } as any)
-            : { balance: { increment: amount } },
+          data: { balance: { increment: amount }, withdrawable: { increment: amount } } as any,
         });
         await tx.transaction.create({
           data: {
@@ -122,9 +122,9 @@ export class WalletService {
       return this.prisma.$transaction(async (tx) => {
         const u = await tx.user.findUnique({ where: { id: userId } });
         if (!u) throw new NotFoundException('User not found');
-        const withdrawable = Number((u as any).withdrawable ?? 0);
-        if (withdrawable < amount) {
-          throw new BadRequestException(`Доступно к выводу: ${withdrawable.toFixed(0)} ₽`);
+        const available = Number(u.balance);
+        if (available < amount) {
+          throw new BadRequestException(`Доступно к выводу: ${available.toFixed(0)} ₽`);
         }
 
         const since = new Date(Date.now() - 24 * 3600 * 1000);
@@ -266,9 +266,11 @@ export class WalletService {
   /**
    * Ручная корректировка баланса администратором (выдача/списание монет).
    * amount > 0 — начислить, amount < 0 — списать.
-   * makeWithdrawable=true — средства можно выводить (реальные), иначе бонус.
+   * Бонусов нет: withdrawable всегда равен балансу, параметр makeWithdrawable
+   * оставлен для совместимости и игнорируется.
    */
   async adminAdjust(userId: string, amount: number, reason: string, makeWithdrawable = false) {
+    void makeWithdrawable;
     if (!amount || amount === 0) throw new BadRequestException('Сумма не может быть нулевой');
     return this.redis.withLock(`wallet:${userId}`, 4000, async () => {
       return this.prisma.$transaction(async (tx) => {
@@ -277,13 +279,7 @@ export class WalletService {
         const newBalance = Number(u.balance) + amount;
         if (newBalance < 0) throw new BadRequestException('Недостаточно средств для списания');
 
-        const curW = Number((u as any).withdrawable ?? 0);
-        const data: any = { balance: { increment: amount } };
-        if (makeWithdrawable) {
-          data.withdrawable = Math.max(0, Math.min(newBalance, curW + amount));
-        } else if (curW > newBalance) {
-          data.withdrawable = newBalance; // withdrawable не выше баланса
-        }
+        const data: any = { balance: { increment: amount }, withdrawable: newBalance };
 
         const updated = await tx.user.update({ where: { id: userId }, data });
         await tx.transaction.create({

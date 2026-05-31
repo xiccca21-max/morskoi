@@ -121,7 +121,7 @@ export class AuthService {
       nickname: user.nickname ?? null,
       avatar: user.avatar,
       balance: Number(user.balance),
-      withdrawable: Number(user.withdrawable ?? 0),
+      withdrawable: Number(user.balance),
       wins: user.wins,
       losses: user.losses,
       draws: user.draws,

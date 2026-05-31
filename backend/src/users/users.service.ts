@@ -25,7 +25,7 @@ export class UsersService {
       nickname: u.nickname ?? null,
       avatar: u.avatar,
       balance: Number(u.balance),
-      withdrawable: Number(u.withdrawable ?? 0),
+      withdrawable: Number(u.balance),
       wins: u.wins,
       losses: u.losses,
       draws: u.draws,

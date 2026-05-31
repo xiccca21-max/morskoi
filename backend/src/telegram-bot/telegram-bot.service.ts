@@ -261,10 +261,9 @@ export class TelegramBotService implements OnModuleInit {
         return;
       }
       const balance = Number(user.balance).toLocaleString('ru-RU');
-      const withdrawable = Number((user as any).withdrawable ?? 0).toLocaleString('ru-RU');
       await bot.sendMessage(
         chatId,
-        `💰 <b>Баланс</b>\n\nВсего: <b>${balance} ₽</b>\nМожно вывести: <b>${withdrawable} ₽</b>\n\nПополнение и вывод USDT — в разделе «Казна» в игре.`,
+        `💰 <b>Баланс</b>\n\n<b>${balance} ₽</b> — весь баланс доступен к выводу.\n\nПополнение и вывод USDT — в разделе «Казна» в игре.`,
         { parse_mode: 'HTML', ...kb() },
       );
     };

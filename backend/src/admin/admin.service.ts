@@ -19,7 +19,7 @@ export class AdminService {
       firstName: u.firstName,
       nickname: u.nickname ?? null,
       balance: Number(u.balance),
-      withdrawable: Number(u.withdrawable ?? 0),
+      withdrawable: Number(u.balance),
       wins: u.wins,
       losses: u.losses,
       banned: u.banned,
