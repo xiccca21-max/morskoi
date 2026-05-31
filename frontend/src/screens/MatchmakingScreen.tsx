@@ -12,6 +12,7 @@ import { getRank } from '../lib/rank';
 import type { Rank } from '../lib/rank';
 import { toast } from '../stores/toast-store';
 import { Spinner } from '../components/Spinner';
+import { SkeletonList } from '../components/Skeleton';
 import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
@@ -357,11 +358,9 @@ export default function MatchmakingScreen() {
             </button>
           )}
 
-          {/* Пока первая загрузка не завершилась — тихий спиннер, без фильтров */}
+          {/* Пока первая загрузка не завершилась — скелетоны строк, без фильтров */}
           {matches === null ? (
-            <div className="flex justify-center py-10">
-              <Spinner size={24} />
-            </div>
+            <SkeletonList rows={4} />
           ) : (
             <motion.div
               initial={{ opacity: 0 }}
@@ -434,9 +433,7 @@ export default function MatchmakingScreen() {
 
               {/* Список боёв */}
               {loadingList ? (
-                <div className="flex justify-center py-8">
-                  <Spinner size={20} />
-                </div>
+                <SkeletonList rows={3} />
               ) : matches.length === 0 ? (
                 <EmptyState
                   icon="compass"

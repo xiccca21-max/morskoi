@@ -327,28 +327,34 @@ export class TelegramBotService implements OnModuleInit {
     return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
   }
 
-  async notify(telegramId: string, text: string) {
+  async notify(telegramId: string, text: string, withPlay = false) {
     if (!this.bot) return;
+    const url = process.env.TELEGRAM_WEBAPP_URL;
     try {
-      await this.bot.sendMessage(Number(telegramId), text, { parse_mode: 'HTML' });
+      await this.bot.sendMessage(Number(telegramId), text, {
+        parse_mode: 'HTML',
+        ...(withPlay && url
+          ? { reply_markup: { inline_keyboard: [[{ text: '⚔️ К бою', web_app: { url } }]] } }
+          : {}),
+      });
     } catch (e: any) {
       this.logger.warn(`notify ${telegramId} failed: ${e?.message}`);
     }
   }
 
-  async notifyUser(userId: string, text: string) {
+  async notifyUser(userId: string, text: string, withPlay = false) {
     const u = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!u) return;
-    await this.notify(u.telegramId, text);
+    await this.notify(u.telegramId, text, withPlay);
   }
 
   async notifyMatchFound(p1Id: string, p2Id: string, wager: number) {
-    const text = `⚔️ Соперник найден! Ставка: ${wager} ₽. Открой Mini App и расставь корабли (30 сек).`;
-    await Promise.all([this.notifyUser(p1Id, text), this.notifyUser(p2Id, text)]);
+    const text = `⚔️ Соперник найден! Ставка: ${wager} ₽. Открой игру и расставь корабли (30 сек).`;
+    await Promise.all([this.notifyUser(p1Id, text, true), this.notifyUser(p2Id, text, true)]);
   }
 
   async notifyPayout(userId: string, amount: number) {
-    await this.notifyUser(userId, `🏆 Победа! Выплата: ${amount.toFixed(0)} ₽`);
+    await this.notifyUser(userId, `🏆 Победа! Выплата: ${amount.toFixed(0)} ₽`, true);
   }
 
   async notifyDeposit(userId: string, amount: number) {

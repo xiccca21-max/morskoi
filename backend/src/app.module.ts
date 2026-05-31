@@ -16,6 +16,7 @@ import { GameModule } from './game/game.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { HistoryModule } from './history/history.module';
 import { RatesModule } from './rates/rates.module';
+import { BackupModule } from './backup/backup.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { HealthController } from './common/health.controller';
 
@@ -38,6 +39,7 @@ import { HealthController } from './common/health.controller';
     LeaderboardModule,
     HistoryModule,
     RatesModule,
+    BackupModule,
     TelegramBotModule,
   ],
   controllers: [HealthController],
