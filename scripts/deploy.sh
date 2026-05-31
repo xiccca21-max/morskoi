@@ -8,9 +8,14 @@ git reset --hard origin/main
 docker compose -f docker-compose.prod.yml build app
 docker compose -f docker-compose.prod.yml up -d
 
-# Ждём поднятия backend (до 90с)
+# Ждём backend внутри контейнера (порт 4000 не проброшен на хост)
+health_ok() {
+  docker compose -f docker-compose.prod.yml exec -T app \
+    node -e "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+}
+
 for i in $(seq 1 18); do
-  if curl -sf http://127.0.0.1:4000/health >/dev/null 2>&1; then
+  if health_ok 2>/dev/null; then
     echo "OK: backend healthy"
     break
   fi
@@ -18,6 +23,11 @@ for i in $(seq 1 18); do
   sleep 5
 done
 
+# nginx кэширует IP upstream — перезапуск после redeploy app
+docker compose -f docker-compose.prod.yml restart nginx
+
 docker image prune -f
 chmod +x scripts/smoke-test.sh 2>/dev/null || true
-bash scripts/smoke-test.sh http://127.0.0.1:4000 || echo "WARN: smoke test failed — check docker logs app"
+docker compose -f docker-compose.prod.yml exec -T app bash -c \
+  'curl -sf http://127.0.0.1:4000/health && curl -sf http://127.0.0.1:4000/api/config' \
+  || echo "WARN: smoke check failed — see docker logs app"
