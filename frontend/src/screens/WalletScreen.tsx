@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic, tgOpenLink, tgMainButton, isTelegram } from '../lib/telegram';
+import { tgHaptic, tgOpenPayment, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
@@ -112,18 +112,22 @@ export default function WalletScreen() {
     setError(null); setBusy(true);
     try {
       const r = await WalletAPI.deposit(amount);
+      const payUrl = r.invoiceUrl ?? r.payUrl;
+      if (!payUrl) throw new Error('Нет ссылки на оплату');
       tgHaptic('success');
-      if (r.mode === 'cryptobot' && r.payUrl) {
-        // Открываем счёт в @CryptoBot; зачисление придёт по вебхуку
-        tgOpenLink(r.payUrl);
-        toast('Счёт создан — оплатите в @CryptoBot', 'info', 'coins');
-        setAwaitingPayment(true);
-      } else {
-        toast(`Баланс пополнен на ${amount} ₽`, 'success', 'plus');
-      }
-      refresh();
+      tgOpenPayment(payUrl, (status) => {
+        if (status === 'paid') {
+          toast('Оплата получена — баланс пополнен', 'success', 'plus');
+          refresh();
+        } else if (status === 'failed') {
+          toast('Оплата не прошла', 'error');
+        }
+      });
+      const usdtHint = r.amountUsdt != null ? ` (~${r.amountUsdt} USDT)` : '';
+      toast(`Оплатите ${amount} ₽${usdtHint} через @CryptoBot`, 'info', 'coins');
+      setAwaitingPayment(true);
     } catch (e: any) {
-      tgHaptic('error'); setError(e?.response?.data?.message ?? 'Не удалось пополнить');
+      tgHaptic('error'); setError(e?.response?.data?.message ?? e?.message ?? 'Не удалось пополнить');
     } finally { setBusy(false); }
   };
 
@@ -224,7 +228,10 @@ export default function WalletScreen() {
 
       {tab === 'deposit' ? (
         <section className="card p-5 space-y-3">
-          <p className="eyebrow">Сумма пополнения</p>
+          <p className="eyebrow">Сумма пополнения (₽ на баланс)</p>
+          <p className="text-muted text-xs leading-relaxed">
+            Оплата только в <b className="text-main">USDT</b> через @CryptoBot — на баланс зачисляются рубли по текущему курсу.
+          </p>
           <input
             type="number" min={MIN_DEPOSIT} max={MAX_DEPOSIT} value={Number.isFinite(amount) ? amount : ''}
             onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
@@ -242,8 +249,8 @@ export default function WalletScreen() {
             ))}
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
-          <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit}>
-            <Icon name="plus" size={16} /> Пополнить на {Number.isFinite(amount) ? amount : 0} ₽
+          <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit || awaitingPayment}>
+            <Icon name="plus" size={16} /> Оплатить {Number.isFinite(amount) ? amount : 0} ₽ (USDT)
           </button>
           {awaitingPayment && (
             <div className="flex items-center justify-center gap-2 text-muted text-xs">

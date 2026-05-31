@@ -213,38 +213,47 @@ export class WalletService {
    * Создать «висящий» депозит под внешний инвойс провайдера.
    * Деньги НЕ зачисляются — ждём вебхук об оплате.
    */
-  async createPendingDeposit(userId: string, amount: number, invoiceId: string, provider: string) {
+  async createPendingDeposit(
+    userId: string,
+    amountRub: number,
+    invoiceId: string,
+    provider: string,
+    extra?: Record<string, unknown>,
+  ) {
     return this.prisma.transaction.create({
       data: {
         userId,
         type: TxType.DEPOSIT,
-        amount,
+        amount: amountRub,
         status: TxStatus.PENDING,
-        meta: JSON.stringify({ invoiceId, provider }),
+        meta: JSON.stringify({ invoiceId, provider, ...extra }),
       },
     });
   }
 
   /**
    * Зачислить депозит по факту оплаты инвойса (идемпотентно).
-   * Находит PENDING-депозит с этим invoiceId и проводит его.
+   * Сумма берётся из PENDING-транзакции (₽), а не из вебхука.
    */
-  async completeDepositByInvoice(userId: string, invoiceId: string, amount: number) {
+  async completeDepositByInvoice(userId: string, invoiceId: string) {
     return this.redis.withLock(`wallet:${userId}`, 4000, async () => {
       return this.prisma.$transaction(async (tx) => {
         const pending = await tx.transaction.findFirst({
           where: { userId, type: TxType.DEPOSIT, status: TxStatus.PENDING, meta: { contains: invoiceId } },
         });
-        if (!pending) return { credited: false };
+        if (!pending) return { credited: false as const };
+        const amountRub = Number(pending.amount);
         await tx.transaction.update({ where: { id: pending.id }, data: { status: TxStatus.COMPLETED } });
         await tx.user.update({
           where: { id: userId },
-          data: { balance: { increment: amount }, withdrawable: { increment: amount } } as any,
+          data: { balance: { increment: amountRub }, withdrawable: { increment: amountRub } } as any,
         });
-        return { credited: true };
+        return { credited: true as const, amountRub };
       });
     }).then((r) => {
-      if (r.credited) this.audit.log(userId, 'DEPOSIT', { amount, invoiceId, source: 'cryptobot' });
+      if (r.credited) {
+        this.audit.log(userId, 'DEPOSIT', { amount: r.amountRub, invoiceId, source: 'cryptobot' });
+      }
       return r;
     });
   }

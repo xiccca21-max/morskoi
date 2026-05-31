@@ -18,7 +18,6 @@ import { newStreakAchievements } from './lib/achievements';
 import { playSound, unlockAudio } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
-import DevLoginScreen from './screens/DevLoginScreen';
 import { Layout } from './components/Layout';
 import { ConsentGate } from './components/ConsentGate';
 import { TelegramAuthError } from './components/TelegramAuthError';
@@ -180,7 +179,7 @@ export default function App() {
         } else if (isTelegramWebView()) {
           setAuthError('Telegram не передал данные авторизации. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
         } else {
-          setAuthError(null); // браузер без токена → DevLoginScreen
+          setAuthError('Откройте приложение через Telegram');
         }
       } catch (e: any) {
         setAuthError(e?.response?.data?.message ?? e?.message ?? 'Auth failed');
@@ -315,15 +314,14 @@ export default function App() {
   }, [ready, authenticated, navigate]);
 
   if (ready && !authenticated) {
-    if (isTelegramWebView()) {
-      return (
-        <TelegramAuthError
-          message={authError ?? 'Не удалось авторизоваться через Telegram'}
-          onRetry={() => window.location.reload()}
-        />
-      );
-    }
-    return <DevLoginScreen />;
+    return (
+      <TelegramAuthError
+        message={authError ?? (isTelegramWebView()
+          ? 'Не удалось авторизоваться через Telegram'
+          : 'Игра доступна только в Telegram. Откройте через бота «⚔️ В бой».')}
+        onRetry={() => window.location.reload()}
+      />
+    );
   }
 
   if (authenticated && user && user.agreedToTerms === false) {

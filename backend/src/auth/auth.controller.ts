@@ -12,13 +12,6 @@ class LoginDto {
   initData!: string;
 }
 
-class DevLoginDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(24)
-  nickname!: string;
-}
-
 class NicknameDto {
   @IsString()
   @MinLength(2)
@@ -34,12 +27,6 @@ export class AuthController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async telegram(@Body() dto: LoginDto) {
     return this.auth.loginWithTelegram(dto.initData);
-  }
-
-  @Post('dev')
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  async dev(@Body() dto: DevLoginDto) {
-    return this.auth.loginDev(dto.nickname);
   }
 
   @Post('agree-terms')

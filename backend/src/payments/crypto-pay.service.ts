@@ -1,18 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { roundRub } from '../common/money';
 
 /**
- * Клиент Crypto Pay API (@CryptoBot).
- * Документация: https://help.crypt.bot/crypto-pay-api
- *
- * Активируется только при наличии CRYPTO_PAY_TOKEN. Без токена isEnabled=false,
- * и приложение работает в демо-режиме.
+ * Crypto Pay API (@CryptoBot). Без CRYPTO_PAY_TOKEN пополнение недоступно.
  */
 @Injectable()
 export class CryptoPayService {
   private readonly logger = new Logger('CryptoPay');
   private readonly token = process.env.CRYPTO_PAY_TOKEN ?? '';
-  // testnet: https://testnet-pay.crypt.bot/api
   private readonly base = process.env.CRYPTO_PAY_API ?? 'https://pay.crypt.bot/api';
 
   get isEnabled() {
@@ -36,17 +32,16 @@ export class CryptoPayService {
     return json.result as T;
   }
 
-  /** Создать фиатный инвойс в рублях. Пользователь платит крипто-эквивалент. */
-  async createInvoice(params: {
-    amountRub: number;
+  /** Инвойс в USDT (не фиатный RUB). Пользователь платит криптой. */
+  async createUsdtInvoice(params: {
+    amountUsdt: number;
     payload: string;
     description?: string;
     returnUrl?: string;
-  }): Promise<{ invoiceId: string; payUrl: string }> {
+  }): Promise<{ invoiceId: string; invoiceUrl: string }> {
     const result = await this.call<any>('createInvoice', {
-      currency_type: 'fiat',
-      fiat: 'RUB',
-      amount: params.amountRub.toFixed(2),
+      asset: 'USDT',
+      amount: roundRub(params.amountUsdt).toFixed(2),
       payload: params.payload,
       description: params.description ?? 'Пополнение баланса · Морской Бой',
       paid_btn_name: params.returnUrl ? 'callback' : undefined,
@@ -54,13 +49,16 @@ export class CryptoPayService {
       allow_comments: false,
       expires_in: 3600,
     });
-    return {
-      invoiceId: String(result.invoice_id),
-      payUrl: result.bot_invoice_url ?? result.pay_url ?? result.mini_app_invoice_url,
-    };
+    const invoiceUrl =
+      result.mini_app_invoice_url ??
+      result.web_app_invoice_url ??
+      result.bot_invoice_url ??
+      result.pay_url;
+    if (!invoiceUrl) throw new Error('Crypto Pay: no invoice URL');
+    return { invoiceId: String(result.invoice_id), invoiceUrl };
   }
 
-  /** Курс: сколько RUB за 1 единицу asset (например USDT). */
+  /** Сколько ₽ за 1 единицу asset (USDT). */
   async getRubPerAsset(asset: string): Promise<number> {
     const rates = await this.call<any[]>('getExchangeRates');
     const r = rates.find((x) => x.source === asset && x.target === 'RUB');
@@ -68,7 +66,6 @@ export class CryptoPayService {
     return Number(r.rate);
   }
 
-  /** Перевод средств пользователю на его аккаунт в @CryptoBot (по Telegram user_id). */
   async transfer(params: {
     telegramUserId: string;
     asset: string;
@@ -86,9 +83,6 @@ export class CryptoPayService {
     return { transferId: String(result.transfer_id) };
   }
 
-  /**
-   * Проверка подписи вебхука. Секрет = SHA256(token), подпись = HMAC-SHA256(rawBody).
-   */
   verifyWebhook(rawBody: string, signature: string | undefined): boolean {
     if (!signature || !this.token) return false;
     const secret = createHash('sha256').update(this.token).digest();

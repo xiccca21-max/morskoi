@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSettingsStore } from '../stores/settings-store';
-import { useAuthStore } from '../stores/auth-store';
 import { Modal } from './Modal';
 import { Icon, IconName } from './Icon';
 import { tgHaptic } from '../lib/telegram';
-import { formatMoney } from '../lib/format';
 
 const STEPS: { icon: IconName; title: string; text: string }[] = [
   { icon: 'swords', title: 'Дуэль на ставку', text: 'Найдите соперника, поставьте равную сумму — победитель забирает банк.' },
@@ -16,8 +14,6 @@ const STEPS: { icon: IconName; title: string; text: string }[] = [
 export function Onboarding() {
   const done = useSettingsStore((s) => s.onboardingDone);
   const setDone = useSettingsStore((s) => s.setOnboardingDone);
-  const user = useAuthStore((s) => s.user);
-  const balance = user?.balance ?? 0;
   const [step, setStep] = useState(0);
 
   const last = step === STEPS.length - 1;
@@ -67,15 +63,6 @@ export function Onboarding() {
           />
         ))}
       </div>
-
-      {balance > 0 && (
-        <div className="card p-3 mb-4 flex items-center gap-2 border-danger">
-          <Icon name="coins" size={18} className="text-danger" />
-          <p className="text-main text-xs">
-            На счёт зачислено <span className="font-display">{formatMoney(balance)}</span> — попробуйте бой прямо сейчас.
-          </p>
-        </div>
-      )}
 
       {last && (
         <p className="text-[11px] text-muted mb-4 leading-relaxed">

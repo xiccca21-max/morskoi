@@ -1,9 +1,16 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { CryptoPayService } from './crypto-pay.service';
 import { WalletService } from '../wallet/wallet.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { AuditService } from '../common/audit.service';
+import { roundRub } from '../common/money';
 
 @Injectable()
 export class PaymentsService {
@@ -18,33 +25,51 @@ export class PaymentsService {
   ) {}
 
   get provider() {
-    return this.cryptoPay.isEnabled ? 'cryptobot' : 'demo';
+    return this.cryptoPay.isEnabled ? 'cryptobot' : 'none';
   }
 
   /**
-   * Создать депозит. Если провайдер подключён — возвращаем ссылку на оплату.
-   * Иначе (демо-режим) — сразу зачисляем условные средства.
+   * Пополнение: пользователь вводит сумму в ₽, платит USDT через @CryptoBot,
+   * на баланс зачисляются рубли по курсу на момент создания счёта.
    */
   async createDeposit(userId: string, amountRub: number) {
     if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
 
     if (!this.cryptoPay.isEnabled) {
-      const balance = await this.wallet.deposit(userId, amountRub, { source: 'demo' }, true);
-      return { mode: 'demo' as const, credited: true, balance };
+      throw new ServiceUnavailableException(
+        'Пополнение недоступно. Подключите CRYPTO_PAY_TOKEN (@CryptoBot) на сервере.',
+      );
+    }
+
+    const amount = roundRub(amountRub);
+    const rubPerUsdt = await this.cryptoPay.getRubPerAsset('USDT');
+    const amountUsdt = roundRub(amount / rubPerUsdt);
+    if (amountUsdt < 0.01) {
+      throw new BadRequestException('Слишком маленькая сумма для оплаты в USDT');
     }
 
     const returnUrl = process.env.TELEGRAM_WEBAPP_URL;
-    const { invoiceId, payUrl } = await this.cryptoPay.createInvoice({
-      amountRub,
+    const { invoiceId, invoiceUrl } = await this.cryptoPay.createUsdtInvoice({
+      amountUsdt,
       payload: userId,
       returnUrl,
+      description: `Пополнение ${amount.toFixed(0)} ₽ · Морской Бой`,
     });
-    await this.wallet.createPendingDeposit(userId, amountRub, invoiceId, 'cryptobot');
-    this.logger.log(`Invoice ${invoiceId} created for user ${userId} (${amountRub} ₽)`);
-    return { mode: 'cryptobot' as const, payUrl, invoiceId };
+    await this.wallet.createPendingDeposit(userId, amount, invoiceId, 'cryptobot', {
+      amountUsdt,
+      rubPerUsdt,
+    });
+    this.logger.log(`Invoice ${invoiceId}: user=${userId} ${amount} ₽ ≈ ${amountUsdt} USDT`);
+    return {
+      mode: 'cryptobot' as const,
+      payUrl: invoiceUrl,
+      invoiceUrl,
+      invoiceId,
+      amountRub: amount,
+      amountUsdt,
+    };
   }
 
-  /** Обработка вебхука Crypto Pay (оплата инвойса). */
   async handleCryptoWebhook(rawBody: string, signature?: string) {
     if (!this.cryptoPay.verifyWebhook(rawBody, signature)) {
       throw new BadRequestException('Invalid signature');
@@ -60,22 +85,16 @@ export class PaymentsService {
     const inv = update.payload;
     const userId: string = inv?.payload;
     const invoiceId = String(inv?.invoice_id);
-    // amount в фиате (RUB), т.к. инвойс фиатный
-    const amountRub = Number(inv?.amount ?? inv?.paid_amount ?? 0);
-    if (!userId || !invoiceId || amountRub <= 0) return { ok: true, ignored: true };
+    if (!userId || !invoiceId) return { ok: true, ignored: true };
 
-    const r = await this.wallet.completeDepositByInvoice(userId, invoiceId, amountRub);
-    if (r.credited) {
-      this.logger.log(`Deposit credited: user=${userId} invoice=${invoiceId} +${amountRub} ₽`);
-      this.bot.notifyDeposit?.(userId, amountRub).catch(() => {});
+    const r = await this.wallet.completeDepositByInvoice(userId, invoiceId);
+    if (r.credited && r.amountRub != null) {
+      this.logger.log(`Deposit credited: user=${userId} invoice=${invoiceId} +${r.amountRub} ₽`);
+      this.bot.notifyDeposit?.(userId, r.amountRub).catch(() => {});
     }
     return { ok: true };
   }
 
-  /**
-   * Обработать заявку на вывод: выплатить через Crypto Pay (transfer) и пометить PAID,
-   * либо отклонить с возвратом средств.
-   */
   async processWithdrawal(id: string, action: 'pay' | 'reject', note?: string) {
     const wr = await this.wallet.getWithdrawal(id);
     if (!wr) throw new NotFoundException('Заявка не найдена');
@@ -90,8 +109,7 @@ export class PaymentsService {
       return res;
     }
 
-    // action === 'pay'
-    if (this.cryptoPay.isEnabled && (wr.method === 'TON' || wr.method === 'CRYPTO')) {
+    if (this.cryptoPay.isEnabled && (wr.method === 'TON' || wr.method === 'CRYPTO' || wr.method.startsWith('USDT_'))) {
       const asset = wr.method === 'TON' ? 'TON' : 'USDT';
       const user = await this.prisma.user.findUnique({ where: { id: wr.userId } });
       if (!user) throw new NotFoundException('Пользователь не найден');
@@ -105,7 +123,7 @@ export class PaymentsService {
         comment: 'Вывод · Морской Бой',
       });
     }
-    // Для CARD или демо — считаем выплаченной вручную
+
     const res = await this.wallet.resolveWithdrawal(id, 'PAID');
     this.audit.log(wr.userId, 'WITHDRAW_PAID', { id, net: wr.net, method: wr.method });
     this.bot.notifyWithdrawal?.(wr.userId, wr.net, 'paid').catch(() => {});

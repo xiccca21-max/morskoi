@@ -4,9 +4,6 @@ export const AuthAPI = {
   login: (initData: string) =>
     api.post<{ token: string; user: any; startParam?: string; dailyBonus?: { claimed: boolean; amount?: number; streak?: number } }>('/auth/telegram', { initData })
        .then(r => r.data),
-  devLogin: (nickname: string) =>
-    api.post<{ token: string; user: any }>('/auth/dev', { nickname })
-       .then(r => r.data),
   agreeTerms: () => api.post('/auth/agree-terms', {}).then(r => r.data),
   setNickname: (nickname: string) => api.post('/auth/nickname', { nickname }).then(r => r.data),
 };
@@ -35,11 +32,12 @@ export interface Withdrawal {
 }
 
 export interface DepositResult {
-  mode: 'demo' | 'cryptobot';
-  credited?: boolean;
-  balance?: number;
+  mode: 'cryptobot';
   payUrl?: string;
+  invoiceUrl?: string;
   invoiceId?: string;
+  amountRub?: number;
+  amountUsdt?: number;
 }
 
 export const WalletAPI = {

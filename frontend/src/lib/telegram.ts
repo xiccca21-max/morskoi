@@ -248,6 +248,16 @@ export function tgNotify(kind: 'success' | 'error' | 'warning' = 'success') {
   tgVibrate(pattern);
 }
 
+/** Открыть ссылку или платёжный инвойс Crypto Pay внутри Telegram. */
+export function tgOpenPayment(url: string, onDone?: (status: string) => void) {
+  const tg = getTelegramWebApp();
+  if (tg?.openInvoice) {
+    tg.openInvoice(url, (status: string) => onDone?.(status));
+    return;
+  }
+  tgOpenLink(url);
+}
+
 /** Открыть ссылку (t.me — через Telegram, иначе в браузере). */
 export function tgOpenLink(url: string) {
   const tg = getTelegramWebApp();

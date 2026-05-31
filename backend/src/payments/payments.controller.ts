@@ -39,7 +39,7 @@ class ProcessDto {
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
-  /** Создать депозит: ссылка на оплату (CryptoBot) или мгновенное зачисление (демо). */
+  /** Создать депозит через Crypto Pay (USDT → ₽ на баланс). */
   @Post('deposit')
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 15, ttl: 60_000 } })

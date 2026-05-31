@@ -40,8 +40,8 @@ services:
       MM_FLEX_PCT: ${MM_FLEX_PCT:-0.1}
       INVITEE_BONUS: ${INVITEE_BONUS:-10}
       AFK_FORFEIT_TIMEOUTS: ${AFK_FORFEIT_TIMEOUTS:-2}
-      # Платёжка Crypto Pay (@CryptoBot). Пусто = демо-режим.
-      CRYPTO_PAY_TOKEN: ${CRYPTO_PAY_TOKEN:-}
+      # Crypto Pay (@CryptoBot) — обязателен для пополнения
+      CRYPTO_PAY_TOKEN: ${CRYPTO_PAY_TOKEN}
       CRYPTO_PAY_API: ${CRYPTO_PAY_API:-https://pay.crypt.bot/api}
       # Ключ для админских действий (обработка выводов)
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
