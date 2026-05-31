@@ -34,6 +34,14 @@ function initialFleet(): SlotShip[] {
   return out;
 }
 
+function shipWord(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'корабль';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'корабля';
+  return 'кораблей';
+}
+
 const KIND_LABEL: Record<string, string> = {
   battleship: 'Линкор',
   cruiser: 'Крейсер',
@@ -185,8 +193,10 @@ export default function PlacementScreen() {
   };
 
   const allPlaced = placedShips.length === fleet.length;
+  const left = fleet.length - placedShips.length;
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
   const fuse = Math.max(0, Math.min(100, (remaining / totalSec) * 100));
+  const lowTime = remaining <= 10;
 
   // Автостановка: если время вышло и игрок не отправил флот —
   // ставим корабли автоматически и отправляем, чтобы не потерять матч.
@@ -215,7 +225,7 @@ export default function PlacementScreen() {
       return tgMainButton({ text: 'Ждём соперника', onClick: () => {}, active: false, progress: true });
     }
     return tgMainButton({
-      text: allPlaced ? 'К бою' : `Осталось: ${fleet.length - placedShips.length}`,
+      text: allPlaced ? 'К бою' : `Расставьте ещё ${left} ${shipWord(left)}`,
       onClick: submit,
       active: allPlaced && !submitting,
       progress: submitting,
@@ -241,9 +251,18 @@ export default function PlacementScreen() {
         </span>
       </header>
 
-      {/* Таймер */}
-      <div className="h-1 rounded-full bg-panel overflow-hidden">
-        <div className="h-full bg-danger transition-all" style={{ width: `${fuse}%` }} />
+      {/* Таймер расстановки */}
+      <div className="flex items-center gap-2">
+        <Icon name="clock" size={14} className={lowTime ? 'text-danger' : 'text-muted'} />
+        <div className="flex-1 h-1.5 rounded-full bg-panel overflow-hidden">
+          <div
+            className={['h-full transition-all duration-300 ease-linear', lowTime ? 'bg-danger animate-pulse' : 'bg-danger'].join(' ')}
+            style={{ width: `${fuse}%` }}
+          />
+        </div>
+        <span className={['text-sm font-display tabular-nums shrink-0 w-10 text-right', lowTime ? 'text-danger animate-pulse' : 'text-muted'].join(' ')}>
+          {remaining}с
+        </span>
       </div>
 
       <Board
@@ -306,11 +325,9 @@ export default function PlacementScreen() {
         </div>
       ) : !useNative ? (
         <motion.button className="btn-primary w-full" onClick={submit} disabled={!allPlaced || submitting} whileTap={{ scale: 0.98 }}>
-          {submitting ? 'Отправка…' : allPlaced ? 'К бою' : `Осталось расставить: ${fleet.length - placedShips.length}`}
+          {submitting ? 'Отправка…' : allPlaced ? 'К бою' : `Расставьте ещё ${left} ${shipWord(left)}`}
         </motion.button>
       ) : null}
-
-      <p className="text-center text-muted text-xs tabular-nums">До автостановки: {remaining} c</p>
 
       <ConfirmDialog
         open={showExit}
