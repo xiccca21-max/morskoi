@@ -1,4 +1,28 @@
 // Утилиты для работы с Telegram WebApp SDK
+
+const TG_INIT_KEY = 'tg_init_data';
+
+/** Сохранить initData из hash/query до того, как роутер изменит URL (HashRouter ломает tgWebAppData). */
+function captureInitDataFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const hash = window.location.hash.slice(1);
+    if (hash.includes('tgWebAppData=')) {
+      const p = new URLSearchParams(hash);
+      const d = p.get('tgWebAppData');
+      if (d) sessionStorage.setItem(TG_INIT_KEY, decodeURIComponent(d));
+    }
+    const q = new URLSearchParams(window.location.search);
+    const qd = q.get('tgWebAppData');
+    if (qd) sessionStorage.setItem(TG_INIT_KEY, decodeURIComponent(qd));
+  } catch {
+    /* ignore */
+  }
+}
+
+// Выполняем сразу при импорте модуля — до React Router.
+captureInitDataFromUrl();
+
 declare global {
   interface Window {
     Telegram?: {
@@ -11,10 +35,29 @@ export function getTelegramWebApp() {
   return typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
 }
 
-/** Запущены ли мы внутри настоящего Telegram-клиента. */
-export function isTelegram(): boolean {
+/** Запущены ли мы внутри Telegram (WebView), даже если initData ещё не прочитан. */
+export function isTelegramWebView(): boolean {
   const tg = getTelegramWebApp();
-  return !!(tg && tg.initData);
+  if (!tg) {
+    try {
+      if (sessionStorage.getItem(TG_INIT_KEY)) return true;
+    } catch { /* ignore */ }
+    return false;
+  }
+  return !!(
+    tg.initData ||
+    tg.platform ||
+    tg.version ||
+    tg.initDataUnsafe?.user ||
+    (() => {
+      try { return !!sessionStorage.getItem(TG_INIT_KEY); } catch { return false; }
+    })()
+  );
+}
+
+/** Запущены ли мы внутри настоящего Telegram-клиента с данными для входа. */
+export function isTelegram(): boolean {
+  return !!getInitData();
 }
 
 interface MainButtonOpts {
@@ -63,8 +106,25 @@ export function tgMainButton(opts: MainButtonOpts | null) {
 export function getInitData(): string {
   const tg = getTelegramWebApp();
   if (tg?.initData) return tg.initData as string;
-  // В dev можем поднять без Telegram — вернуть пусто.
+  try {
+    const stored = sessionStorage.getItem(TG_INIT_KEY);
+    if (stored) return stored;
+  } catch {
+    /* ignore */
+  }
   return '';
+}
+
+/** Ждём появления initData (SDK или ранний захват из URL). */
+export async function waitForInitData(maxMs = 4000): Promise<string> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const d = getInitData();
+    if (d) return d;
+    captureInitDataFromUrl();
+    await new Promise((r) => setTimeout(r, 80));
+  }
+  return getInitData();
 }
 
 /** start_param из Telegram (?startapp=...) — например `lobby_AB12CD`. */

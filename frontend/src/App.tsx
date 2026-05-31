@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { tgReady, getInitData, getStartParam, setHapticsGate } from './lib/telegram';
+import { tgReady, waitForInitData, isTelegramWebView, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI, WalletAPI, RatesAPI } from './api/endpoints';
@@ -29,6 +29,7 @@ import HowItWorksScreen from './screens/HowItWorksScreen';
 import RulesScreen from './screens/RulesScreen';
 import { Layout } from './components/Layout';
 import { ConsentGate } from './components/ConsentGate';
+import { TelegramAuthError } from './components/TelegramAuthError';
 
 function Protected({ children }: { children: JSX.Element }) {
   const { authenticated, ready } = useAuthStore();
@@ -118,7 +119,7 @@ export default function App() {
     (async () => {
       // 1. пробуем существующий токен
       const existing = loadToken();
-      const initData = getInitData();
+      const initData = await waitForInitData();
       try {
         if (initData) {
           const res = await AuthAPI.login(initData);
@@ -134,16 +135,21 @@ export default function App() {
             playSound('win');
           }
         } else if (existing) {
-          // без Telegram — пробуем GET /users/me чтобы валидировать токен
           try {
             const me = await UsersAPI.me();
             setUser({ ...me, balance: Number(me.balance) });
           } catch {
             setAuthToken(null);
-            setAuthError('Откройте приложение через Telegram');
+            if (isTelegramWebView()) {
+              setAuthError('Сессия истекла. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
+            } else {
+              setAuthError('Откройте приложение через Telegram');
+            }
           }
+        } else if (isTelegramWebView()) {
+          setAuthError('Telegram не передал данные авторизации. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
         } else {
-          setAuthError('Откройте приложение через Telegram');
+          setAuthError(null); // браузер без токена → DevLoginScreen
         }
       } catch (e: any) {
         setAuthError(e?.response?.data?.message ?? e?.message ?? 'Auth failed');
@@ -246,10 +252,15 @@ export default function App() {
     }
   }, [ready, authenticated, navigate]);
 
-  if (authError && !authenticated) {
-    return <DevLoginScreen />;
-  }
   if (ready && !authenticated) {
+    if (isTelegramWebView()) {
+      return (
+        <TelegramAuthError
+          message={authError ?? 'Не удалось авторизоваться через Telegram'}
+          onRetry={() => window.location.reload()}
+        />
+      );
+    }
     return <DevLoginScreen />;
   }
 
