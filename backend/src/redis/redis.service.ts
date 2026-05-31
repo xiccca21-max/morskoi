@@ -1,52 +1,108 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import Redis from 'ioredis';
 
 /**
- * In-memory реализация — заменяет настоящий Redis для локального запуска
- * без облаков. Поддерживает только используемые проектом операции
- * (lock, set NX EX, sadd, smembers, expire, del, eval-style script для
- * snippet'а распределённого lock’а из исходной реализации).
- *
- * Этого достаточно для локальной разработки и тестового PvP.
- * В проде используйте обычный Redis (см. редактируемые комментарии).
+ * Redis-совместимый слой: ioredis при REDIS_URL, иначе in-memory для локальной разработки.
  */
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger('Redis(InMemory)');
+  private readonly logger = new Logger('Redis');
+  private ioredis?: Redis;
+  private useMemory = true;
 
-  // key -> { value, expiresAt }
   private store = new Map<string, { value: string; expiresAt: number | null }>();
-  // key -> Set<member> (для sadd/smembers)
   private sets = new Map<string, Set<string>>();
   private setTtl = new Map<string, number>();
+  private cleanupTimer?: NodeJS.Timeout;
 
-  // Совместимость с прежним кодом: `redis.client.<method>`
   public client: any;
 
   async onModuleInit() {
-    this.logger.log('Using in-memory Redis-compatible store');
+    const url = process.env.REDIS_URL?.trim();
+    if (url) {
+      this.useMemory = false;
+      this.ioredis = new Redis(url, {
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+        connectTimeout: 5000,
+      });
+      await this.ioredis.connect();
+      const safe = url.replace(/:([^:@/]+)@/, ':***@');
+      this.logger.log(`Connected → ${safe}`);
+      this.client = {
+        set: (key: string, value: string, ...args: any[]) =>
+          (this.ioredis!.set as (...a: any[]) => Promise<'OK' | null>)(key, value, ...args),
+        get: (key: string) => this.ioredis!.get(key),
+        del: (...keys: string[]) => this.ioredis!.del(...keys),
+        eval: (script: string, n: number, ...args: any[]) => this.ioredis!.eval(script, n, ...args),
+        sadd: (key: string, ...members: string[]) => this.ioredis!.sadd(key, ...members),
+        smembers: (key: string) => this.ioredis!.smembers(key),
+        expire: (key: string, seconds: number) => this.ioredis!.expire(key, seconds),
+        ping: () => this.ioredis!.ping(),
+      };
+      return;
+    }
+
+    this.logger.log('Using in-memory store (set REDIS_URL for production cluster)');
     this.client = {
-      // SET key value EX seconds NX
-      set: (...args: any[]) => this.setCmd(args),
-      get: (key: string) => Promise.resolve(this.getCmd(key)),
-      del: (...keys: string[]) => Promise.resolve(this.delCmd(keys)),
-      eval: (_script: string, _numKeys: number, key: string, _token: string) =>
-        Promise.resolve(this.delCmd([key])),
-      sadd: (key: string, ...members: string[]) => Promise.resolve(this.saddCmd(key, members)),
-      smembers: (key: string) => Promise.resolve(this.smembersCmd(key)),
-      expire: (key: string, seconds: number) => Promise.resolve(this.expireCmd(key, seconds)),
+      set: (...args: any[]) => this.memSet(args),
+      get: (key: string) => Promise.resolve(this.memGet(key)),
+      del: (...keys: string[]) => Promise.resolve(this.memDel(keys)),
+      eval: (_script: string, _numKeys: number, key: string) => Promise.resolve(this.memDel([key])),
+      sadd: (key: string, ...members: string[]) => Promise.resolve(this.memSadd(key, members)),
+      smembers: (key: string) => Promise.resolve(this.memSmembers(key)),
+      expire: (key: string, seconds: number) => Promise.resolve(this.memExpire(key, seconds)),
+      ping: () => Promise.resolve('PONG'),
     };
-    setInterval(() => this.cleanup(), 5000).unref();
+    this.cleanupTimer = setInterval(() => this.memCleanup(), 5000);
+    this.cleanupTimer.unref();
   }
 
   async onModuleDestroy() {
-    this.store.clear();
-    this.sets.clear();
-    this.setTtl.clear();
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
+    await this.ioredis?.quit().catch(() => undefined);
   }
 
-  // ===== низкоуровневые операции =====
+  async ping(): Promise<boolean> {
+    try {
+      const r = await this.client.ping();
+      return r === 'PONG';
+    } catch {
+      return false;
+    }
+  }
 
-  private cleanup() {
+  async withLock<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+    const lockKey = `lock:${key}`;
+    const start = Date.now();
+    const maxWait = ttlMs * 2 + 500;
+    while (true) {
+      const ok = this.useMemory
+        ? await this.memSet([lockKey, '1', 'PX', ttlMs, 'NX'])
+        : await this.ioredis!.set(lockKey, '1', 'PX', ttlMs, 'NX');
+      if (ok === 'OK') break;
+      if (Date.now() - start > maxWait) throw new Error(`Resource ${key} is locked`);
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    try {
+      return await fn();
+    } finally {
+      if (this.useMemory) this.memDel([lockKey]);
+      else await this.ioredis!.del(lockKey);
+    }
+  }
+
+  async consumeNonce(userId: string, nonce: string, ttlSec = 60): Promise<boolean> {
+    const k = `nonce:${userId}:${nonce}`;
+    const ok = this.useMemory
+      ? await this.memSet([k, '1', 'EX', ttlSec, 'NX'])
+      : await this.ioredis!.set(k, '1', 'EX', ttlSec, 'NX');
+    return ok === 'OK';
+  }
+
+  // ===== in-memory =====
+
+  private memCleanup() {
     const now = Date.now();
     for (const [k, v] of this.store) {
       if (v.expiresAt !== null && v.expiresAt < now) this.store.delete(k);
@@ -59,7 +115,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private isExpired(k: string): boolean {
+  private memExpired(k: string): boolean {
     const v = this.store.get(k);
     if (!v) return true;
     if (v.expiresAt !== null && v.expiresAt < Date.now()) {
@@ -69,12 +125,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return false;
   }
 
-  private getCmd(key: string): string | null {
-    if (this.isExpired(key)) return null;
+  private memGet(key: string): string | null {
+    if (this.memExpired(key)) return null;
     return this.store.get(key)?.value ?? null;
   }
 
-  private delCmd(keys: string[]): number {
+  private memDel(keys: string[]): number {
     let n = 0;
     for (const k of keys) {
       if (this.store.delete(k)) n++;
@@ -84,14 +140,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return n;
   }
 
-  /**
-   * Поддерживает варианты:
-   *   set(key, value)
-   *   set(key, value, 'EX', seconds)
-   *   set(key, value, 'PX', ms)
-   *   + любой флаг 'NX' (атомарное создание, если ключа нет)
-   */
-  private setCmd(args: any[]): Promise<'OK' | null> {
+  private memSet(args: any[]): Promise<'OK' | null> {
     const [key, value, ...rest] = args;
     let expiresAt: number | null = null;
     let nx = false;
@@ -107,14 +156,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         nx = true;
       }
     }
-    if (nx) {
-      if (!this.isExpired(key)) return Promise.resolve(null);
-    }
+    if (nx && !this.memExpired(key)) return Promise.resolve(null);
     this.store.set(key, { value: String(value), expiresAt });
     return Promise.resolve('OK');
   }
 
-  private saddCmd(key: string, members: string[]): number {
+  private memSadd(key: string, members: string[]): number {
     if (!this.sets.has(key)) this.sets.set(key, new Set());
     const s = this.sets.get(key)!;
     let added = 0;
@@ -124,7 +171,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return added;
   }
 
-  private smembersCmd(key: string): string[] {
+  private memSmembers(key: string): string[] {
     const exp = this.setTtl.get(key);
     if (exp && exp < Date.now()) {
       this.sets.delete(key);
@@ -134,7 +181,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return Array.from(this.sets.get(key) ?? []);
   }
 
-  private expireCmd(key: string, seconds: number): number {
+  private memExpire(key: string, seconds: number): number {
     if (this.store.has(key)) {
       const v = this.store.get(key)!;
       v.expiresAt = Date.now() + seconds * 1000;
@@ -145,31 +192,5 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return 1;
     }
     return 0;
-  }
-
-  // ===== высокоуровневые helpers (как в оригинале) =====
-
-  async withLock<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
-    const lockKey = `lock:${key}`;
-    const start = Date.now();
-    // ждём максимум ttlMs * 2 + 500 мс
-    const maxWait = ttlMs * 2 + 500;
-    while (true) {
-      const ok = await this.setCmd([lockKey, '1', 'PX', ttlMs, 'NX']);
-      if (ok === 'OK') break;
-      if (Date.now() - start > maxWait) throw new Error(`Resource ${key} is locked`);
-      await new Promise((r) => setTimeout(r, 30));
-    }
-    try {
-      return await fn();
-    } finally {
-      this.delCmd([lockKey]);
-    }
-  }
-
-  async consumeNonce(userId: string, nonce: string, ttlSec = 60): Promise<boolean> {
-    const k = `nonce:${userId}:${nonce}`;
-    const res = await this.setCmd([k, '1', 'EX', ttlSec, 'NX']);
-    return res === 'OK';
   }
 }

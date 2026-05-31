@@ -17,7 +17,7 @@ import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
 import { formatMoney } from '../lib/format';
 import { playSound } from '../lib/audio';
-import { MIN_WAGER, MAX_WAGER } from '../lib/config';
+import { useGameConfigStore } from '../stores/game-config-store';
 
 const ALL_RANKS_LOCAL = ALL_RANKS;
 
@@ -51,23 +51,23 @@ function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose:
 }
 
 const PRESETS = [100, 250, 500, 1000, 5000];
-const WAGER_MIN = MIN_WAGER;
-const WAGER_ABS_MAX = MAX_WAGER;
 
 export default function MatchmakingScreen() {
+  const minWager = useGameConfigStore((s) => s.minWager);
+  const maxWager = useGameConfigStore((s) => s.maxWager);
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const lastWager = useSettingsStore((s) => s.lastWager);
   const setLastWager = useSettingsStore((s) => s.setLastWager);
   const navigate = useNavigate();
   // rawInput: то, что юзер видит в поле ввода (строка, может быть пустой при наборе)
-  const [rawInput, setRawInput] = useState(String(Math.max(WAGER_MIN, lastWager)));
-  const wager = Math.max(WAGER_MIN, Math.min(WAGER_ABS_MAX, Number(rawInput) || WAGER_MIN));
+  const [rawInput, setRawInput] = useState(String(Math.max(minWager, lastWager)));
+  const wager = Math.max(minWager, Math.min(maxWager, Number(rawInput) || minWager));
   const balance = user?.balance ?? 0;
   const overBalance = wager > balance;
 
   const setWager = (v: number) => {
-    const clamped = Math.max(WAGER_MIN, Math.min(WAGER_ABS_MAX, Math.round(v)));
+    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(v)));
     setRawInput(String(clamped));
     setLastWager(clamped);
   };
@@ -280,13 +280,13 @@ export default function MatchmakingScreen() {
         )}
       </div>
 
-      {balance < WAGER_MIN && (
+      {balance < minWager && (
         <button
           onClick={() => navigate('/wallet')}
           className="w-full card card-press p-3 flex items-center gap-3 border-warning text-left"
         >
           <Icon name="coins" size={18} className="text-warning shrink-0" />
-          <span className="flex-1 text-main text-sm">Баланс {balance.toFixed(0)} ₽ — для боя нужно минимум {WAGER_MIN} ₽</span>
+          <span className="flex-1 text-main text-sm">Баланс {balance.toFixed(0)} ₽ — для боя нужно минимум {minWager} ₽</span>
           <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
       )}
@@ -315,7 +315,7 @@ export default function MatchmakingScreen() {
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-panel border-2 border-line flex items-center justify-center text-main transition active:scale-95 disabled:opacity-30"
               onClick={() => setWager(wager - 25)}
-              disabled={wager <= WAGER_MIN}
+              disabled={wager <= minWager}
               aria-label="-25"
             >
               <Icon name="minus" size={26} />
@@ -328,10 +328,10 @@ export default function MatchmakingScreen() {
                 onChange={(e) => {
                   setRawInput(e.target.value);
                   const n = Number(e.target.value);
-                  if (!isNaN(n) && n > 0) setLastWager(Math.min(WAGER_ABS_MAX, n));
+                  if (!isNaN(n) && n > 0) setLastWager(Math.min(maxWager, n));
                 }}
                 onBlur={() => {
-                  const n = Math.max(WAGER_MIN, Math.min(WAGER_ABS_MAX, Number(rawInput) || WAGER_MIN));
+                  const n = Math.max(minWager, Math.min(maxWager, Number(rawInput) || minWager));
                   setRawInput(String(n));
                   setLastWager(n);
                 }}
@@ -342,7 +342,7 @@ export default function MatchmakingScreen() {
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
               onClick={() => setWager(wager + 25)}
-              disabled={wager >= WAGER_ABS_MAX}
+              disabled={wager >= maxWager}
               aria-label="+25"
             >
               <Icon name="plus" size={26} />
@@ -358,12 +358,12 @@ export default function MatchmakingScreen() {
             ))}
           </div>
 
-          <input type="range" min={WAGER_MIN} max={Math.max(balance, wager, 200)} step={1}
+          <input type="range" min={minWager} max={Math.max(balance, wager, 200)} step={1}
             value={Math.min(wager, Math.max(balance, wager, 200))}
             onChange={(e) => setWager(Number(e.target.value))}
             className="w-full accent-danger" />
           <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums mb-4">
-            <span>{WAGER_MIN} ₽</span>
+            <span>{minWager} ₽</span>
             <span>Баланс: {balance.toFixed(0)} ₽</span>
           </div>
 
@@ -415,11 +415,11 @@ export default function MatchmakingScreen() {
           <div className="card p-4 space-y-4">
             <p className="eyebrow">Ставка</p>
             <div className="flex items-center justify-center gap-2">
-              <button className="w-12 h-12 rounded-xl bg-panel border border-line flex items-center justify-center" onClick={() => setWager(wager - 25)} disabled={wager <= WAGER_MIN || inQueue}>
+              <button className="w-12 h-12 rounded-xl bg-panel border border-line flex items-center justify-center" onClick={() => setWager(wager - 25)} disabled={wager <= minWager || inQueue}>
                 <Icon name="minus" size={20} />
               </button>
               <span className="font-display text-4xl tabular-nums text-main">{wager} ₽</span>
-              <button className="w-12 h-12 rounded-xl bg-danger flex items-center justify-center text-white" onClick={() => setWager(wager + 25)} disabled={wager >= WAGER_ABS_MAX || inQueue}>
+              <button className="w-12 h-12 rounded-xl bg-danger flex items-center justify-center text-white" onClick={() => setWager(wager + 25)} disabled={wager >= maxWager || inQueue}>
                 <Icon name="plus" size={20} />
               </button>
             </div>

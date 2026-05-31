@@ -3,7 +3,9 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
-import { AuthAPI, UsersAPI, WalletAPI, RatesAPI } from './api/endpoints';
+import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI } from './api/endpoints';
+import { useGameConfigStore } from './stores/game-config-store';
+import { MatchFoundOverlay } from './components/MatchFoundOverlay';
 import { useCurrencyStore } from './stores/currency-store';
 import { loadToken, setAuthToken } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
@@ -61,6 +63,16 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
+  const applyGameConfig = useGameConfigStore((s) => s.apply);
+  const [matchFound, setMatchFound] = useState<{ open: boolean; wager?: number; matchId?: string }>({
+    open: false,
+  });
+  const matchFoundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Публичные игровые константы с сервера
+  useEffect(() => {
+    ConfigAPI.get().then(applyGameConfig).catch(() => {});
+  }, [applyGameConfig]);
 
   // Подписка на изменения haptics в настройках → обновляем gate без перезагрузки
   useEffect(() => {
@@ -253,10 +265,15 @@ export default function App() {
     const onMatchFound = (e: any) => { // eslint-disable-line
       if (!e?.matchId) return;
       playSound('win');
-      const path = window.location.pathname;
-      if (!path.includes('/placement/') && !path.includes('/battle/')) {
-        navigate(`/placement/${e.matchId}`);
-      }
+      if (matchFoundTimer.current) clearTimeout(matchFoundTimer.current);
+      setMatchFound({ open: true, wager: e.wagerAmount, matchId: e.matchId });
+      matchFoundTimer.current = setTimeout(() => {
+        setMatchFound({ open: false });
+        const path = window.location.pathname;
+        if (!path.includes('/placement/') && !path.includes('/battle/')) {
+          navigate(`/placement/${e.matchId}`);
+        }
+      }, 1800);
     };
     sock.on('match:found', onMatchFound);
 
@@ -273,6 +290,7 @@ export default function App() {
       sock.off('wallet:update', onWalletUpdate);
       sock.off('match:found', onMatchFound);
       if (toastTimer) clearTimeout(toastTimer);
+      if (matchFoundTimer.current) clearTimeout(matchFoundTimer.current);
       closeSocket();
     };
   }, [authenticated, setMatchState, setLastAttack, updateBalance, updateWallet, clearMatch, navigate]);
@@ -313,6 +331,8 @@ export default function App() {
   }
 
   return (
+    <>
+    <MatchFoundOverlay open={matchFound.open} wager={matchFound.wager} />
     <Routes>
       <Route path="/" element={<SplashScreen />} />
       <Route element={<Protected><Layout /></Protected>}>
@@ -333,5 +353,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
+    </>
   );
 }

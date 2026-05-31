@@ -1,39 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '../components/Icon';
-
-const STEPS = [
-  {
-    n: 1,
-    icon: 'coins' as const,
-    title: 'Выбери ставку',
-    body: 'Установи сумму от 100 ₽. Оба игрока ставят одинаковую сумму — она замораживается на балансе в момент старта боя.',
-  },
-  {
-    n: 2,
-    icon: 'swords' as const,
-    title: 'Найди соперника',
-    body: 'Создай открытый бой — он появится в общем списке. Любой игрок с нужным балансом может принять вызов. Или пригласи друга по коду.',
-  },
-  {
-    n: 3,
-    icon: 'target' as const,
-    title: 'Расставь флот',
-    body: 'У тебя 30 секунд расставить 10 кораблей на поле 10×10. Корабли не должны касаться друг друга. Можно использовать авторасстановку.',
-  },
-  {
-    n: 4,
-    icon: 'anchor' as const,
-    title: 'Бой на море',
-    body: 'Игроки ходят по очереди, называя клетку. Попал — стреляешь ещё раз. Промахнулся — ход переходит сопернику. На каждый ход 20 секунд.',
-  },
-  {
-    n: 5,
-    icon: 'trophy' as const,
-    title: 'Победитель забирает банк',
-    body: 'Кто первым потопит все 10 кораблей врага — получает 95% общего банка. 5% — комиссия платформы. Сумма зачисляется мгновенно.',
-  },
-];
+import { useGameConfigStore } from '../stores/game-config-store';
 
 const RANKS = [
   { title: 'Юнга', min: 0 },
@@ -46,6 +14,41 @@ const RANKS = [
 
 export default function HowItWorksScreen() {
   const navigate = useNavigate();
+  const { minWager, placementTimeoutSec, turnTimeoutSec } = useGameConfigStore();
+
+  const STEPS = [
+    {
+      n: 1,
+      icon: 'coins' as const,
+      title: 'Выбери ставку',
+      body: `Установи сумму от ${minWager} ₽. Оба игрока ставят одинаковую сумму — она замораживается на балансе в момент старта боя.`,
+    },
+    {
+      n: 2,
+      icon: 'swords' as const,
+      title: 'Найди соперника',
+      body: 'Создай открытый бой — он появится в общем списке. Любой игрок с нужным балансом может принять вызов. Или пригласи друга по коду или через «Быстрый бой».',
+    },
+    {
+      n: 3,
+      icon: 'target' as const,
+      title: 'Расставь флот',
+      body: `У тебя ${placementTimeoutSec} секунд расставить 10 кораблей на поле 10×10. Корабли не должны касаться друг друга. Можно использовать авторасстановку.`,
+    },
+    {
+      n: 4,
+      icon: 'anchor' as const,
+      title: 'Бой на море',
+      body: `Игроки ходят по очереди, называя клетку. Попал — стреляешь ещё раз. Промахнулся — ход переходит сопернику. На каждый ход ${turnTimeoutSec} секунд.`,
+    },
+    {
+      n: 5,
+      icon: 'trophy' as const,
+      title: 'Победитель забирает банк',
+      body: 'Кто первым потопит все 10 кораблей врага — получает 95% общего банка. 5% — комиссия платформы. Сумма зачисляется мгновенно.',
+    },
+  ];
+
   return (
     <div className="max-w-md mx-auto space-y-5">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-muted text-sm">
@@ -54,7 +57,6 @@ export default function HowItWorksScreen() {
 
       <h1 className="title text-main text-xl">Как это работает</h1>
 
-      {/* Шаги */}
       <div className="space-y-3">
         {STEPS.map((s, i) => (
           <motion.div
@@ -75,7 +77,6 @@ export default function HowItWorksScreen() {
         ))}
       </div>
 
-      {/* Звания */}
       <section className="card p-5">
         <p className="eyebrow mb-3">Звания капитанов</p>
         <div className="space-y-2">

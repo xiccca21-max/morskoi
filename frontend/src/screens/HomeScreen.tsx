@@ -9,10 +9,11 @@ import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { StreakWidget } from '../components/StreakWidget';
 import { Onboarding } from '../components/Onboarding';
-import { MIN_WAGER } from '../lib/config';
+import { useGameConfigStore } from '../stores/game-config-store';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
+  const minWager = useGameConfigStore((s) => s.minWager);
   const user = useAuthStore((s) => s.user);
   const lastWager = useSettingsStore((s) => s.lastWager);
   const match = useMatchStore((s) => s.state);
@@ -74,13 +75,13 @@ export default function HomeScreen() {
         </button>
       )}
 
-      {balance > 0 && balance < MIN_WAGER && !activeMatch && (
+      {balance > 0 && balance < minWager && !activeMatch && (
         <button
           onClick={() => { tgHaptic('light'); navigate('/wallet'); }}
           className="w-full card card-press p-3 flex items-center gap-3 border-warning text-left"
         >
           <Icon name="coins" size={18} className="text-warning shrink-0" />
-          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {MIN_WAGER} ₽. Пополни казну.</span>
+          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {minWager} ₽. Пополни казну.</span>
           <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
       )}
@@ -97,13 +98,13 @@ export default function HomeScreen() {
       )}
 
       {/* Главная кнопка */}
-      {balance >= MIN_WAGER && !activeMatch && (
+      {balance >= minWager && !activeMatch && (
         <button
           onClick={() => { tgHaptic('medium'); navigate('/matchmaking?quick=1'); }}
           className="btn-danger w-full py-4 flex items-center justify-center gap-2"
         >
           <Icon name="target" size={18} />
-          Быстрый бой · {Math.max(MIN_WAGER, lastWager)} ₽
+          Быстрый бой · {Math.max(minWager, lastWager)} ₽
         </button>
       )}
 

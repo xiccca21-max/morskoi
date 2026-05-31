@@ -109,3 +109,17 @@ export interface Rates { RUB: number; USDT: number; STARS: number; ts: number; l
 export const RatesAPI = {
   get: () => api.get<Rates>('/rates').then(r => r.data),
 };
+
+export interface PublicGameConfig {
+  minWager: number;
+  maxWager: number;
+  minWithdraw: number;
+  placementTimeoutSec: number;
+  turnTimeoutSec: number;
+  mmFlexWaitSec: number;
+  mmFlexPct: number;
+}
+
+export const ConfigAPI = {
+  get: () => api.get<PublicGameConfig>('/config').then(r => r.data),
+};

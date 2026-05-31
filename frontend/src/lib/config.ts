@@ -1,3 +1,12 @@
-/** Игровые лимиты (должны совпадать с MIN_WAGER / MIN_WITHDRAW на сервере). */
-export const MIN_WAGER = 100;
-export const MAX_WAGER = 10_000;
+/** Игровые лимиты — подтягиваются с сервера через useGameConfigStore. */
+export { useGameConfigStore, getGameConfig } from '../stores/game-config-store';
+
+import { getGameConfig } from '../stores/game-config-store';
+
+export function getMinWager() {
+  return getGameConfig().minWager;
+}
+
+export function getMaxWager() {
+  return getGameConfig().maxWager;
+}
