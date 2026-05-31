@@ -306,7 +306,7 @@ export class TelegramBotService implements OnModuleInit {
         `👤 <b>Профиль — ${this.escapeHtml(name)}</b>\n\n` +
           `🏆 Побед: <b>${user.wins}</b> · 💀 Поражений: <b>${user.losses}</b>\n` +
           `🎯 Точность: <b>${wr}%</b>\n` +
-          (streak > 0 ? `🔥 Стрик входа: <b>${streak}</b> дн.\n` : '') +
+          (streak > 0 ? `📅 Стрик входа: <b>${streak}</b> дн.\n` : '') +
           `👥 Приглашено друзей: <b>${(user as any).referralCount ?? 0}</b>\n` +
           `\nОткрой игру, чтобы сменить ник и посмотреть достижения.`,
         { parse_mode: 'HTML', ...kb() },
@@ -318,8 +318,7 @@ export class TelegramBotService implements OnModuleInit {
         'ℹ️ <b>Информация</b>\n\n' +
         '⚓ PvP «Морской Бой» на ставки от <b>100 ₽</b>\n' +
         '• Победитель забирает 95% банка\n' +
-        '• Вывод USDT — от 100 ₽, до 24 ч\n' +
-        '• Бонусы можно играть, но не выводить\n\n' +
+        '• Вывод USDT — от 100 ₽, до 24 ч\n\n' +
         '📜 <b>Правила:</b>\n' +
         '• Флот: 1×4, 2×3, 3×2, 4×1 — корабли не соприкасаются\n' +
         '• Попадание = ещё один выстрел\n' +
@@ -371,13 +370,12 @@ export class TelegramBotService implements OnModuleInit {
         await bot.sendMessage(msg.chat.id, 'Сначала нажми «⚔️ В бой», чтобы создать аккаунт.', kb());
         return;
       }
-      const bonus = Number(process.env.REFERRAL_BONUS ?? 25);
       const link = `https://t.me/${botName}?start=ref_${user.id}`;
       await bot.sendMessage(
         msg.chat.id,
         `🔗 <b>Пригласи друга</b>\n\n` +
           `Твоя ссылка:\n<code>${link}</code>\n\n` +
-          `За каждого нового игрока — <b>+${bonus} ₽</b>.\n` +
+          `За каждого нового игрока — +1 к счётчику и прогресс в достижениях.\n` +
           `Приглашено: <b>${(user as any).referralCount ?? 0}</b>`,
         { parse_mode: 'HTML', ...kb() },
       );

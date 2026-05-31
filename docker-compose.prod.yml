@@ -35,10 +35,8 @@ services:
       MIN_WITHDRAW: ${MIN_WITHDRAW:-100}
       WITHDRAW_FEE_PERCENT: ${WITHDRAW_FEE_PERCENT:-0}
       WITHDRAW_DAILY_LIMIT: ${WITHDRAW_DAILY_LIMIT:-50000}
-      REFERRAL_BONUS: ${REFERRAL_BONUS:-25}
       MM_FLEX_WAIT_SEC: ${MM_FLEX_WAIT_SEC:-30}
       MM_FLEX_PCT: ${MM_FLEX_PCT:-0.1}
-      INVITEE_BONUS: ${INVITEE_BONUS:-10}
       AFK_FORFEIT_TIMEOUTS: ${AFK_FORFEIT_TIMEOUTS:-2}
       # Crypto Pay (@CryptoBot) — обязателен для пополнения
       CRYPTO_PAY_TOKEN: ${CRYPTO_PAY_TOKEN:-}
@@ -47,9 +45,7 @@ services:
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       # Telegram ID админа — уведомления о бэкапах
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}
-      # Ежедневный бонус за вход
-      DAILY_BONUS_BASE: ${DAILY_BONUS_BASE:-10}
-      DAILY_BONUS_STEP: ${DAILY_BONUS_STEP:-5}
+      # Серия входов (достижения, без денег)
       DAILY_BONUS_MAX_STREAK: ${DAILY_BONUS_MAX_STREAK:-7}
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
     volumes:

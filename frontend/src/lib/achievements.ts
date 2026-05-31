@@ -14,7 +14,6 @@ export interface Achievement {
   icon: IconName;
   title: string;
   desc: string;
-  /** 0–100 прогресс до открытия (для UI). */
   progress: (s: PlayerStats) => number;
   earned: (s: PlayerStats) => boolean;
 }
@@ -26,9 +25,11 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'ten_wins', icon: 'medal', title: 'Десятка', desc: '10 побед', progress: (s) => Math.min(100, (s.wins / 10) * 100), earned: (s) => s.wins >= 10 },
   { id: 'fifty_wins', icon: 'crown', title: 'Полста', desc: '50 побед', progress: (s) => Math.min(100, (s.wins / 50) * 100), earned: (s) => s.wins >= 50 },
   { id: 'unbreakable', icon: 'shield', title: 'Несокрушимый', desc: '5 побед без поражений', progress: (s) => s.losses > 0 ? 0 : Math.min(100, (s.wins / 5) * 100), earned: (s) => s.wins >= 5 && s.losses === 0 },
-  { id: 'streak_3', icon: 'bolt', title: 'На вахте', desc: 'Стрик входа 3 дня', progress: (s) => Math.min(100, ((s.loginStreak ?? 0) / 3) * 100), earned: (s) => (s.loginStreak ?? 0) >= 3 },
-  { id: 'streak_7', icon: 'coins', title: 'Верный капитан', desc: 'Стрик входа 7 дней', progress: (s) => Math.min(100, ((s.loginStreak ?? 0) / 7) * 100), earned: (s) => (s.loginStreak ?? 0) >= 7 },
-  { id: 'recruiter', icon: 'share', title: 'Рекрутёр', desc: '1 реферал', progress: (s) => Math.min(100, (s.referralCount ?? 0) * 100), earned: (s) => (s.referralCount ?? 0) >= 1 },
+  { id: 'streak_3', icon: 'bolt', title: 'На вахте', desc: 'Заходи 3 дня подряд', progress: (s) => Math.min(100, ((s.loginStreak ?? 0) / 3) * 100), earned: (s) => (s.loginStreak ?? 0) >= 3 },
+  { id: 'streak_7', icon: 'anchor', title: 'Верный капитан', desc: 'Заходи 7 дней подряд', progress: (s) => Math.min(100, ((s.loginStreak ?? 0) / 7) * 100), earned: (s) => (s.loginStreak ?? 0) >= 7 },
+  { id: 'recruiter', icon: 'share', title: 'Рекрутёр', desc: '1 друг по ссылке', progress: (s) => Math.min(100, (s.referralCount ?? 0) * 100), earned: (s) => (s.referralCount ?? 0) >= 1 },
+  { id: 'recruiter_5', icon: 'handshake', title: 'Командир', desc: '5 друзей по ссылке', progress: (s) => Math.min(100, ((s.referralCount ?? 0) / 5) * 100), earned: (s) => (s.referralCount ?? 0) >= 5 },
+  { id: 'recruiter_10', icon: 'crown', title: 'Флагман', desc: '10 друзей по ссылке', progress: (s) => Math.min(100, ((s.referralCount ?? 0) / 10) * 100), earned: (s) => (s.referralCount ?? 0) >= 10 },
 ];
 
 export function earnedAchievementIds(stats: PlayerStats): string[] {

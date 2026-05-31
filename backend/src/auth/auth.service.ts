@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { validateAndParseInitData } from './telegram-init-data';
-import { DailyBonusService } from './daily-bonus.service';
+import { DailyBonusService, type DailyBonusResult } from './daily-bonus.service';
 
 export interface JwtPayload {
   sub: string;       // userId
@@ -66,43 +66,26 @@ export class AuthService {
       throw new UnauthorizedException(`Самоисключение активно до ${until}`);
     }
 
-    // Реферал: start_param вида ref_<userId> — засчитываем при первой регистрации
+    // Реферал: только учёт и уведомление (без денег — анти-абьюз)
     if (isNew && parsed.startParam?.startsWith('ref_')) {
       const refId = parsed.startParam.slice(4);
       if (refId && refId !== user.id) {
         const referrer = await this.prisma.user.findUnique({ where: { id: refId } });
         if (referrer) {
-          const bonus = Number(process.env.REFERRAL_BONUS ?? 25);
-          const inviteeBonus = Number(process.env.INVITEE_BONUS ?? 10);
           await this.prisma.user.update({
             where: { id: user.id },
-            data: { referredById: refId, balance: { increment: inviteeBonus } } as any,
+            data: { referredById: refId } as any,
           });
           await this.prisma.user.update({
             where: { id: refId },
-            data: { referralCount: { increment: 1 }, balance: { increment: bonus } } as any,
+            data: { referralCount: { increment: 1 } } as any,
           });
-          await this.prisma.transaction.create({
-            data: { userId: refId, type: 'DEPOSIT', amount: bonus, status: 'COMPLETED', meta: JSON.stringify({ source: 'referral', invited: user.id }) },
-          });
-          if (inviteeBonus > 0) {
-            await this.prisma.transaction.create({
-              data: { userId: user.id, type: 'DEPOSIT', amount: inviteeBonus, status: 'COMPLETED', meta: JSON.stringify({ source: 'referral_invitee', referrer: refId }) },
-            });
-          }
           const invName = tg.username ?? tg.first_name ?? 'Новый игрок';
           this.bot.notifyUser(
             refId,
-            `🎉 <b>Реферал!</b> ${invName} зарегистрировался по твоей ссылке.\n+${bonus} ₽ на баланс.`,
+            `🎉 <b>Реферал!</b> ${invName} зарегистрировался по твоей ссылке.\nПриглашено: ${((referrer as any).referralCount ?? 0) + 1}`,
             { pref: 'referral' },
           ).catch(() => undefined);
-          if (inviteeBonus > 0) {
-            this.bot.notifyUser(
-              user.id,
-              `🎁 Бонус за регистрацию по приглашению: <b>+${inviteeBonus} ₽</b>`,
-              { pref: 'referral' },
-            ).catch(() => undefined);
-          }
         }
       }
     }
@@ -113,7 +96,7 @@ export class AuthService {
       username: user.username ?? undefined,
     } as JwtPayload);
 
-    const dailyBonus = await this.dailyBonus.tryClaim(user.id).catch(() => ({ claimed: false }));
+    const dailyBonus: DailyBonusResult = await this.dailyBonus.tryClaim(user.id).catch(() => ({ claimed: false }));
 
     const fresh = dailyBonus.claimed
       ? await this.prisma.user.findUnique({ where: { id: user.id } })
@@ -123,7 +106,7 @@ export class AuthService {
       token,
       user: this.publicUser(fresh ?? user),
       startParam: parsed.startParam,
-      dailyBonus,
+      dailyBonus: dailyBonus.claimed ? { claimed: true, streak: dailyBonus.streak } : { claimed: false },
     };
   }
 

@@ -149,14 +149,10 @@ export default function App() {
           setAuthToken(res.token);
           setUser({ ...res.user, balance: Number(res.user.balance) });
           syncNotifyFromServer(res.user);
-          if (res.dailyBonus?.claimed && res.dailyBonus.amount) {
+          if (res.dailyBonus?.claimed) {
             const prevStreak = Math.max(0, (res.dailyBonus.streak ?? 1) - 1);
             const nextStreak = res.dailyBonus.streak ?? 1;
-            toast(
-              `Ежедневный бонус +${res.dailyBonus.amount} ₽ · стрик ${nextStreak} дн.`,
-              'success',
-              'coins',
-            );
+            toast(`Стрик входа: ${nextStreak} дн. подряд`, 'success', 'anchor');
             playSound('win');
             for (const a of newStreakAchievements(prevStreak, nextStreak)) {
               setTimeout(() => toast(`Достижение: ${a.title}`, 'success', a.icon), 600);

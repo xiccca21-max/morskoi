@@ -1,7 +1,7 @@
 import { Icon } from './Icon';
 import { toast } from '../stores/toast-store';
 import { tgShare, tgHaptic } from '../lib/telegram';
-import { REFERRAL_BONUS, referralBotLink, referralShareText } from '../lib/referral';
+import { referralBotLink, referralShareText } from '../lib/referral';
 
 export function ReferralCard({
   userId,
@@ -32,7 +32,7 @@ export function ReferralCard({
         <span className="text-muted text-[11px] tabular-nums">Приглашено: {referralCount}</span>
       </div>
       <p className="text-muted text-xs leading-relaxed">
-        Друг регистрируется по твоей ссылке — ты получаешь <b className="text-main">{REFERRAL_BONUS} ₽</b> на баланс.
+        Друг регистрируется по твоей ссылке — растёт счётчик приглашений и открываются достижения «Рекрутёр», «Командир», «Флагман».
       </p>
       <div className="bg-panel rounded-lg px-3 py-2 font-mono text-[10px] text-muted break-all border border-line">
         {link}
