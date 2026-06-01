@@ -8,7 +8,7 @@ git reset --hard origin/main
 GIT_SHA="$(git rev-parse --short HEAD)"
 echo "Deploying commit ${GIT_SHA}"
 export GIT_SHA
-docker compose -f docker-compose.prod.yml build --build-arg GIT_SHA="${GIT_SHA}" app
+docker compose -f docker-compose.prod.yml build --no-cache --build-arg GIT_SHA="${GIT_SHA}" app
 docker compose -f docker-compose.prod.yml up -d
 
 # Ждём backend внутри контейнера (порт 4000 не проброшен на хост)
