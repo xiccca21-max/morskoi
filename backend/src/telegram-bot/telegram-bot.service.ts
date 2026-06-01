@@ -167,6 +167,7 @@ export class TelegramBotService implements OnModuleInit {
         '⚓ <b>Naval Clash — морской бой с реальными ставками</b>\n\n' +
         '🚢 Расставь флот, вызови соперника и потопи его корабли\n' +
         '💰 Делай ставки от 100 ₽ и забирай выигрыш\n' +
+        '👥 С другом — тренировка или дуэль: кнопка «Игра с другом»\n' +
         '🏆 Расти в звании: от Юнги до Адмирала\n\n' +
         'Выбирай действие кнопками ниже 👇';
       const keyboard = this.mainReplyKeyboard(launchUrl);
@@ -227,6 +228,7 @@ export class TelegramBotService implements OnModuleInit {
       commands: [
         { command: 'start', description: '🚀 Запустить бота' },
         { command: 'duel', description: '⚓ Вызвать друга на бой' },
+        { command: 'friends', description: '👥 Как играть с другом' },
         { command: 'play', description: '⚔️ Играть — открыть бой' },
         { command: 'balance', description: '💰 Мой баланс' },
         { command: 'stats', description: '📊 Моя статистика' },
@@ -242,7 +244,8 @@ export class TelegramBotService implements OnModuleInit {
   /** Тексты кнопок reply-клавиатуры (должны совпадать с mainReplyKeyboard). */
   private static readonly BTN = {
     PLAY: '⚔️ В бой',
-    CHALLENGE: '⚓ Вызвать друга на бой',
+    CHALLENGE: '⚓ Вызвать друга',
+    FRIENDS: '👥 Игра с другом',
     BALANCE: '💰 Баланс',
     TOP: '🏆 Рейтинг',
     PROFILE: '👤 Профиль',
@@ -260,7 +263,7 @@ export class TelegramBotService implements OnModuleInit {
     return {
       keyboard: [
         [{ text: BTN.PLAY, web_app: { url } }],
-        [{ text: BTN.CHALLENGE }],
+        [{ text: BTN.CHALLENGE }, { text: BTN.FRIENDS }],
         [{ text: BTN.BALANCE }, { text: BTN.TOP }],
         [{ text: BTN.PROFILE }, { text: BTN.INFO }],
         [{ text: BTN.SUPPORT }],
@@ -279,6 +282,63 @@ export class TelegramBotService implements OnModuleInit {
     const url = launchUrl ?? process.env.TELEGRAM_WEBAPP_URL;
     if (!url) return undefined;
     return { inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url } }]] };
+  }
+
+  /** Полная инструкция: все способы сыграть с другом. */
+  private playWithFriendGuideText(): string {
+    const bot = this.botUsername;
+    const min = Number(process.env.MIN_WAGER ?? 100);
+    return (
+      '👥 <b>Как сыграть с другом</b>\n\n' +
+      'Есть <b>5 способов</b> — выбирай удобный:\n\n' +
+      '🎯 <b>1. Тренировка (бесплатно)</b>\n' +
+      'Без ставки — только практика, баланс не меняется.\n' +
+      '• В игре: Палуба → «Тренировка» → отправь ссылку\n' +
+      '• В боте: кнопка «🎯 Тренировка» ниже или /duel → тренировка\n\n' +
+      '💰 <b>2. Дуэль на ставку (через бота)</b>\n' +
+      '• «⚓ Вызвать друга» или /duel → выбери сумму от ' +
+      `${min} ₽\n` +
+      '• «📨 Отправить другу» — он откроет лобби одним тапом\n' +
+      '• Оба расставляют корабли → бой → победитель забирает банк\n\n' +
+      '💬 <b>3. Вызов в личном чате (inline)</b>\n' +
+      'В переписке с другом набери:\n' +
+      `<code>@${bot} duel</code>\n` +
+      'Выбери карточку «Вызвать на морской бой» и отправь ему.\n\n' +
+      '👥 <b>4. Вызов в группе</b>\n' +
+      'Добавь бота в группу и напиши:\n' +
+      '<code>/duel</code> — вызов для всех\n' +
+      '<code>/duel @ник</code> — персональный вызов\n' +
+      'Бот пришлёт кнопку «Принять вызов».\n\n' +
+      '🎮 <b>5. Через игру (лобби)</b>\n' +
+      '• «⚔️ В бой» → вкладка «С другом»\n' +
+      '• Создай лобби или введи код друга\n' +
+      '• На экране лобби — «Отправить» / «Копировать ссылку»\n\n' +
+      '━━━━━━━━━━━━━━━━\n' +
+      '📋 <b>Как проходит бой</b>\n' +
+      '1️⃣ Оба расставляют флот (вручную или авто)\n' +
+      '2️⃣ По очереди стреляете — попадание = ещё выстрел\n' +
+      '3️⃣ Кто первым потопил весь флот — победил\n\n' +
+      '⚠️ <b>Важно:</b> на ставку деньги списываются только когда оба готовы к бою. ' +
+      'Пропуск ходов или выход = поражение.'
+    );
+  }
+
+  private friendGuideKeyboard(): TelegramBot.InlineKeyboardMarkup {
+    return {
+      inline_keyboard: [
+        [{ text: '🎯 Создать тренировку', callback_data: 'duel_training' }],
+        [{ text: '⚓ Дуэль на ставку', callback_data: 'duel_pick_wager' }],
+      ],
+    };
+  }
+
+  private async sendPlayWithFriendGuide(chatId: number) {
+    if (!this.bot) return;
+    await this.bot.sendMessage(chatId, this.playWithFriendGuideText(), {
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      reply_markup: this.friendGuideKeyboard(),
+    });
   }
 
   /** Регистрация обработчиков команд бота. */
@@ -352,7 +412,8 @@ export class TelegramBotService implements OnModuleInit {
         'ℹ️ <b>Информация</b>\n\n' +
         '⚓ PvP «Морской Бой» на ставки от <b>100 ₽</b>\n' +
         '• Победитель забирает 95% банка\n' +
-        '• Вывод USDT — от 100 ₽, до 24 ч\n\n' +
+        '• Вывод USDT — от 100 ₽, до 24 ч\n' +
+        '• С другом: тренировка бесплатно или дуэль — /friends\n\n' +
         '📜 <b>Правила:</b>\n' +
         '• Флот: 1×4, 2×3, 3×2, 4×1 — корабли не соприкасаются\n' +
         '• Попадание = ещё один выстрел\n' +
@@ -430,9 +491,13 @@ export class TelegramBotService implements OnModuleInit {
           `Реферальная ссылка:\n<code>${link}</code>\n\n` +
           `За приглашённых — косметика и титулы.\n` +
           `Приглашено: <b>${(user as any).referralCount ?? 0}</b>\n\n` +
-          `Для дуэли нажми «⚓ Вызвать друга» или /duel — выберешь ставку и получишь ссылку в лобби.`,
+          `Для дуэли: /duel или «⚓ Вызвать друга». Все способы — /friends`,
         { parse_mode: 'HTML', ...kb() },
       );
+    });
+
+    bot.onText(/^\/friends\b/, async (msg) => {
+      await this.sendPlayWithFriendGuide(msg.chat.id);
     });
 
     bot.onText(/^\/help\b/, async (msg) => {
@@ -440,15 +505,18 @@ export class TelegramBotService implements OnModuleInit {
         'ℹ️ <b>Помощь</b>\n\n' +
         'Используй кнопки под полем ввода:\n\n' +
         `• <b>${BTN.PLAY}</b> — открыть игру\n` +
+        `• <b>${BTN.CHALLENGE}</b> — дуэль на ставку (/duel)\n` +
+        `• <b>${BTN.FRIENDS}</b> — как играть с другом (/friends)\n` +
         `• <b>${BTN.BALANCE}</b> — баланс и вывод\n` +
         `• <b>${BTN.TOP}</b> — рейтинг капитанов\n` +
         `• <b>${BTN.PROFILE}</b> — твоя статистика\n` +
         `• <b>${BTN.INFO}</b> — правила и лимиты\n` +
-        `• <b>${BTN.SUPPORT}</b> — связь с поддержкой`;
+        `• <b>${BTN.SUPPORT}</b> — связь с поддержкой\n\n` +
+        'Команды: /duel /friends /balance /stats /top /invite';
       await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', ...kb() });
     });
 
-    const KNOWN = /^\/(start|duel|play|balance|stats|top|rules|support|help|invite)\b/;
+    const KNOWN = /^\/(start|duel|friends|play|balance|stats|top|rules|support|help|invite)\b/;
     const unknown = async (chatId: number) => {
       await bot.sendMessage(
         chatId,
@@ -485,6 +553,9 @@ export class TelegramBotService implements OnModuleInit {
       switch (text) {
         case BTN.CHALLENGE:
           await this.sendDuelInvite(msg.chat.id, tgId);
+          return;
+        case BTN.FRIENDS:
+          await this.sendPlayWithFriendGuide(msg.chat.id);
           return;
         case BTN.BALANCE:
           await sendBalance(msg.chat.id, tgId);
@@ -557,14 +628,41 @@ export class TelegramBotService implements OnModuleInit {
     const presets = [min, 250, 500, 1000].filter((v, i, a) => a.indexOf(v) === i);
     await this.bot.sendMessage(
       chatId,
-      '⚓ <b>Вызов на морской бой</b>\n\nВыбери ставку — создам лобби и дам ссылку. Друг по ней сразу попадёт в бой.',
+      '⚓ <b>Вызов на морской бой</b>\n\n' +
+        'Выбери ставку — создам лобби и дам ссылку другу.\n' +
+        'Или «🎯 Тренировка» — бесплатно, без ставки.\n\n' +
+        'Все способы игры с другом: /friends',
       {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
+            [{ text: '🎯 Тренировка (бесплатно)', callback_data: 'duel_training' }],
             presets.slice(0, 2).map((w) => ({ text: `${w} ₽`, callback_data: `duel_wager_${w}` })),
             presets.slice(2, 4).map((w) => ({ text: `${w} ₽`, callback_data: `duel_wager_${w}` })),
+            [{ text: '📖 Полная инструкция', callback_data: 'friends_guide' }],
           ].filter((row) => row.length),
+        },
+      },
+    );
+  }
+
+  /** Лобби тренировки готово — ссылка другу. */
+  private async sendTrainingLobbyReady(chatId: number, code: string) {
+    if (!this.bot) return;
+    const url = this.lobbyInviteUrl(code);
+    const shareText = 'Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби:';
+    await this.bot.sendMessage(
+      chatId,
+      '✅ <b>Тренировка готова</b>\n\n' +
+        'Отправь ссылку другу — он сразу попадёт в лобби.\n' +
+        'Баланс и статистика не меняются.',
+      {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📨 Отправить другу', url: this.shareUrl(url, shareText) }],
+            [{ text: '🎮 Открыть лобби', url }],
+          ],
         },
       },
     );
@@ -596,11 +694,48 @@ export class TelegramBotService implements OnModuleInit {
     if (!this.bot) return;
     this.bot.on('callback_query', async (q: any) => {
       const data = q.data ?? '';
-      if (!data.startsWith('duel_wager_')) return;
-      const wager = Number(data.replace('duel_wager_', ''));
       const chatId = q.message?.chat?.id;
       const tgId = String(q.from?.id ?? '');
       if (!chatId || !tgId) return;
+
+      if (data === 'friends_guide') {
+        await this.bot!.answerCallbackQuery({ callback_query_id: q.id });
+        await this.sendPlayWithFriendGuide(chatId);
+        return;
+      }
+
+      if (data === 'duel_pick_wager') {
+        await this.bot!.answerCallbackQuery({ callback_query_id: q.id });
+        await this.sendDuelInvite(chatId, tgId);
+        return;
+      }
+
+      if (data === 'duel_training') {
+        const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
+        if (!user) {
+          await this.bot!.answerCallbackQuery({
+            callback_query_id: q.id,
+            text: 'Сначала нажми «⚔️ В бой» в игре',
+            show_alert: true,
+          });
+          return;
+        }
+        try {
+          const lobby = await this.lobbies.createTraining(user.id);
+          await this.bot!.answerCallbackQuery({ callback_query_id: q.id, text: 'Тренировка создана' });
+          await this.sendTrainingLobbyReady(chatId, lobby.code);
+        } catch (e: any) {
+          await this.bot!.answerCallbackQuery({
+            callback_query_id: q.id,
+            text: e?.message ?? 'Не удалось создать тренировку',
+            show_alert: true,
+          });
+        }
+        return;
+      }
+
+      if (!data.startsWith('duel_wager_')) return;
+      const wager = Number(data.replace('duel_wager_', ''));
 
       const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
       if (!user) {
