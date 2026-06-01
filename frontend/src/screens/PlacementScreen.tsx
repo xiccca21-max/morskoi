@@ -55,6 +55,7 @@ export default function PlacementScreen() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const matchState = useMatchStore((s) => s.state);
+  const clearMatch = useMatchStore((s) => s.clear);
   const skin = useAuthStore((s) => s.user?.equippedSkin) ?? 'classic';
 
   const [fleet, setFleet] = useState<SlotShip[]>(initialFleet);
@@ -106,14 +107,20 @@ export default function PlacementScreen() {
   }, [matchState?.gameStatus, matchId, navigate]);
 
   // Выход во время расстановки разрешён (бой ещё не начался, ставка не списана).
-  // Нативная кнопка «Назад» открывает подтверждение выхода.
-  useEffect(() => tgBackButton(true, () => setShowExit(true)), []);
+  useEffect(() => {
+    tgBackButton(true, () => setShowExit(true));
+    return () => tgBackButton(false);
+  }, []);
 
   const leaveMatch = () => {
     setShowExit(false);
-    if (matchId) getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
+    clearMatch();
+    tgBackButton(false);
+    if (matchId) {
+      getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
+    }
     tgHaptic('warning');
-    navigate('/home');
+    navigate('/home', { replace: true });
   };
 
   useEffect(() => {

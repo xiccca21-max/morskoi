@@ -5,7 +5,10 @@ set -euo pipefail
 cd "${APP_DIR:-/opt/naval-clash}"
 git fetch origin main
 git reset --hard origin/main
-docker compose -f docker-compose.prod.yml build app
+GIT_SHA="$(git rev-parse --short HEAD)"
+echo "Deploying commit ${GIT_SHA}"
+export GIT_SHA
+docker compose -f docker-compose.prod.yml build --build-arg GIT_SHA="${GIT_SHA}" app
 docker compose -f docker-compose.prod.yml up -d
 
 # Ждём backend внутри контейнера (порт 4000 не проброшен на хост)
@@ -16,7 +19,7 @@ health_ok() {
 
 for i in $(seq 1 18); do
   if health_ok 2>/dev/null; then
-    echo "OK: backend healthy"
+    echo "OK: backend healthy (commit ${GIT_SHA})"
     break
   fi
   echo "waiting for backend... ($i/18)"

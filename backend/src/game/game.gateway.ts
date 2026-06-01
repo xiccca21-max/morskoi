@@ -548,12 +548,23 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.game.surrender(body.matchId, s.data.userId);
-      await this.emitMatchFinished(body.matchId, r.winnerId ?? null);
-      await this.broadcastStateToBothPlayers(body.matchId);
+      if ((r as { cancelled?: boolean }).cancelled) {
+        const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
+        const payload = { matchId: body.matchId, reason: 'player_left' };
+        this.server.to(`match:${body.matchId}`).emit('match:cancelled', payload);
+        if (match) {
+          for (const uid of [match.player1Id, match.player2Id].filter(Boolean) as string[]) {
+            this.server.to(`user:${uid}`).emit('match:cancelled', payload);
+          }
+        }
+      } else {
+        await this.emitMatchFinished(body.matchId, r.winnerId ?? null);
+        await this.broadcastStateToBothPlayers(body.matchId);
+      }
       this.clearTurnTimer(body.matchId);
       this.afkCounters.delete(body.matchId);
       this.bots.forgetMatch(body.matchId);
-      return { ok: true };
+      return { ok: true, cancelled: !!(r as { cancelled?: boolean }).cancelled };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'surrender error' };
     }

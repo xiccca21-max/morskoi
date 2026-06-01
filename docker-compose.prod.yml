@@ -10,6 +10,7 @@ services:
         VITE_TG_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
         VITE_SUPPORT_URL: ${SUPPORT_URL:-https://t.me/Naval_pay_manager}
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     depends_on:
       redis:
@@ -64,7 +65,7 @@ services:
       # Sentry (мониторинг ошибок, опционально)
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
-      APP_RELEASE: ${APP_RELEASE:-}
+      APP_RELEASE: ${GIT_SHA:-}
     volumes:
       - naval-data:/data
     expose:

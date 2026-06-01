@@ -13,6 +13,7 @@ export class ConfigController {
       turnTimeoutSec: Number(process.env.TURN_TIMEOUT_SEC ?? 20),
       mmFlexWaitSec: Number(process.env.MM_FLEX_WAIT_SEC ?? 30),
       mmFlexPct: Number(process.env.MM_FLEX_PCT ?? 0.1),
+      build: process.env.APP_RELEASE || process.env.GIT_SHA || null,
     };
   }
 }
