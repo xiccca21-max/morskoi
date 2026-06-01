@@ -42,7 +42,8 @@ export default {
         },
         sink: {
           '0%': { transform: 'translateY(0) rotate(0deg)', opacity: '1' },
-          '100%': { transform: 'translateY(60px) rotate(8deg)', opacity: '0.15' },
+          '60%': { transform: 'translateY(14px) rotate(6deg)', opacity: '0.9' },
+          '100%': { transform: 'translateY(22px) rotate(10deg)', opacity: '0.55' },
         },
         boom: {
           '0%': { transform: 'scale(0.2)', opacity: '0' },

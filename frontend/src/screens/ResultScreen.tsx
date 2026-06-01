@@ -232,7 +232,11 @@ export default function ResultScreen() {
         )}
 
         {!won && !draw && (
-          <div className="mx-auto w-24 mt-3 animate-sink"><Ship kind="cruiser" size={3} orientation="H" sunk /></div>
+          <div className="mx-auto w-28 mt-3 overflow-hidden" style={{ height: '40px' }}>
+            <div className="animate-sink">
+              <Ship kind="cruiser" size={3} orientation="H" sunk />
+            </div>
+          </div>
         )}
 
         <div className="rope my-5" />
