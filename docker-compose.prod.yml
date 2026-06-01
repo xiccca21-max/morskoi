@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_TG_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+        VITE_SUPPORT_URL: ${SUPPORT_URL:-https://t.me/kronlead}
     restart: unless-stopped
     depends_on:
       redis:
@@ -22,6 +23,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL}
+      SUPPORT_URL: ${SUPPORT_URL:-https://t.me/kronlead}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
       TELEGRAM_BOT_POLLING: ${TELEGRAM_BOT_POLLING:-false}
       # Прокси-релей для api.telegram.org (если провайдер его блокирует).

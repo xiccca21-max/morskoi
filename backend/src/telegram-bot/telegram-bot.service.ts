@@ -250,7 +250,7 @@ export class TelegramBotService implements OnModuleInit {
   private registerCommands() {
     if (!this.bot) return;
     const bot = this.bot;
-    const supportUrl = process.env.SUPPORT_URL ?? process.env.VITE_SUPPORT_URL;
+    const supportUrl = process.env.SUPPORT_URL ?? process.env.VITE_SUPPORT_URL ?? 'https://t.me/kronlead';
     const { BTN } = TelegramBotService;
     const kb = () => this.replyOpts();
 
@@ -327,13 +327,19 @@ export class TelegramBotService implements OnModuleInit {
     };
 
     const sendSupport = async (chatId: number) => {
-      const link = supportUrl
-        ? `\n\n<a href="${this.escapeHtml(supportUrl)}">💬 Написать в поддержку</a>`
-        : '';
+      const handle = supportUrl.replace(/^https?:\/\/t\.me\//, '@');
       await bot.sendMessage(
         chatId,
-        '🆘 <b>Поддержка</b>\n\nВопросы по игре, пополнению или выводу — напиши нам.' + link,
-        { parse_mode: 'HTML', ...kb(), disable_web_page_preview: true },
+        '🆘 <b>Поддержка</b>\n\n' +
+          'Вопросы по игре, пополнению или выводу — пиши напрямую:\n' +
+          `<b>${this.escapeHtml(handle)}</b>`,
+        {
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          reply_markup: {
+            inline_keyboard: [[{ text: '💬 Написать в поддержку', url: supportUrl }]],
+          },
+        },
       );
     };
 
@@ -394,13 +400,23 @@ export class TelegramBotService implements OnModuleInit {
     });
 
     const KNOWN = /^\/(start|play|balance|stats|top|rules|support|help|invite)\b/;
+    const unknown = async (chatId: number) => {
+      await bot.sendMessage(
+        chatId,
+        '🤔 <b>Неизвестная команда.</b>\n\n' +
+          'Чтобы посмотреть список доступных команд, отправьте /help — ' +
+          'или воспользуйтесь кнопками ниже.',
+        { parse_mode: 'HTML', ...kb() },
+      );
+    };
+
     bot.on('message', async (msg) => {
       if (msg.chat.type !== 'private') return;
       const text = msg.text?.trim();
       if (!text) return;
       if (text.startsWith('/')) {
         if (KNOWN.test(text)) return;
-        await bot.sendMessage(msg.chat.id, 'Не знаю такой команды 🤔 Нажми /help или кнопку ниже.', kb());
+        await unknown(msg.chat.id);
         return;
       }
 
@@ -431,14 +447,7 @@ export class TelegramBotService implements OnModuleInit {
         return;
       }
 
-      switch (text) {
-        default:
-          await bot.sendMessage(
-            msg.chat.id,
-            '⚓ Выбери действие на клавиатуре ниже или нажми «⚔️ В бой», чтобы играть!',
-            kb(),
-          );
-      }
+      await unknown(msg.chat.id);
     });
   }
 
