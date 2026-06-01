@@ -253,8 +253,8 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* Подсветка клеток при расстановке/прицеле (работает с цветами темы) */
-.cell-ghost { background: color-mix(in srgb, var(--c-muted) 45%, transparent); }
-.cell-ghost-bad { background: color-mix(in srgb, var(--c-danger) 55%, transparent); }
+.cell-ghost { background: color-mix(in srgb, var(--c-success) 28%, transparent); }
+.cell-ghost-bad { background: color-mix(in srgb, var(--c-danger) 38%, transparent); }
 .cell-aim { cursor: crosshair; }
 .cell-aim:hover { background: color-mix(in srgb, var(--c-danger) 18%, transparent); }
 .cell-hit { background: var(--c-danger); opacity: 0.8; }

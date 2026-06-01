@@ -126,15 +126,33 @@ export default function PlacementScreen() {
   }, [navigate]);
 
   const selected = fleet.find((f) => f.id === selectedId) ?? fleet.find((f) => !f.placed) ?? null;
+  const lastTapRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const placeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ghost = useMemo(() => {
-    if (!selected || !hover) return { cells: [] as Array<[number, number]>, invalid: false };
+    if (!selected || !hover) return { cells: [] as Array<[number, number]>, invalid: false, ship: null as ShipPlacement | null };
     const cand: ShipPlacement = { id: selected.id, kind: selected.kind, size: selected.size, x: hover.x, y: hover.y, orientation };
     const cells = shipCells(cand);
     const others = placedShips.filter((s) => s.id !== selected.id);
     const v = validatePlacement([...others, cand]);
-    return { cells, invalid: !v.ok };
-  }, [selected?.id, hover?.x, hover?.y, orientation, placedShips]);
+    return { cells, invalid: !v.ok, ship: cand };
+  }, [selected?.id, selected?.kind, selected?.size, hover?.x, hover?.y, orientation, placedShips]);
+
+  const placeAt = (x: number, y: number) => {
+    if (!selected) return;
+    const cand: ShipPlacement = { id: selected.id, kind: selected.kind, size: selected.size, x, y, orientation };
+    const others = placedShips.filter((s) => s.id !== selected.id);
+    if (!validatePlacement([...others, cand]).ok) {
+      tgHaptic('error');
+      showToast('Сюда нельзя — корабли не должны касаться', 'error', 'crosshair');
+      return;
+    }
+    setFleet((f) => f.map((it) => (it.id === selected.id ? { ...it, placed: cand } : it)));
+    tgHaptic('light');
+    playSound('place');
+    const next = fleet.find((it) => it.id !== selected.id && !it.placed);
+    setSelectedId(next?.id ?? null);
+  };
 
   const onCellClick = (x: number, y: number) => {
     // Тап по уже стоящему кораблю — «поднимаем» его, чтобы переставить.
@@ -142,6 +160,7 @@ export default function PlacementScreen() {
       (f) => f.placed && shipCells(f.placed).some(([cx, cy]) => cx === x && cy === y),
     );
     if (onShip && onShip.id !== selectedId) {
+      if (placeTimerRef.current) clearTimeout(placeTimerRef.current);
       setFleet((f) => f.map((it) => (it.id === onShip.id ? { ...it, placed: undefined } : it)));
       setSelectedId(onShip.id);
       tgHaptic('light');
@@ -149,15 +168,28 @@ export default function PlacementScreen() {
     }
 
     if (!selected) return;
-    const cand: ShipPlacement = { id: selected.id, kind: selected.kind, size: selected.size, x, y, orientation };
-    const others = placedShips.filter((s) => s.id !== selected.id);
-    if (!validatePlacement([...others, cand]).ok) { tgHaptic('error'); return; }
-    setFleet((f) => f.map((it) => (it.id === selected.id ? { ...it, placed: cand } : it)));
-    tgHaptic('light');
-    playSound('place');
-    const next = fleet.find((it) => it.id !== selected.id && !it.placed);
-    setSelectedId(next?.id ?? null);
+
+    // Двойной тап по одной клетке — поворот (удобнее на телефоне).
+    const prev = lastTapRef.current;
+    if (prev && prev.x === x && prev.y === y && Date.now() - prev.t < 400) {
+      if (placeTimerRef.current) clearTimeout(placeTimerRef.current);
+      lastTapRef.current = null;
+      setOrientation((o) => (o === 'H' ? 'V' : 'H'));
+      tgHaptic('light');
+      return;
+    }
+    lastTapRef.current = { x, y, t: Date.now() };
+
+    if (placeTimerRef.current) clearTimeout(placeTimerRef.current);
+    placeTimerRef.current = setTimeout(() => {
+      placeTimerRef.current = null;
+      placeAt(x, y);
+    }, 280);
   };
+
+  useEffect(() => () => {
+    if (placeTimerRef.current) clearTimeout(placeTimerRef.current);
+  }, []);
 
   const removeShip = (id: string) => {
     setFleet((f) => f.map((it) => (it.id === id ? { ...it, placed: undefined } : it)));
@@ -265,13 +297,47 @@ export default function PlacementScreen() {
         </span>
       </div>
 
+      {/* Верфь — над полем, чтобы не скроллить туда-сюда */}
+      <div className="card p-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="eyebrow">Верфь · выбери корабль</p>
+          <span className="text-xs font-display tabular-nums text-muted">{placedShips.length}/{fleet.length}</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {fleet.map((s) => {
+            const isSel = selected?.id === s.id && !s.placed;
+            return (
+              <button
+                key={s.id}
+                onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
+                className={[
+                  'shrink-0 min-w-[132px] p-2.5 rounded-lg text-left border transition flex flex-col gap-1.5',
+                  s.placed ? 'border-line bg-base opacity-45' : 'border-line bg-panel',
+                  isSel ? 'ring-2 ring-danger border-danger' : '',
+                ].join(' ')}
+              >
+                <div className="h-6 w-full">
+                  <Ship kind={s.kind} size={s.size} orientation="H" sunk={false} icon />
+                </div>
+                <div>
+                  <div className="text-xs text-main font-display">{KIND_LABEL[s.kind]}</div>
+                  <div className="eyebrow">{s.placed ? 'убрать' : `${s.size} кл.`}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <Board
         mode="placement"
         ships={placedShips}
         ghostCells={ghost.cells}
+        ghostShip={ghost.ship}
         ghostInvalid={ghost.invalid}
         onCellClick={onCellClick}
         onCellEnter={(x, y) => setHover({ x, y })}
+        highlight={hover}
       />
 
       {/* Управление */}
@@ -283,41 +349,10 @@ export default function PlacementScreen() {
         <button className="btn-ghost flex-1" onClick={reset}>Сброс</button>
       </div>
 
-      <p className="text-center text-muted text-[11px]">
-        Тапни по клетке, чтобы поставить · тапни по кораблю, чтобы передвинуть
+      <p className="text-center text-muted text-[11px] leading-relaxed">
+        Выбери корабль → наведи на поле → тап — поставить.
+        <span className="block mt-0.5">Двойной тап по клетке — повернуть · тап по кораблю — передвинуть</span>
       </p>
-
-      {/* Верфь */}
-      <div className="card p-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="eyebrow">Верфь · выбери корабль</p>
-          <span className="text-xs font-display tabular-nums text-muted">{placedShips.length}/{fleet.length}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {fleet.map((s) => {
-            const isSel = selected?.id === s.id && !s.placed;
-            return (
-              <button
-                key={s.id}
-                onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
-                className={[
-                  'p-2 rounded-lg text-left border transition flex items-center gap-2',
-                  s.placed ? 'border-line bg-base opacity-45' : 'border-line bg-panel',
-                  isSel ? 'ring-1 ring-danger border-danger' : '',
-                ].join(' ')}
-              >
-                <div className="h-5 flex-1" style={{ minWidth: s.size * 12 }}>
-                  <Ship kind={s.kind} size={s.size} orientation="H" sunk={false} icon />
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-main">{KIND_LABEL[s.kind]}</div>
-                  <div className="eyebrow">{s.placed ? 'убрать' : `${s.size} кл.`}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {sent ? (
         <div className="card p-4 text-center text-main title text-sm flex items-center justify-center gap-2">

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { AttackCell, BOARD_SIZE, ShipPlacement } from '../lib/game-types';
 import { Ship } from './Ship';
@@ -11,6 +11,7 @@ interface BoardProps {
   ships?: ShipPlacement[];
   attacks?: AttackCell[];
   ghostCells?: Array<[number, number]>;
+  ghostShip?: Pick<ShipPlacement, 'kind' | 'size' | 'x' | 'y' | 'orientation'> | null;
   ghostInvalid?: boolean;
   onCellClick?: (x: number, y: number) => void;
   onCellEnter?: (x: number, y: number) => void;
@@ -26,6 +27,7 @@ export function Board({
   ships = [],
   attacks = [],
   ghostCells = [],
+  ghostShip = null,
   ghostInvalid = false,
   onCellClick,
   onCellEnter,
@@ -61,6 +63,25 @@ export function Board({
   const showShips = mode === 'own' || mode === 'placement' || ships.length > 0;
   const sunkShips = useMemo(() => ships.filter((s) => s.sunk), [ships]);
   const cellPct = 100 / BOARD_SIZE;
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  const cellFromClient = useCallback((clientX: number, clientY: number) => {
+    const el = gridRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const x = Math.floor(((clientX - r.left) / r.width) * BOARD_SIZE);
+    const y = Math.floor(((clientY - r.top) / r.height) * BOARD_SIZE);
+    if (x < 0 || y < 0 || x >= BOARD_SIZE || y >= BOARD_SIZE) return null;
+    return { x, y };
+  }, []);
+
+  const handleGridTouch = useCallback((e: React.TouchEvent) => {
+    if (mode !== 'placement' || disabled || !onCellEnter) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const c = cellFromClient(t.clientX, t.clientY);
+    if (c) onCellEnter(c.x, c.y);
+  }, [mode, disabled, onCellEnter, cellFromClient]);
 
   return (
     <div className="relative w-full max-w-[480px] mx-auto select-none">
@@ -111,14 +132,14 @@ export function Board({
             {mode === 'enemy' && myTurn && (
               <>
                 <div
-                  className="absolute inset-0 pointer-events-none animate-compassSpin"
-                  style={{ background: 'conic-gradient(from 0deg, transparent 70%, rgba(225,87,75,0.28) 92%, transparent 100%)', animationDuration: '4s' }}
+                  className="absolute inset-0 pointer-events-none animate-compassSpin opacity-50"
+                  style={{ background: 'conic-gradient(from 0deg, transparent 72%, rgba(225,87,75,0.12) 92%, transparent 100%)', animationDuration: '4s' }}
                 />
                 {/* мягкое сонарное «дыхание» */}
                 <motion.div
                   className="absolute inset-0 pointer-events-none"
-                  style={{ boxShadow: 'inset 0 0 40px rgba(225,87,75,0.18)' }}
-                  animate={{ opacity: [0.35, 0.7, 0.35] }}
+                  style={{ boxShadow: 'inset 0 0 40px rgba(225,87,75,0.08)' }}
+                  animate={{ opacity: [0.2, 0.45, 0.2] }}
                   transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                 />
               </>
@@ -157,14 +178,36 @@ export function Board({
                 );
               })}
 
+            {/* Превью корабля при расстановке */}
+            {mode === 'placement' && ghostShip && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: ghostInvalid ? 0.45 : 0.72 }}
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${ghostShip.x * cellPct}%`,
+                  top: `${ghostShip.y * cellPct}%`,
+                  width: `${ghostShip.orientation === 'H' ? ghostShip.size * cellPct : cellPct}%`,
+                  height: `${ghostShip.orientation === 'V' ? ghostShip.size * cellPct : cellPct}%`,
+                  zIndex: 8,
+                  filter: ghostInvalid ? 'sepia(1) saturate(3) hue-rotate(-30deg)' : undefined,
+                }}
+              >
+                <Ship kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} />
+              </motion.div>
+            )}
+
             {/* Слой клеток (клики + метки) */}
             <div
-              className="absolute inset-0 grid"
+              ref={gridRef}
+              className="absolute inset-0 grid touch-none"
               style={{
                 gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`,
                 gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)`,
                 zIndex: 10,
               }}
+              onTouchMove={handleGridTouch}
+              onTouchStart={handleGridTouch}
             >
               {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, idx) => {
                 const x = idx % BOARD_SIZE;
@@ -177,6 +220,8 @@ export function Board({
                   mode === 'placement'
                     ? !disabled
                     : mode === 'enemy' && !disabled && myTurn && !att;
+                const showCrosshair =
+                  isHighlight && isClickable && (mode === 'enemy' || mode === 'placement');
                 // Наводящие линии: подсветка ряда/столбца от прицельной клетки (вражеское поле в мой ход)
                 const inAimLine =
                   mode === 'enemy' && myTurn && !disabled && !!highlight && !isHighlight &&
@@ -199,7 +244,7 @@ export function Board({
                       <span className="absolute inset-0 pointer-events-none bg-danger/10" />
                     )}
                     {att && !onSunk && <Marker hit={att.hit} />}
-                    {isHighlight && isClickable && <Crosshair />}
+                    {showCrosshair && <Crosshair />}
                   </div>
                 );
               })}
