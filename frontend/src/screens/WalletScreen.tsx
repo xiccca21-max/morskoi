@@ -10,9 +10,9 @@ import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
 import { playSound } from '../lib/audio';
+import { useGameConfigStore } from '../stores/game-config-store';
 import {
   USDT_NETWORKS,
-  MIN_WITHDRAW,
   validateUsdtAddress,
   formatWithdrawMethod,
   truncateAddress,
@@ -51,6 +51,7 @@ const WD_STATUS: Record<string, { label: string; cls: string }> = {
 
 export default function WalletScreen() {
   const user = useAuthStore((s) => s.user);
+  const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
   const updateWallet = useAuthStore((s) => s.updateWallet);
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,7 +109,7 @@ export default function WalletScreen() {
 
   const validDeposit = Number.isFinite(amount) && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
   const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;
-  const validWithdraw = Number.isFinite(amount) && amount >= MIN_WITHDRAW && amount <= withdrawable && !addressError && walletAddress.trim().length >= 10;
+  const validWithdraw = Number.isFinite(amount) && amount >= minWithdraw && amount <= withdrawable && !addressError && walletAddress.trim().length >= 10;
 
   const deposit = async () => {
     if (!validDeposit) { setError(`Сумма от ${MIN_DEPOSIT} до ${MAX_DEPOSIT} ₽`); return; }
@@ -144,11 +145,11 @@ export default function WalletScreen() {
   }, [tab, amount, validDeposit, busy, awaitingPayment, showWithdraw]); // eslint-disable-line
 
   const openWithdraw = () => {
-    if (withdrawable < MIN_WITHDRAW) {
-      toast(`Минимум для вывода — ${MIN_WITHDRAW} ₽. Доступно: ${withdrawable.toFixed(0)} ₽`, 'error', 'minus');
+    if (withdrawable < minWithdraw) {
+      toast(`Минимум для вывода — ${minWithdraw} ₽. Доступно: ${withdrawable.toFixed(0)} ₽`, 'error', 'minus');
       return;
     }
-    setAmount(Math.min(Math.max(MIN_WITHDRAW, Math.floor(withdrawable)), Math.floor(withdrawable)));
+    setAmount(Math.min(Math.max(minWithdraw, Math.floor(withdrawable)), Math.floor(withdrawable)));
     setWalletAddress('');
     setNetwork('TRC20');
     setConfirmWithdraw(false);
@@ -159,7 +160,7 @@ export default function WalletScreen() {
   const submitWithdraw = async () => {
     if (!validWithdraw) {
       if (addressError) setError(addressError);
-      else setError(`Сумма от ${MIN_WITHDRAW} до ${withdrawable.toFixed(0)} ₽`);
+      else setError(`Сумма от ${minWithdraw} до ${withdrawable.toFixed(0)} ₽`);
       return;
     }
     if (!confirmWithdraw) {
@@ -273,9 +274,9 @@ export default function WalletScreen() {
           </div>
           <p className="text-xs text-muted leading-relaxed">
             Вывод только в <b className="text-main">USDT</b> на ваш криптокошелёк.
-            Минимум — {MIN_WITHDRAW} ₽. Обработка заявки — <b className="text-main">до 24 часов</b>.
+            Минимум — {minWithdraw} ₽. Обработка заявки — <b className="text-main">до 24 часов</b>.
           </p>
-          <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < MIN_WITHDRAW}>
+          <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < minWithdraw}>
             <Icon name="minus" size={16} /> Создать заявку на вывод
           </button>
 
@@ -359,13 +360,13 @@ export default function WalletScreen() {
           <div>
             <p className="eyebrow mb-1.5">Сумма (₽)</p>
             <input
-              type="number" min={MIN_WITHDRAW} max={Math.floor(withdrawable)}
+              type="number" min={minWithdraw} max={Math.floor(withdrawable)}
               value={Number.isFinite(amount) ? amount : ''}
               onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
               className={['w-full px-3 py-2.5 rounded-lg bg-panel border text-main outline-none tabular-nums', validWithdraw || !amount ? 'border-line' : 'border-danger'].join(' ')}
             />
             <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums">
-              <span>мин {MIN_WITHDRAW} ₽</span>
+              <span>мин {minWithdraw} ₽</span>
               <button type="button" className="text-danger" onClick={() => setAmount(Math.floor(withdrawable))}>всё ({withdrawable.toFixed(0)} ₽)</button>
             </div>
             <p className="text-[10px] text-muted mt-1">Эквивалент в USDT рассчитывается по курсу на момент выплаты.</p>

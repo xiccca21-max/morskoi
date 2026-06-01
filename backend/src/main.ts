@@ -32,6 +32,13 @@ function assertProductionSecrets() {
   if (!process.env.CORS_ORIGINS) {
     warn.push('CORS_ORIGINS не задан — используется localhost по умолчанию');
   }
+  if (!process.env.REDIS_URL?.trim()) {
+    fatal.push('REDIS_URL не задан — wallet locks не будут работать между инстансами');
+  }
+  const polling = process.env.TELEGRAM_BOT_POLLING === 'true';
+  if (!polling && !process.env.TELEGRAM_WEBHOOK_URL?.trim()) {
+    fatal.push('TELEGRAM_WEBHOOK_URL обязателен при TELEGRAM_BOT_POLLING=false');
+  }
 
   for (const w of warn) Logger.warn(w, 'Bootstrap');
   if (fatal.length) {

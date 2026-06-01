@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length, Max } from 'class-validator';
 import { MatchmakingService } from './matchmaking.service';
 import { LobbyService } from './lobby.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -9,6 +9,7 @@ import type { JwtPayload } from '../auth/auth.service';
 class WagerDto {
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000)
   wagerAmount!: number;
 }
 
@@ -21,6 +22,7 @@ class CodeDto {
 class CreateLobbyDto {
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000)
   wagerAmount!: number;
 
   @IsOptional()
@@ -34,6 +36,7 @@ class ChallengeDto {
 
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000)
   wagerAmount!: number;
 }
 

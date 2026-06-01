@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { TxType, TxStatus } from '../common/enums';
 import { AuditService } from '../common/audit.service';
 import { roundRub } from '../common/money';
+import { txMetaMatches } from '../common/transaction-meta';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
@@ -48,25 +49,26 @@ export class WalletService {
    * для совместимости и больше ни на что не влияет.
    */
   async deposit(userId: string, amount: number, meta?: Record<string, any>, real = true) {
+    amount = roundRub(amount);
     if (amount <= 0) throw new BadRequestException('Amount must be positive');
 
-    // Дневной лимит депозита (защита/ответственная игра)
-    const u0 = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!u0) throw new NotFoundException('User not found');
-    const limit = Number((u0 as any).dailyDepositLimit ?? 0);
-    if (limit > 0) {
-      const since = new Date(Date.now() - 24 * 3600 * 1000);
-      const agg = await this.prisma.transaction.aggregate({
-        where: { userId, type: TxType.DEPOSIT, createdAt: { gt: since } },
-        _sum: { amount: true },
-      });
-      const usedToday = Number(agg._sum.amount ?? 0);
-      if (usedToday + amount > limit) {
-        throw new BadRequestException(`Превышен дневной лимит пополнения (${limit} ₽)`);
-      }
-    }
-
     return this.redis.withLock(`wallet:${userId}`, 3000, async () => {
+      // Дневной лимит — внутри лока, чтобы параллельные депозиты не обходили cap.
+      const u0 = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!u0) throw new NotFoundException('User not found');
+      const limit = Number((u0 as any).dailyDepositLimit ?? 0);
+      if (limit > 0) {
+        const since = new Date(Date.now() - 24 * 3600 * 1000);
+        const agg = await this.prisma.transaction.aggregate({
+          where: { userId, type: TxType.DEPOSIT, createdAt: { gt: since }, status: TxStatus.COMPLETED },
+          _sum: { amount: true },
+        });
+        const usedToday = Number(agg._sum.amount ?? 0);
+        if (usedToday + amount > limit) {
+          throw new BadRequestException(`Превышен дневной лимит пополнения (${limit} ₽)`);
+        }
+      }
+
       return this.prisma.$transaction(async (tx) => {
         void real;
         const u = await tx.user.update({
@@ -114,6 +116,7 @@ export class WalletService {
     } catch (e: any) {
       throw new BadRequestException(e.message || 'Некорректный адрес');
     }
+    amount = roundRub(amount);
     if (amount < MIN) throw new BadRequestException(`Минимальная сумма вывода — ${MIN} ₽`);
 
     const method = methodForNetwork(network as UsdtNetwork);
@@ -238,9 +241,12 @@ export class WalletService {
   async completeDepositByInvoice(userId: string, invoiceId: string) {
     return this.redis.withLock(`wallet:${userId}`, 4000, async () => {
       return this.prisma.$transaction(async (tx) => {
-        const pending = await tx.transaction.findFirst({
-          where: { userId, type: TxType.DEPOSIT, status: TxStatus.PENDING, meta: { contains: invoiceId } },
+        const pendingRows = await tx.transaction.findMany({
+          where: { userId, type: TxType.DEPOSIT, status: TxStatus.PENDING },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
         });
+        const pending = pendingRows.find((t) => txMetaMatches(t.meta, 'invoiceId', invoiceId));
         if (!pending) return { credited: false as const };
         const amountRub = Number(pending.amount);
         await tx.transaction.update({ where: { id: pending.id }, data: { status: TxStatus.COMPLETED } });
@@ -304,37 +310,52 @@ export class WalletService {
    * При отклонении удержанные деньги возвращаются на баланс.
    */
   async resolveWithdrawal(id: string, status: 'PAID' | 'REJECTED', note?: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const wr = await (tx as any).withdrawalRequest.findUnique({ where: { id } });
-      if (!wr) throw new NotFoundException('Заявка не найдена');
-      if (wr.status === 'PAID' || wr.status === 'REJECTED') {
-        return wr; // уже обработана — идемпотентность
-      }
-      if (status === 'PAID') {
-        await (tx as any).withdrawalRequest.update({
-          where: { id },
-          data: { status: 'PAID', processedAt: new Date() },
+    return this.redis.withLock(`withdrawal:${id}`, 8000, async () => {
+      return this.prisma.$transaction(async (tx) => {
+        const wr = await (tx as any).withdrawalRequest.findUnique({ where: { id } });
+        if (!wr) throw new NotFoundException('Заявка не найдена');
+        if (wr.status === 'PAID' || wr.status === 'REJECTED') {
+          return wr;
+        }
+
+        const updated = await (tx as any).withdrawalRequest.updateMany({
+          where: { id, status: 'PENDING' },
+          data:
+            status === 'PAID'
+              ? { status: 'PAID', processedAt: new Date() }
+              : { status: 'REJECTED', note: note ?? null, processedAt: new Date() },
         });
-        await tx.transaction.updateMany({
-          where: { userId: wr.userId, type: TxType.WITHDRAW, status: TxStatus.PENDING, meta: { contains: id } },
-          data: { status: TxStatus.COMPLETED },
+        if (updated.count !== 1) {
+          const current = await (tx as any).withdrawalRequest.findUnique({ where: { id } });
+          return current ?? wr;
+        }
+
+        const withdrawTxs = await tx.transaction.findMany({
+          where: { userId: wr.userId, type: TxType.WITHDRAW, status: TxStatus.PENDING },
         });
-      } else {
-        // Возврат удержанных средств
-        await tx.user.update({
-          where: { id: wr.userId },
-          data: { balance: { increment: wr.amount }, withdrawable: { increment: wr.amount } } as any,
-        });
-        await (tx as any).withdrawalRequest.update({
-          where: { id },
-          data: { status: 'REJECTED', note: note ?? null, processedAt: new Date() },
-        });
-        await tx.transaction.updateMany({
-          where: { userId: wr.userId, type: TxType.WITHDRAW, status: TxStatus.PENDING, meta: { contains: id } },
-          data: { status: TxStatus.FAILED },
-        });
-      }
-      return { ...wr, status };
+        const txIds = withdrawTxs.filter((t) => txMetaMatches(t.meta, 'withdrawalId', id)).map((t) => t.id);
+
+        if (status === 'PAID') {
+          if (txIds.length) {
+            await tx.transaction.updateMany({
+              where: { id: { in: txIds } },
+              data: { status: TxStatus.COMPLETED },
+            });
+          }
+        } else {
+          await tx.user.update({
+            where: { id: wr.userId },
+            data: { balance: { increment: wr.amount }, withdrawable: { increment: wr.amount } } as any,
+          });
+          if (txIds.length) {
+            await tx.transaction.updateMany({
+              where: { id: { in: txIds } },
+              data: { status: TxStatus.FAILED },
+            });
+          }
+        }
+        return { ...wr, status };
+      });
     });
   }
 

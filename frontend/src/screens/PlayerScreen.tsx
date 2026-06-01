@@ -63,7 +63,7 @@ export default function PlayerScreen() {
         <Stat label="Поражения" value={player.losses} accent />
         <Stat label="Точность" value={`${wr}%`} />
       </section>
-      <button className="btn-primary w-full" onClick={() => navigate('/matchmaking')}>
+      <button className="btn-primary w-full" onClick={() => navigate(`/challenge/${id}`)}>
         <Icon name="swords" size={16} /> Вызвать на дуэль
       </button>
     </div>

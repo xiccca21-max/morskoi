@@ -42,7 +42,11 @@ export class TelegramBotService implements OnModuleInit {
    */
   processUpdate(update: unknown, secret?: string): boolean {
     if (!this.bot) return false;
-    if (this.webhookSecret && secret !== this.webhookSecret) {
+    if (!this.webhookSecret) {
+      this.logger.warn('webhook update rejected: secret not configured');
+      return false;
+    }
+    if (secret !== this.webhookSecret) {
       this.logger.warn('webhook update rejected: bad secret token');
       return false;
     }

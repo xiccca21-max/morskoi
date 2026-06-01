@@ -20,6 +20,7 @@ const EXCLUDE_OPTIONS = [
 
 export default function SettingsScreen() {
   const setUser = useAuthStore((s) => s.setUser);
+  const patchUser = useAuthStore((s) => s.patchUser);
   const user = useAuthStore((s) => s.user);
   const { theme, setTheme } = useThemeStore();
   const { sound, haptics, setSound, setHaptics } = useSettingsStore();
@@ -51,7 +52,8 @@ export default function SettingsScreen() {
   const saveDepositLimit = async (v: number) => {
     setDepLimit(v); setSavingLimit(true);
     try {
-      await UsersAPI.setLimits({ dailyDepositLimit: v });
+      const fresh = await UsersAPI.setLimits({ dailyDepositLimit: v });
+      patchUser({ dailyDepositLimit: fresh.dailyDepositLimit ?? v });
       tgHaptic('success');
       toast(v > 0 ? `Лимит пополнения: ${v} ₽/день` : 'Лимит снят', 'success', 'check');
     } catch {

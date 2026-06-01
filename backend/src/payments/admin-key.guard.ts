@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 
 /**
  * Простая защита админских эндпоинтов по статичному ключу из ADMIN_API_KEY.
@@ -10,8 +11,12 @@ export class AdminKeyGuard implements CanActivate {
     const expected = process.env.ADMIN_API_KEY;
     if (!expected) throw new UnauthorizedException('Admin API disabled');
     const req = ctx.switchToHttp().getRequest();
-    const provided = req.headers['x-admin-key'];
-    if (provided !== expected) throw new UnauthorizedException('Bad admin key');
+    const provided = String(req.headers['x-admin-key'] ?? '');
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new UnauthorizedException('Bad admin key');
+    }
     return true;
   }
 }

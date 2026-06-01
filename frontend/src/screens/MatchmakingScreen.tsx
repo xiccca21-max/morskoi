@@ -254,7 +254,7 @@ export default function MatchmakingScreen() {
     getSocket().emit('lobby:join', { code: m.code, nonce: newNonce() }, (ack: any) => {
       setBusyId(null);
       if (!ack?.ok) { setError(ack?.error ?? 'Не удалось войти в бой'); fetchList(); return; }
-      // дальше сработает match:found → переход к расстановке
+      if (ack.matchId) navigate(`/placement/${ack.matchId}`);
     });
   };
 
@@ -303,6 +303,21 @@ export default function MatchmakingScreen() {
       </div>
 
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
+
+      {inQueue && (
+        <div className="card p-4 flex items-center gap-3 border-warning">
+          <Spinner />
+          <div className="flex-1">
+            <p className="text-main text-sm font-display">В очереди на бой…</p>
+            <p className="text-muted text-xs">
+              {queueSince ? `${Math.floor((queueTick - queueSince) / 1000)} сек` : 'ожидание соперника'}
+            </p>
+          </div>
+          <button className="btn-ghost text-sm shrink-0" onClick={cancelQueue} disabled={queueSearching}>
+            Отмена
+          </button>
+        </div>
+      )}
 
       {/* Bottom-sheet: выбор ставки */}
       <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Ставка боя" icon="coins">

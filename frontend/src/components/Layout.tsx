@@ -39,7 +39,7 @@ export function Layout() {
       navigate(`/placement/${match.matchId}`);
     } else if (match.gameStatus === 'IN_PROGRESS' && !p.startsWith('/battle')) {
       navigate(`/battle/${match.matchId}`);
-    } else if (match.gameStatus === 'FINISHED' && !p.startsWith('/result')) {
+    } else if (match.gameStatus === 'FINISHED' && !p.startsWith('/result') && !/^\/(home|wallet|settings|profile|leaderboard|history)/.test(p)) {
       navigate(`/result/${match.matchId}`);
     }
   }, [match?.matchId, match?.gameStatus]); // eslint-disable-line

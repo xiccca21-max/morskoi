@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { TelegramBotService } from './telegram-bot.service';
 
@@ -19,8 +19,8 @@ export class TelegramController {
     @Body() update: unknown,
     @Headers('x-telegram-bot-api-secret-token') secret?: string,
   ) {
-    this.bot.processUpdate(update, secret);
-    // Всегда отвечаем 200, иначе Telegram будет ретраить и копить очередь.
+    const ok = this.bot.processUpdate(update, secret);
+    if (!ok) throw new UnauthorizedException('Invalid webhook');
     return { ok: true };
   }
 }

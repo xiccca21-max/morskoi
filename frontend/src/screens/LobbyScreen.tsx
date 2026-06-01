@@ -39,15 +39,8 @@ export default function LobbyScreen() {
     }
   }, [lobby?.status, lobby?.matchId, navigate]);
 
-  useEffect(() => {
-    const sock = getSocket();
-    const onFound = (data: any) => {
-      tgHaptic('success');
-      if (data?.matchId) navigate(`/placement/${data.matchId}`);
-    };
-    sock.on('match:found', onFound);
-    return () => { sock.off('match:found', onFound); };
-  }, [navigate]);
+
+  // Убран дублирующий match:found — навигация через ack lobby:join / App overlay.
 
   const isHost = !!user && lobby?.host?.id === user.id;
   const lowFunds = !!user && lobby && user.balance < lobby.wagerAmount;

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
@@ -8,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsPositive, IsString, Max, MaxLength } from 'class-validator';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
@@ -49,11 +50,13 @@ export class PaymentsController {
 
   /** Вебхук Crypto Pay об оплате инвойса (подпись проверяется по сырому телу). */
   @Post('cryptobot/webhook')
+  @SkipThrottle()
   async webhook(
     @Req() req: RawBodyRequest<Request>,
     @Headers('crypto-pay-api-signature') signature: string,
   ) {
-    const raw = req.rawBody?.toString('utf8') ?? JSON.stringify(req.body);
+    const raw = req.rawBody?.toString('utf8');
+    if (!raw) throw new BadRequestException('Missing raw body');
     return this.payments.handleCryptoWebhook(raw, signature);
   }
 

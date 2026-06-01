@@ -28,6 +28,6 @@ docker compose -f docker-compose.prod.yml restart nginx
 
 docker image prune -f
 chmod +x scripts/smoke-test.sh 2>/dev/null || true
-docker compose -f docker-compose.prod.yml exec -T app bash -c \
-  'curl -sf http://127.0.0.1:4000/health && curl -sf http://127.0.0.1:4000/api/config' \
+docker compose -f docker-compose.prod.yml exec -T app \
+  node -e "Promise.all([fetch('http://127.0.0.1:4000/health'),fetch('http://127.0.0.1:4000/api/config')]).then(rs=>process.exit(rs.every(r=>r.ok)?0:1)).catch(()=>process.exit(1))" \
   || echo "WARN: smoke check failed — see docker logs app"

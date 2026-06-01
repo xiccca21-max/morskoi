@@ -20,6 +20,7 @@ import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { MatchEventsService } from '../common/match-events.service';
 import { BotsService } from '../bots/bots.service';
 import { chooseBotMove, BOT_SKILL_STRONG, BOT_SKILL_WEAK } from '../bots/bot-engine';
+import { normalizeWager } from '../common/wager';
 
 interface AuthedSocket extends Socket {
   data: {
@@ -96,7 +97,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         (client.handshake.auth?.token as string | undefined) ??
         (client.handshake.headers.authorization?.toString().replace('Bearer ', ''));
       if (!token) throw new Error('No token');
-      const payload = await this.auth.verifyToken(token);
+      const payload = await this.auth.verifyActiveToken(token);
       (client as AuthedSocket).data = {
         userId: payload.sub,
         tgId: payload.tgId,
@@ -165,7 +166,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         const timedOut = r.timedOut;
 
         // Анти-AFK: если один и тот же игрок пропускает ходы подряд — засчитываем поражение.
-        const maxMissed = Number(process.env.AFK_FORFEIT_TIMEOUTS ?? 3);
+        const maxMissed = Number(process.env.AFK_FORFEIT_TIMEOUTS ?? 2);
         const prev = this.afkCounters.get(matchId);
         const count = prev && prev.userId === timedOut ? prev.count + 1 : 1;
         this.afkCounters.set(matchId, { userId: timedOut, count });
@@ -339,7 +340,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
-      const r = await this.mm.enqueue(s.data.userId, body.wagerAmount);
+      const wagerAmount = normalizeWager(body.wagerAmount);
+      const r = await this.mm.enqueue(s.data.userId, wagerAmount);
       if (r.matched && r.matchId) {
         return { ok: true, matched: true, matchId: r.matchId };
       }
@@ -507,15 +509,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         });
         // Обновить баланс обоих игроков через сокет
         if (match) {
-          const pool = Number(match.prizePool);
-          const rake = Number(match.rakeAmount);
           for (const uid of [match.player1Id, match.player2Id].filter(Boolean) as string[]) {
             const u = await this.prisma.user.findUnique({ where: { id: uid }, select: { balance: true } });
             if (u) this.server.to(`user:${uid}`).emit('wallet:update', Number(u.balance));
-          }
-          // Пуш победителю
-          if (r.winnerId && match.player1Id && match.player2Id) {
-            this.botService.notifyPayout(r.winnerId, pool - rake).catch(() => undefined);
           }
         }
       }
@@ -610,19 +606,29 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         await this.redis.client.del(key);
         return { ok: false, error: 'Недостаточно средств для реванша' };
       }
-      // оба согласны — создаём новый матч с теми же условиями
-      const newMatch = await this.game.createMatch(
-        match.player1Id,
-        match.player2Id!,
-        Number(match.wagerAmount),
-      );
-      await this.redis.client.del(key);
-      await this.notifyMatchFound(newMatch.id);
+
+      const newMatchId = await this.redis.withLock(`rematch:create:${body.matchId}`, 8000, async () => {
+        const again = await this.redis.client.smembers(key);
+        if (!again.includes(match.player1Id) || !again.includes(match.player2Id!)) {
+          return null;
+        }
+        const newMatch = await this.game.createMatch(
+          match.player1Id,
+          match.player2Id!,
+          Number(match.wagerAmount),
+        );
+        await this.redis.client.del(key);
+        return newMatch.id;
+      });
+
+      if (!newMatchId) return { ok: true, waiting: true };
+
+      await this.notifyMatchFound(newMatchId);
       this.server.to(`match:${body.matchId}`).emit('match:rematchStarted', {
         oldMatchId: body.matchId,
-        newMatchId: newMatch.id,
+        newMatchId,
       });
-      return { ok: true, newMatchId: newMatch.id };
+      return { ok: true, newMatchId };
     }
     return { ok: true, waiting: true };
   }
@@ -634,11 +640,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const s = this.requireAuth(client);
     await this.ensureNonce(s.data.userId, body.nonce);
-    
-    // Просто пересылаем эмоцию (или иконку) в комнату
+
+    const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
+    if (!match || (match.player1Id !== s.data.userId && match.player2Id !== s.data.userId)) {
+      return { ok: false, error: 'Not your match' };
+    }
+    if (!this.checkSocketRate(s.data.userId, 'match:reaction', 15, 10_000)) {
+      return { ok: false, error: 'Слишком много реакций' };
+    }
+    const reaction = String(body.reaction ?? '').slice(0, 32);
+    if (!reaction) return { ok: false, error: 'Empty reaction' };
+
     this.server.to(`match:${body.matchId}`).emit('match:reaction', {
       by: s.data.userId,
-      reaction: body.reaction,
+      reaction,
     });
     return { ok: true };
   }

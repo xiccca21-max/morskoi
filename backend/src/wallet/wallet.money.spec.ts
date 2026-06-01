@@ -74,6 +74,14 @@ class FakePrisma {
       const r = this.txns.find((t) => matchWhere(t, where));
       return r ? { ...r } : null;
     },
+    findMany: async ({ where, orderBy, take }: any) => {
+      let rows = this.txns.filter((t) => matchWhere(t, where));
+      if (orderBy?.createdAt === 'desc') {
+        rows = [...rows].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+      if (take) rows = rows.slice(0, take);
+      return rows.map((r) => ({ ...r }));
+    },
     update: async ({ where, data }: any) => {
       const r = this.txns.find((t) => t.id === where.id);
       if (r) applyData(r, data);
@@ -117,6 +125,17 @@ class FakePrisma {
       const r = this.withdrawals.get(where.id);
       if (r) applyData(r, data);
       return r ? { ...r } : null;
+    },
+    updateMany: async ({ where, data }: any) => {
+      let count = 0;
+      for (const [id, r] of this.withdrawals) {
+        if (matchWhere(r, where)) {
+          applyData(r, data);
+          this.withdrawals.set(id, r);
+          count++;
+        }
+      }
+      return { count };
     },
     aggregate: async ({ where }: any) => {
       const sum = [...this.withdrawals.values()].filter((w) => matchWhere(w, where)).reduce((s, w) => s + Number(w.amount ?? 0), 0);

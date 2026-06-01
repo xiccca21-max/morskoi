@@ -41,6 +41,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.initMemoryClient();
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('REDIS_URL обязателен в production (in-memory locks не координируют инстансы)');
+    }
   }
 
   private buildRedisClient() {

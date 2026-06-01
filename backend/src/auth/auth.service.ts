@@ -27,8 +27,8 @@ export class AuthService {
     let parsed;
     try {
       parsed = validateAndParseInitData(initData, botToken);
-    } catch (e: any) {
-      throw new UnauthorizedException(`initData invalid: ${e.message}`);
+    } catch {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const tg = parsed.user;

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 
 export interface DailyBonusResult {
   claimed: boolean;
@@ -23,34 +24,38 @@ const DAILY_CHESTS = [
 export class DailyBonusService {
   private readonly maxStreak = Number(process.env.DAILY_BONUS_MAX_STREAK ?? 7);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async tryClaim(userId: string): Promise<DailyBonusResult> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } }) as any;
-    if (!user) return { claimed: false };
+    return this.redis.withLock(`daily:${userId}`, 3000, async () => {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } }) as any;
+      if (!user) return { claimed: false };
 
-    const now = new Date();
-    const today = this.dayKey(now);
-    const last = user.lastDailyClaimAt ? this.dayKey(new Date(user.lastDailyClaimAt)) : null;
+      const now = new Date();
+      const today = this.dayKey(now);
+      const last = user.lastDailyClaimAt ? this.dayKey(new Date(user.lastDailyClaimAt)) : null;
 
-    if (last === today) {
-      return { claimed: false, streak: user.loginStreak ?? 0 };
-    }
+      if (last === today) {
+        return { claimed: false, streak: user.loginStreak ?? 0 };
+      }
 
-    let streak = 1;
-    if (last) {
-      const yesterday = this.dayKey(new Date(now.getTime() - 86_400_000));
-      streak = last === yesterday ? Math.min((user.loginStreak ?? 0) + 1, this.maxStreak) : 1;
-    }
+      let streak = 1;
+      if (last) {
+        const yesterday = this.dayKey(new Date(now.getTime() - 86_400_000));
+        streak = last === yesterday ? Math.min((user.loginStreak ?? 0) + 1, this.maxStreak) : 1;
+      }
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { lastDailyClaimAt: now, loginStreak: streak, lastChestAt: now } as any,
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { lastDailyClaimAt: now, loginStreak: streak, lastChestAt: now } as any,
+      });
+
+      const idx = Number(today.replace(/-/g, '')) % DAILY_CHESTS.length;
+      return { claimed: true, streak, reward: DAILY_CHESTS[idx] };
     });
-
-    // Сундук дня — детерминированно по дате, чтобы у всех был «сегодняшний».
-    const idx = Number(today.replace(/-/g, '')) % DAILY_CHESTS.length;
-    return { claimed: true, streak, reward: DAILY_CHESTS[idx] };
   }
 
   private dayKey(d: Date): string {

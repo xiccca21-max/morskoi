@@ -228,6 +228,21 @@ export class GameService {
       // hit — ход остаётся у атакующего
 
       const turnTimeoutSec = Number(process.env.TURN_TIMEOUT_SEC ?? 20);
+
+      if (result.gameOver) {
+        newStatus = GameStatus.FINISHED;
+        winnerId = userId;
+        const rake = Number(process.env.PLATFORM_RAKE_PERCENT ?? 5);
+        await this.wallet.settleMatch(
+          match.id,
+          match.player1Id,
+          match.player2Id!,
+          Number(match.wagerAmount),
+          winnerId,
+          rake,
+        );
+      }
+
       await this.prisma.gameState.update({
         where: { matchId },
         data: {
@@ -240,19 +255,6 @@ export class GameService {
             : null,
         },
       });
-
-      if (newStatus === GameStatus.FINISHED && winnerId) {
-        // выплачиваем
-        const rake = Number(process.env.PLATFORM_RAKE_PERCENT ?? 5);
-        await this.wallet.settleMatch(
-          match.id,
-          match.player1Id,
-          match.player2Id!,
-          Number(match.wagerAmount),
-          winnerId,
-          rake,
-        );
-      }
 
       return {
         result,
@@ -340,6 +342,10 @@ export class GameService {
     await this.prisma.match.update({
       where: { id: matchId },
       data: { status: MatchStatus.CANCELLED, endedAt: new Date() },
+    });
+    await this.prisma.gameState.updateMany({
+      where: { matchId },
+      data: { gameStatus: GameStatus.FINISHED, currentTurn: null, turnDeadline: null },
     });
     this.logger.warn(`Match ${matchId} cancelled: ${reason}`);
   }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -12,6 +12,8 @@ import { assertCanPlay } from '../common/responsible-gaming';
  */
 @Injectable()
 export class MatchmakingService {
+  private readonly logger = new Logger('Matchmaking');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -101,8 +103,14 @@ export class MatchmakingService {
             matched.add(a.userId);
             matched.add(b.userId);
           });
-        } catch {
-          /* ignore lock contention */
+        } catch (e: any) {
+          const msg = String(e?.message ?? '');
+          if (msg.includes('Insufficient balance')) {
+            await this.prisma.matchmakingQueue.deleteMany({
+              where: { userId: { in: [a.userId, b.userId] } },
+            }).catch(() => undefined);
+            this.logger.warn(`Removed queue entries: insufficient balance (${a.userId}, ${b.userId})`);
+          }
         }
         break;
       }

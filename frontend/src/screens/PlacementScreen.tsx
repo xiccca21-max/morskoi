@@ -115,17 +115,17 @@ export default function PlacementScreen() {
     navigate('/home');
   };
 
-  // Если соперник вышел во время расстановки — матч отменяется, уходим домой.
   useEffect(() => {
     const sock = getSocket();
-    const onFinished = () => {
+    const onCancelled = (data: any) => {
+      if (data?.matchId !== matchId) return;
       showToast('Бой отменён — соперник вышел. Ставка не списана.', 'info', 'flag');
       tgHaptic('warning');
       navigate('/home');
     };
-    sock.on('match:finished', onFinished);
-    return () => { sock.off('match:finished', onFinished); };
-  }, [navigate]);
+    sock.on('match:cancelled', onCancelled);
+    return () => { sock.off('match:cancelled', onCancelled); };
+  }, [navigate, matchId]);
 
   const selected = fleet.find((f) => f.id === selectedId) ?? fleet.find((f) => !f.placed) ?? null;
   const lastTapRef = useRef<{ x: number; y: number; t: number } | null>(null);

@@ -1,6 +1,13 @@
 import { useState } from 'react';
 
-// Палитра для фоновых инициалов — детерминированно по имени.
+function isSafeAvatarUrl(src: string): boolean {
+  try {
+    const u = new URL(src);
+    return u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 const COLORS = [
   '#E1574B', '#2563EB', '#7C3AED', '#0891B2',
   '#059669', '#D97706', '#DB2777', '#475569',
@@ -26,7 +33,7 @@ export function Avatar({ name, src, size = 40, rounded = 'full', className = '' 
   const label = (name ?? '').trim();
   const initial = label ? label[0].toUpperCase() : '?';
   const radius = rounded === 'full' ? '9999px' : '12px';
-  const showImg = src && !failed;
+  const showImg = src && !failed && isSafeAvatarUrl(src);
 
   return (
     <span

@@ -6,7 +6,7 @@ import { Ship } from '../components/Ship';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
-import { UsersAPI } from '../api/endpoints';
+import { UsersAPI, GameAPI } from '../api/endpoints';
 import { Avatar } from '../components/Avatar';
 import { tgHaptic, tgNotify, tgVibrate, tgBackButton, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
 import { SHIP_FLEET, ShipKind } from '../lib/game-types';
@@ -28,8 +28,10 @@ export default function BattleScreen() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const state = useMatchStore((s) => s.state);
+  const setMatchState = useMatchStore((s) => s.setState);
   const lastAttack = useMatchStore((s) => s.lastAttack);
   const me = useAuthStore((s) => s.user);
+  const [stateOk, setStateOk] = useState(false);
 
   const [now, setNow] = useState(Date.now());
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
@@ -52,7 +54,24 @@ export default function BattleScreen() {
     return () => { cancelled = true; };
   }, [enemyId]);
 
-  useEffect(() => { if (matchId) getSocket().emit('match:requestState', { matchId }); }, [matchId]);
+  useEffect(() => {
+    if (!matchId) return;
+    let cancelled = false;
+    GameAPI.state(matchId)
+      .then((s) => {
+        if (cancelled) return;
+        if (s.matchId !== matchId || s.gameStatus !== 'IN_PROGRESS') {
+          navigate(s.gameStatus === 'FINISHED' ? `/result/${matchId}` : '/home', { replace: true });
+          return;
+        }
+        setMatchState(s);
+        setStateOk(true);
+      })
+      .catch(() => { if (!cancelled) navigate('/home', { replace: true }); });
+    return () => { cancelled = true; };
+  }, [matchId, navigate, setMatchState]);
+
+  useEffect(() => { if (matchId && stateOk) getSocket().emit('match:requestState', { matchId }); }, [matchId, stateOk]);
 
   // Отслеживаем соединение, чтобы показать оверлей переподключения
   useEffect(() => {
@@ -247,7 +266,7 @@ export default function BattleScreen() {
     setTimeout(() => setReactionCooldown(false), 1200);
   };
 
-  if (!state) return <div className="card p-6 text-center text-muted max-w-md mx-auto">Выходим на позицию…</div>;
+  if (!stateOk || !state || state.matchId !== matchId) return <div className="card p-6 text-center text-muted max-w-md mx-auto">Выходим на позицию…</div>;
 
   return (
     <div className={['max-w-md mx-auto space-y-3', shake ? 'fx-shake' : ''].join(' ')}>

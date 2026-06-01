@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -9,6 +9,7 @@ class LimitsDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(50000)
   dailyDepositLimit?: number;
 
   @IsOptional()

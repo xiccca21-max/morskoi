@@ -1,15 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { randomBytes } from 'crypto';
 import { LobbyStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { GameService } from '../game/game.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
+import { RedisService } from '../redis/redis.service';
 import { assertCanPlay } from '../common/responsible-gaming';
 
-function genCode(len = 6) {
+function genCode(len = 8) {
   const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = randomBytes(len);
   let s = '';
-  for (let i = 0; i < len; i++) s += a[Math.floor(Math.random() * a.length)];
+  for (let i = 0; i < len; i++) s += a[bytes[i]! % a.length];
   return s;
 }
 
@@ -19,6 +22,7 @@ export class LobbyService {
     private readonly prisma: PrismaService,
     private readonly game: GameService,
     private readonly moduleRef: ModuleRef,
+    private readonly redis: RedisService,
   ) {}
 
   private get bot(): TelegramBotService {
@@ -48,7 +52,7 @@ export class LobbyService {
 
     let code = '';
     for (let i = 0; i < 5; i++) {
-      code = genCode(6);
+      code = genCode(8);
       const exists = await this.prisma.lobby.findUnique({ where: { code } });
       if (!exists) break;
     }
@@ -139,28 +143,44 @@ export class LobbyService {
   }
 
   async join(code: string, joinerId: string) {
-    const lobby = await this.prisma.lobby.findUnique({ where: { code } });
-    if (!lobby) throw new NotFoundException('Lobby not found');
-    if (lobby.status !== LobbyStatus.OPEN) throw new BadRequestException('Lobby is not open');
-    if (lobby.hostId === joinerId) throw new BadRequestException('Cannot join own lobby');
-    if (lobby.expiresAt < new Date()) throw new BadRequestException('Lobby expired');
+    const normalized = code.toUpperCase();
+    return this.redis.withLock(`lobby:join:${normalized}`, 8000, async () => {
+      const lobby = await this.prisma.lobby.findUnique({ where: { code: normalized } });
+      if (!lobby) throw new NotFoundException('Lobby not found');
+      if (lobby.status !== LobbyStatus.OPEN) throw new BadRequestException('Lobby is not open');
+      if (lobby.hostId === joinerId) throw new BadRequestException('Cannot join own lobby');
+      if (lobby.expiresAt < new Date()) throw new BadRequestException('Lobby expired');
 
-    await assertCanPlay(this.prisma, joinerId);
+      await assertCanPlay(this.prisma, joinerId);
 
-    const joiner = await this.prisma.user.findUnique({ where: { id: joinerId } });
-    if (!joiner) throw new NotFoundException('User not found');
-    if (Number(joiner.balance) < Number(lobby.wagerAmount)) {
-      throw new BadRequestException('Insufficient balance');
-    }
+      const joiner = await this.prisma.user.findUnique({ where: { id: joinerId } });
+      if (!joiner) throw new NotFoundException('User not found');
+      if (Number(joiner.balance) < Number(lobby.wagerAmount)) {
+        throw new BadRequestException('Insufficient balance');
+      }
 
-    const match = await this.game.createMatch(lobby.hostId, joinerId, Number(lobby.wagerAmount));
+      // Атомарно «забираем» лобби — второй joiner получит 0 rows.
+      const claimed = await this.prisma.lobby.updateMany({
+        where: { id: lobby.id, status: LobbyStatus.OPEN },
+        data: { status: LobbyStatus.STARTED },
+      });
+      if (claimed.count !== 1) throw new BadRequestException('Lobby is not open');
 
-    await this.prisma.lobby.update({
-      where: { id: lobby.id },
-      data: { status: LobbyStatus.STARTED, matchId: match.id },
+      try {
+        const match = await this.game.createMatch(lobby.hostId, joinerId, Number(lobby.wagerAmount));
+        await this.prisma.lobby.update({
+          where: { id: lobby.id },
+          data: { matchId: match.id },
+        });
+        return { matchId: match.id, hostId: lobby.hostId, joinerId };
+      } catch (e) {
+        await this.prisma.lobby.updateMany({
+          where: { id: lobby.id, status: LobbyStatus.STARTED, matchId: null },
+          data: { status: LobbyStatus.OPEN },
+        });
+        throw e;
+      }
     });
-
-    return { matchId: match.id, hostId: lobby.hostId, joinerId };
   }
 
   async get(code: string) {

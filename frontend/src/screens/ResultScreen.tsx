@@ -5,7 +5,7 @@ import { VictoryBurst } from '../components/Effects';
 import { Ship } from '../components/Ship';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
-import { GameAPI, WalletAPI } from '../api/endpoints';
+import { GameAPI, WalletAPI, UsersAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgShare, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
@@ -27,7 +27,7 @@ export default function ResultScreen() {
   const clearMatch = useMatchStore((s) => s.clear);
   const me = useAuthStore((s) => s.user);
   const updateBalance = useAuthStore((s) => s.updateBalance);
-  const applyMatchResult = useAuthStore((s) => s.applyMatchResult);
+  const patchUser = useAuthStore((s) => s.patchUser);
   const [waitingRematch, setWaitingRematch] = useState(false);
   const [rematchOffer, setRematchOffer] = useState(false);
   const rematchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,23 +61,32 @@ export default function ResultScreen() {
   const resultApplied = useRef(false);
   const achievementsShown = useRef(false);
   useEffect(() => {
-    if (matchState?.winnerId && me?.id && matchState.matchId === matchId && !resultApplied.current) {
-      resultApplied.current = true;
-      const isWin = matchState.winnerId === me.id;
-      const before = statsFromUser(me);
-      applyMatchResult(isWin);
-      const afterUser = useAuthStore.getState().user!;
-      const after = statsFromUser(afterUser);
-      if (!achievementsShown.current) {
-        achievementsShown.current = true;
-        for (const a of newAchievementIds(before, after)) {
-          toast(`Достижение: ${a.title}`, 'success', a.icon);
+    if (!matchState?.winnerId || !me?.id || matchState.matchId !== matchId) return;
+    const storageKey = `naval_result_${matchId}`;
+    if (sessionStorage.getItem(storageKey)) return;
+    sessionStorage.setItem(storageKey, '1');
+
+    const before = statsFromUser(me);
+    UsersAPI.me()
+      .then((fresh) => {
+        patchUser(fresh);
+        const after = statsFromUser(fresh);
+        if (!achievementsShown.current) {
+          achievementsShown.current = true;
+          for (const a of newAchievementIds(before, after)) {
+            toast(`Достижение: ${a.title}`, 'success', a.icon);
+          }
+          for (const a of newStreakAchievements(before.loginStreak ?? 0, after.loginStreak ?? 0)) {
+            toast(`Достижение: ${a.title}`, 'success', a.icon);
+          }
         }
-      }
-      tgHaptic(isWin ? 'success' : 'error');
-      playSound(isWin ? 'win' : 'lose');
-    }
-  }, [matchState?.winnerId, me?.id, matchState?.matchId, matchId]); // eslint-disable-line
+      })
+      .catch(() => undefined);
+
+    const isWin = matchState.winnerId === me.id;
+    tgHaptic(isWin ? 'success' : 'error');
+    playSound(isWin ? 'win' : 'lose');
+  }, [matchState?.winnerId, me?.id, matchState?.matchId, matchId, patchUser]); // eslint-disable-line
 
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;

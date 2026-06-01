@@ -63,7 +63,22 @@ export class UsersService {
   /** Лимиты ответственной игры / самоисключение. */
   async setLimits(userId: string, dailyDepositLimit?: number, selfExcludeDays?: number) {
     const data: any = {};
-    if (dailyDepositLimit != null) data.dailyDepositLimit = dailyDepositLimit > 0 ? dailyDepositLimit : null;
+    if (dailyDepositLimit != null) {
+      const u = await this.prisma.user.findUnique({ where: { id: userId } }) as any;
+      const current = Number(u?.dailyDepositLimit ?? 0);
+      const maxCap = Number(process.env.MAX_USER_DEPOSIT_LIMIT ?? 50000);
+      const next = dailyDepositLimit > 0 ? Math.round(dailyDepositLimit) : null;
+      if (next != null) {
+        if (next > maxCap) {
+          throw new BadRequestException(`Максимальный лимит — ${maxCap} ₽/день`);
+        }
+        // Пользователь может только уменьшить лимит или снять его (0), но не повысить.
+        if (current > 0 && next > current) {
+          throw new BadRequestException('Можно только уменьшить лимит пополнения');
+        }
+      }
+      data.dailyDepositLimit = next;
+    }
     if (selfExcludeDays != null && selfExcludeDays > 0) {
       data.selfExcludedUntil = new Date(Date.now() + selfExcludeDays * 24 * 3600 * 1000);
     }
