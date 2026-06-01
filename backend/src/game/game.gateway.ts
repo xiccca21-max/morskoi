@@ -19,6 +19,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { MatchEventsService } from '../common/match-events.service';
 import { BotsService } from '../bots/bots.service';
+import { PresenceService } from '../common/presence.service';
 import { chooseBotMove, BOT_SKILL_STRONG, BOT_SKILL_WEAK } from '../bots/bot-engine';
 import { normalizeWager } from '../common/wager';
 
@@ -69,6 +70,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     private readonly botService: TelegramBotService,
     private readonly matchEvents: MatchEventsService,
     private readonly bots: BotsService,
+    private readonly presence: PresenceService,
   ) {}
 
   onModuleInit() {
@@ -105,6 +107,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       };
       this.userSockets.set(payload.sub, client.id);
       client.join(`user:${payload.sub}`);
+      void this.presence.touch(payload.sub, {
+        username: payload.username,
+        source: 'ws',
+      });
       this.logger.log(`Connect ${payload.sub} (${client.id})`);
 
       // если есть активный матч — переподключаем игрока в комнату
@@ -126,6 +132,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) return;
     if (this.userSockets.get(userId) === client.id) {
       this.userSockets.delete(userId);
+      void this.presence.clear(userId);
     }
     // Не отменяем матч сразу: даём время на reconnect (Socket.IO heartbeat уже это покрывает).
     this.logger.log(`Disconnect ${userId}`);

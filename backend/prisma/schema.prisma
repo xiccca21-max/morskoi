@@ -219,6 +219,7 @@ model ActionLog {
 
   @@index([userId])
   @@index([action])
+  @@index([createdAt])
 }
 
 // ===========================================================

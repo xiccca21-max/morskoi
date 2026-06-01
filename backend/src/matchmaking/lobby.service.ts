@@ -7,6 +7,7 @@ import { GameService } from '../game/game.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { RedisService } from '../redis/redis.service';
 import { assertCanPlay } from '../common/responsible-gaming';
+import { AuditService } from '../common/audit.service';
 
 function genCode(len = 8) {
   const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -23,6 +24,7 @@ export class LobbyService {
     private readonly game: GameService,
     private readonly moduleRef: ModuleRef,
     private readonly redis: RedisService,
+    private readonly audit: AuditService,
   ) {}
 
   private get bot(): TelegramBotService {
@@ -72,6 +74,12 @@ export class LobbyService {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 минут
     const lobby = await this.prisma.lobby.create({
       data: { code, hostId, wagerAmount, expiresAt, status: LobbyStatus.OPEN, isPublic, isTraining } as any,
+    });
+    this.audit.log(hostId, 'LOBBY_CREATE', {
+      code,
+      wagerAmount,
+      isPublic,
+      isTraining,
     });
     return lobby;
   }
@@ -203,6 +211,13 @@ export class LobbyService {
         await this.prisma.lobby.update({
           where: { id: lobby.id },
           data: { matchId: match.id },
+        });
+        this.audit.log(joinerId, 'LOBBY_JOIN', {
+          code: normalized,
+          matchId: match.id,
+          hostId: lobby.hostId,
+          isTraining,
+          wagerAmount: Number(lobby.wagerAmount),
         });
         return { matchId: match.id, hostId: lobby.hostId, joinerId };
       } catch (e) {

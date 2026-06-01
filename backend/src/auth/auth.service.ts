@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { validateAndParseInitData } from './telegram-init-data';
 import { DailyBonusService, type DailyBonusResult } from './daily-bonus.service';
+import { AuditService } from '../common/audit.service';
+import { PresenceService } from '../common/presence.service';
 
 export interface JwtPayload {
   sub: string;       // userId
@@ -18,6 +20,8 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly dailyBonus: DailyBonusService,
     private readonly bot: TelegramBotService,
+    private readonly audit: AuditService,
+    private readonly presence: PresenceService,
   ) {}
 
   async loginWithTelegram(initData: string) {
@@ -102,6 +106,19 @@ export class AuthService {
       ? await this.prisma.user.findUnique({ where: { id: user.id } })
       : user;
 
+    void this.presence.touch(user.id, {
+      username: user.username ?? undefined,
+      source: 'app',
+    });
+    this.audit.log(user.id, isNew ? 'REGISTER' : 'LOGIN', {
+      telegramId,
+      username: user.username,
+      isNew,
+    });
+    if (isNew) {
+      this.notifyAdminNewUser(fresh ?? user).catch(() => undefined);
+    }
+
     return {
       token,
       user: this.publicUser(fresh ?? user),
@@ -184,5 +201,15 @@ export class AuthService {
       throw new ForbiddenException('Self-exclusion active');
     }
     return payload;
+  }
+
+  private async notifyAdminNewUser(user: { id: string; username?: string | null; firstName?: string | null; telegramId: string }) {
+    const adminTg = process.env.ADMIN_TELEGRAM_ID;
+    if (!adminTg) return;
+    const name = user.username ? `@${user.username}` : user.firstName ?? user.telegramId;
+    await this.bot.notify(
+      adminTg,
+      `🆕 <b>Новый игрок</b>\n${name}\nTG: <code>${user.telegramId}</code>\nID: <code>${user.id}</code>`,
+    );
   }
 }

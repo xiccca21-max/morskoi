@@ -5,6 +5,7 @@ import { RedisService } from '../redis/redis.service';
 import { GameService } from '../game/game.service';
 import { MatchEventsService } from '../common/match-events.service';
 import { assertCanPlay } from '../common/responsible-gaming';
+import { AuditService } from '../common/audit.service';
 
 /**
  * Matchmaking — ищем второго игрока с той же (или близкой) ставкой.
@@ -19,6 +20,7 @@ export class MatchmakingService {
     private readonly redis: RedisService,
     private readonly game: GameService,
     private readonly matchEvents: MatchEventsService,
+    private readonly audit: AuditService,
   ) {}
 
   async enqueue(userId: string, wagerAmount: number) {
@@ -65,6 +67,7 @@ export class MatchmakingService {
         create: { userId, wagerAmount },
         update: { wagerAmount, createdAt: new Date() },
       });
+      this.audit.log(userId, 'QUEUE_JOIN', { wagerAmount });
       return { matched: false as const };
     });
   }
@@ -160,6 +163,7 @@ export class MatchmakingService {
     });
     const match = await this.game.createMatch(opponentId, userId, wagerAmount);
     void this.matchEvents.notifyMatchFound(match.id);
+    this.audit.log(userId, 'QUEUE_MATCHED', { matchId: match.id, opponentId, wagerAmount });
     return { matched: true as const, matchId: match.id, opponentId };
   }
 

@@ -54,6 +54,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       del: (...keys: string[]) => this.ioredis!.del(...keys),
       eval: (script: string, n: number, ...args: any[]) => this.ioredis!.eval(script, n, ...args),
       sadd: (key: string, ...members: string[]) => this.ioredis!.sadd(key, ...members),
+      srem: (key: string, ...members: string[]) => this.ioredis!.srem(key, ...members),
       smembers: (key: string) => this.ioredis!.smembers(key),
       expire: (key: string, seconds: number) => this.ioredis!.expire(key, seconds),
       ping: () => this.ioredis!.ping(),
@@ -68,6 +69,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       del: (...keys: string[]) => Promise.resolve(this.memDel(keys)),
       eval: (_script: string, _numKeys: number, key: string) => Promise.resolve(this.memDel([key])),
       sadd: (key: string, ...members: string[]) => Promise.resolve(this.memSadd(key, members)),
+      srem: (key: string, ...members: string[]) => Promise.resolve(this.memSrem(key, members)),
       smembers: (key: string) => Promise.resolve(this.memSmembers(key)),
       expire: (key: string, seconds: number) => Promise.resolve(this.memExpire(key, seconds)),
       ping: () => Promise.resolve('PONG'),
@@ -187,6 +189,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       if (!s.has(m)) { s.add(m); added++; }
     }
     return added;
+  }
+
+  private memSrem(key: string, members: string[]): number {
+    const s = this.sets.get(key);
+    if (!s) return 0;
+    let removed = 0;
+    for (const m of members) {
+      if (s.delete(m)) removed++;
+    }
+    if (s.size === 0) {
+      this.sets.delete(key);
+      this.setTtl.delete(key);
+    }
+    return removed;
   }
 
   private memSmembers(key: string): string[] {

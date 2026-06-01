@@ -85,6 +85,18 @@
     .hidden { display: none !important; }
     .back { cursor: pointer; color: var(--accent); font-size: 14px; }
     h3 { margin: 0 0 12px; font-size: 16px; }
+    .feed { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+    .feed-item {
+      background: var(--panel2); border-radius: 10px; padding: 10px 12px;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .feed-item .when { color: var(--muted); font-size: 12px; white-space: nowrap; min-width: 110px; }
+    .feed-item .what { flex: 1; font-size: 13px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #0c4a6e; color: var(--accent); }
+    .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 16px 0 8px; }
+    .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .mini-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+    .mini-row { background: var(--panel2); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -99,11 +111,47 @@
       <p class="muted">Введите <b>Admin key</b> вверху, чтобы начать работу. Ключ хранится только в этом браузере.</p>
     </div>
 
-    <div class="tabs card" style="display:flex;">
-      <button data-tab="users" class="active">Игроки</button>
+    <div class="tabs card" style="display:flex; flex-wrap:wrap;">
+      <button data-tab="activity" class="active">Сейчас</button>
+      <button data-tab="users">Игроки</button>
       <button data-tab="withdrawals">Выводы</button>
       <button data-tab="stats">Статистика</button>
       <button data-tab="logs">Журнал</button>
+    </div>
+
+    <!-- LIVE ACTIVITY -->
+    <div id="tab-activity">
+      <div class="card">
+        <div class="row">
+          <button id="activityRefresh">Обновить</button>
+          <label class="chk"><input type="checkbox" id="activityAuto" checked /> авто каждые 10 сек</label>
+          <span id="activityUpdated" class="muted"></span>
+        </div>
+        <div id="activityErr" class="err"></div>
+      </div>
+      <div class="card"><div id="activityStats" class="stat-grid"></div></div>
+      <div class="live-grid">
+        <div class="card">
+          <h3>🟢 Онлайн</h3>
+          <div id="activityOnline" class="mini-list"></div>
+        </div>
+        <div class="card">
+          <h3>⚔️ В бою</h3>
+          <div id="activityMatches" class="mini-list"></div>
+        </div>
+        <div class="card">
+          <h3>⏳ Очередь</h3>
+          <div id="activityQueue" class="mini-list"></div>
+        </div>
+        <div class="card">
+          <h3>🚪 Лобби</h3>
+          <div id="activityLobbies" class="mini-list"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📋 Последние события</h3>
+        <div id="activityFeed" class="feed"></div>
+      </div>
     </div>
 
     <!-- USERS -->
@@ -152,13 +200,25 @@
     <div id="tab-logs" class="hidden">
       <div class="card">
         <div class="row">
+          <select id="logsAction" style="flex:1">
+            <option value="">Все действия</option>
+            <option value="LOGIN">Вход</option>
+            <option value="REGISTER">Регистрация</option>
+            <option value="DEPOSIT">Пополнение</option>
+            <option value="WITHDRAW_REQUEST">Заявка на вывод</option>
+            <option value="MATCH_STARTED">Бой начался</option>
+            <option value="MATCH_FINISHED">Бой завершён</option>
+            <option value="QUEUE_JOIN">Очередь</option>
+            <option value="LOBBY_CREATE">Лобби создано</option>
+            <option value="LOBBY_JOIN">Вход в лобби</option>
+          </select>
           <button id="logsRefresh">Обновить журнал</button>
         </div>
         <div id="logsErr" class="err"></div>
       </div>
       <div class="card" style="overflow-x:auto">
         <table>
-          <thead><tr><th>Когда</th><th>Действие</th><th>User</th><th>Детали</th></tr></thead>
+          <thead><tr><th>Когда</th><th>Действие</th><th>Игрок</th><th>Детали</th></tr></thead>
           <tbody id="logsBody"><tr><td colspan="4" class="muted">Загрузка…</td></tr></tbody>
         </table>
       </div>
@@ -175,7 +235,7 @@
       adminKey = document.getElementById('keyInput').value.trim();
       localStorage.setItem(KEY_STORE, adminKey);
       flash('Ключ сохранён');
-      switchTab('stats');
+      switchTab('activity');
     }
     document.getElementById('saveKey').onclick = setKey;
     document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') setKey(); });
@@ -207,17 +267,133 @@
     function dt(s) { return s ? new Date(s).toLocaleString('ru-RU') : '—'; }
     function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+    const ACTION_LABELS = {
+      LOGIN: 'Вход',
+      REGISTER: 'Регистрация',
+      DEPOSIT: 'Пополнение',
+      WITHDRAW_REQUEST: 'Заявка на вывод',
+      WITHDRAW_PAID: 'Вывод выплачен',
+      WITHDRAW_REJECTED: 'Вывод отклонён',
+      MATCH_CREATED: 'Матч создан',
+      MATCH_STARTED: 'Бой начался',
+      MATCH_FINISHED: 'Бой завершён',
+      MATCH_CANCELLED: 'Бой отменён',
+      QUEUE_JOIN: 'Встал в очередь',
+      QUEUE_MATCHED: 'Нашёл соперника',
+      LOBBY_CREATE: 'Создал лобби',
+      LOBBY_JOIN: 'Зашёл в лобби',
+      ADMIN_CREDIT: 'Админ: начисление',
+      ADMIN_DEBIT: 'Админ: списание',
+      ADMIN_BAN: 'Бан',
+      ADMIN_UNBAN: 'Разбан',
+    };
+
+    function actionLabel(code) { return ACTION_LABELS[code] || code; }
+
+    function formatMeta(meta) {
+      if (!meta || typeof meta !== 'object') return '—';
+      const parts = [];
+      if (meta.amount != null) parts.push(`${fmt(meta.amount)} ₽`);
+      if (meta.wagerAmount != null) parts.push(`ставка ${fmt(meta.wagerAmount)} ₽`);
+      if (meta.matchId) parts.push(`матч ${String(meta.matchId).slice(0, 8)}…`);
+      if (meta.code) parts.push(`код ${meta.code}`);
+      if (meta.isTraining) parts.push('тренировка');
+      if (meta.reason) parts.push(String(meta.reason));
+      if (meta.source) parts.push(String(meta.source));
+      if (!parts.length) return JSON.stringify(meta).slice(0, 120);
+      return parts.join(' · ');
+    }
+
+    function userCell(u) {
+      if (!u) return '<span class="muted">—</span>';
+      return `<span class="name">${esc(u.label || u.id)}</span><br><span class="id">${esc(u.id)}</span>`;
+    }
+
     // ---- tabs ----
-    const tabs = ['users','withdrawals','stats','logs'];
+    const tabs = ['activity','users','withdrawals','stats','logs'];
+    let activityTimer = null;
     function switchTab(name) {
       document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       tabs.forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
       document.getElementById('tab-user').classList.add('hidden');
+      clearInterval(activityTimer);
+      activityTimer = null;
+      if (name === 'activity') {
+        loadActivity();
+        if (document.getElementById('activityAuto').checked) {
+          activityTimer = setInterval(loadActivity, 10000);
+        }
+      }
       if (name === 'stats') loadStats();
       if (name === 'withdrawals') loadWithdrawals();
       if (name === 'logs') loadLogs();
     }
     document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+    document.getElementById('activityRefresh').onclick = loadActivity;
+    document.getElementById('activityAuto').onchange = () => {
+      if (document.getElementById('activityAuto').checked && !document.getElementById('tab-activity').classList.contains('hidden')) {
+        clearInterval(activityTimer);
+        activityTimer = setInterval(loadActivity, 10000);
+      } else {
+        clearInterval(activityTimer);
+        activityTimer = null;
+      }
+    };
+
+    async function loadActivity() {
+      const errEl = document.getElementById('activityErr'); errEl.textContent = '';
+      try {
+        const a = await api('/activity');
+        document.getElementById('activityUpdated').textContent = 'Обновлено: ' + dt(a.generatedAt);
+
+        document.getElementById('activityStats').innerHTML = `
+          <div class="stat"><div class="v">${fmt(a.online.count)}</div><div class="l">Онлайн</div></div>
+          <div class="stat"><div class="v">${fmt(a.matches.count)}</div><div class="l">В бою</div></div>
+          <div class="stat"><div class="v">${fmt(a.queue.count)}</div><div class="l">В очереди</div></div>
+          <div class="stat"><div class="v">${fmt(a.lobbies.count)}</div><div class="l">Открытых лобби</div></div>`;
+
+        const onlineEl = document.getElementById('activityOnline');
+        onlineEl.innerHTML = a.online.users.length
+          ? a.online.users.map(u => `<div class="mini-row"><b>${esc(u.label)}</b><br><span class="muted">${fmt(u.balance)} ₽ · ${esc(u.id)}</span></div>`).join('')
+          : '<span class="muted">Никого онлайн</span>';
+
+        const matchesEl = document.getElementById('activityMatches');
+        matchesEl.innerHTML = a.matches.items.length
+          ? a.matches.items.map(m => {
+              const p1 = m.player1?.label || '—';
+              const p2 = m.player2?.label || '—';
+              const phase = m.status === 'PLACEMENT' ? 'расстановка' : (m.gameStatus === 'IN_PROGRESS' ? 'бой' : m.gameStatus);
+              const wager = m.isTraining ? 'тренировка' : `${fmt(m.wagerAmount)} ₽`;
+              return `<div class="mini-row"><b>${esc(p1)}</b> vs <b>${esc(p2)}</b><br><span class="muted">${esc(phase)} · ${esc(wager)} · ${esc(m.matchId.slice(0,8))}…</span></div>`;
+            }).join('')
+          : '<span class="muted">Активных боёв нет</span>';
+
+        const queueEl = document.getElementById('activityQueue');
+        queueEl.innerHTML = a.queue.items.length
+          ? a.queue.items.map(q => `<div class="mini-row"><b>${esc(q.user?.label || '—')}</b><br><span class="muted">${fmt(q.wagerAmount)} ₽ · с ${dt(q.since)}</span></div>`).join('')
+          : '<span class="muted">Очередь пуста</span>';
+
+        const lobbiesEl = document.getElementById('activityLobbies');
+        lobbiesEl.innerHTML = a.lobbies.items.length
+          ? a.lobbies.items.map(l => {
+              const kind = l.isTraining ? 'тренировка' : `${fmt(l.wagerAmount)} ₽`;
+              return `<div class="mini-row"><b>${esc(l.host?.label || '—')}</b> · ${esc(l.code)}<br><span class="muted">${esc(kind)} · до ${dt(l.expiresAt)}</span></div>`;
+            }).join('')
+          : '<span class="muted">Лобби нет</span>';
+
+        const feedEl = document.getElementById('activityFeed');
+        feedEl.innerHTML = a.recentEvents.length
+          ? a.recentEvents.map(ev => `<div class="feed-item">
+              <div class="when">${dt(ev.createdAt)}</div>
+              <div class="what">
+                <span class="pill">${esc(actionLabel(ev.action))}</span>
+                <b>${esc(ev.user?.label || ev.userId || '—')}</b>
+                <div class="muted">${esc(formatMeta(ev.meta))}</div>
+              </div>
+            </div>`).join('')
+          : '<span class="muted">Событий пока нет</span>';
+      } catch (e) { errEl.textContent = e.message; }
+    }
 
     // ---- users ----
     document.getElementById('searchBtn').onclick = loadUsers;
@@ -364,33 +540,38 @@
           <div class="stat"><div class="v">${fmt(s.users)}</div><div class="l">Игроков</div></div>
           <div class="stat"><div class="v">${fmt(s.totalBalance)} ₽</div><div class="l">Сумма балансов</div></div>
           <div class="stat"><div class="v">${fmt(s.pendingWithdrawals)}</div><div class="l">Выводов в ожидании</div></div>
-          <div class="stat"><div class="v">${fmt(s.banned)}</div><div class="l">Забанено</div></div>`;
+          <div class="stat"><div class="v">${fmt(s.banned)}</div><div class="l">Забанено</div></div>
+          <div class="stat"><div class="v">${fmt(s.onlineNow ?? 0)}</div><div class="l">Онлайн сейчас</div></div>
+          <div class="stat"><div class="v">${fmt(s.activeMatches ?? 0)}</div><div class="l">Активных боёв</div></div>
+          <div class="stat"><div class="v">${fmt(s.last24h?.logins ?? 0)}</div><div class="l">Входов за 24ч</div></div>
+          <div class="stat"><div class="v">${fmt(s.last24h?.deposits ?? 0)}</div><div class="l">Пополнений за 24ч</div></div>`;
       } catch (e) { box.innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
     }
 
     // ---- action logs ----
     document.getElementById('logsRefresh').onclick = loadLogs;
+    document.getElementById('logsAction').onchange = loadLogs;
     async function loadLogs() {
       const errEl = document.getElementById('logsErr'); errEl.textContent = '';
       const body = document.getElementById('logsBody');
       body.innerHTML = '<tr><td colspan="4" class="muted">Загрузка…</td></tr>';
       try {
-        const logs = await api('/logs?limit=80');
+        const action = document.getElementById('logsAction').value;
+        const logs = await api('/logs?limit=80' + (action ? '&action=' + encodeURIComponent(action) : ''));
         if (!logs.length) { body.innerHTML = '<tr><td colspan="4" class="muted">Пусто</td></tr>'; return; }
         body.innerHTML = logs.map(l => {
-          const meta = l.meta ? JSON.stringify(l.meta).slice(0, 120) : '—';
           return `<tr>
             <td>${dt(l.createdAt)}</td>
-            <td><code>${esc(l.action)}</code></td>
-            <td class="id">${esc(l.userId || '—')}</td>
-            <td class="muted">${esc(meta)}</td>
+            <td><code>${esc(actionLabel(l.action))}</code></td>
+            <td>${userCell(l.user)}</td>
+            <td class="muted">${esc(formatMeta(l.meta))}</td>
           </tr>`;
         }).join('');
       } catch (e) { errEl.textContent = e.message; body.innerHTML = ''; }
     }
 
     // init
-    if (adminKey) switchTab('stats'); else document.getElementById('gate').classList.remove('hidden');
+    if (adminKey) switchTab('activity'); else document.getElementById('gate').classList.remove('hidden');
   </script>
 </body>
 </html>

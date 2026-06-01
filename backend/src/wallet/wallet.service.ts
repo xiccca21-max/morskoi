@@ -273,9 +273,21 @@ export class WalletService {
     }).then((r) => {
       if (r.credited) {
         this.audit.log(userId, 'DEPOSIT', { amount: r.amountRub, invoiceId, source: 'cryptobot' });
+        this.notifyAdminDeposit(userId, r.amountRub).catch(() => undefined);
       }
       return r;
     });
+  }
+
+  private async notifyAdminDeposit(userId: string, amount: number) {
+    const adminTg = process.env.ADMIN_TELEGRAM_ID;
+    if (!adminTg) return;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const name = user?.username ? `@${user.username}` : user?.firstName ?? userId.slice(0, 8);
+    await this.botService.notify(
+      adminTg,
+      `💰 <b>Пополнение</b>\nИгрок: ${name}\nСумма: <b>${amount.toFixed(0)} ₽</b>\nID: <code>${userId}</code>`,
+    );
   }
 
   /** Получить заявку на вывод по id. */

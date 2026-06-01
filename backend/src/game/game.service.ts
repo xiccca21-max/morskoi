@@ -10,6 +10,7 @@ import { GameStatus, MatchStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { WalletService } from '../wallet/wallet.service';
+import { AuditService } from '../common/audit.service';
 import {
   applyAttack,
   autoPlace,
@@ -42,6 +43,7 @@ export class GameService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly wallet: WalletService,
+    private readonly audit: AuditService,
   ) {}
 
   // ===== Создание матча из matchmaking / лобби =====
@@ -79,6 +81,12 @@ export class GameService {
           attackHistory: '[]',
         },
       });
+      this.audit.log(p1Id, 'MATCH_CREATED', {
+        matchId: match.id,
+        p2Id,
+        wagerAmount,
+        isTraining,
+      });
       return match;
     });
   }
@@ -106,6 +114,7 @@ export class GameService {
         data: { gameStatus: GameStatus.FINISHED },
       });
       this.logger.warn(`Match ${matchId} cancelled: placement timeout`);
+      this.audit.log(match.player1Id, 'MATCH_CANCELLED', { matchId, reason: 'placement_timeout' });
       return { players: [match.player1Id, match.player2Id].filter(Boolean) as string[] };
     });
   }
@@ -189,6 +198,12 @@ export class GameService {
             throw e;
           }
         }
+        this.audit.log(match.player1Id, 'MATCH_STARTED', {
+          matchId,
+          wagerAmount: Number(match.wagerAmount),
+          isTraining: match.isTraining,
+          p2Id: match.player2Id,
+        });
       }
 
       return { ok: true, started: bothReady };
@@ -260,6 +275,12 @@ export class GameService {
             winnerId,
             rake,
           );
+          this.audit.log(winnerId, 'MATCH_FINISHED', {
+            matchId: match.id,
+            winnerId,
+            wagerAmount: Number(match.wagerAmount),
+            isTraining: false,
+          });
         }
       }
 
@@ -329,6 +350,13 @@ export class GameService {
         winnerId,
         rake,
       );
+      this.audit.log(winnerId, 'MATCH_FINISHED', {
+        matchId: match.id,
+        winnerId,
+        wagerAmount: Number(match.wagerAmount),
+        isTraining: false,
+        surrenderedBy: userId,
+      });
       return { winnerId };
     });
   }
@@ -366,11 +394,13 @@ export class GameService {
       where: { id: matchId },
       data: { status: MatchStatus.FINISHED, winnerId, endedAt: new Date() },
     });
+    this.audit.log(winnerId, 'MATCH_FINISHED', { matchId, winnerId, isTraining: true });
   }
 
   // ===== Cancel при ошибках =====
 
   async cancelMatch(matchId: string, reason: string) {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
     await this.prisma.match.update({
       where: { id: matchId },
       data: { status: MatchStatus.CANCELLED, endedAt: new Date() },
@@ -380,6 +410,7 @@ export class GameService {
       data: { gameStatus: GameStatus.FINISHED, currentTurn: null, turnDeadline: null },
     });
     this.logger.warn(`Match ${matchId} cancelled: ${reason}`);
+    this.audit.log(match?.player1Id ?? null, 'MATCH_CANCELLED', { matchId, reason });
   }
 
   // ===== Просмотр состояния для игрока =====
