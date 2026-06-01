@@ -10,6 +10,22 @@ export interface SeasonInfo {
 /** Боты не участвуют в публичном рейтинге. */
 const NOT_BOT = { telegramId: { not: { startsWith: 'bot:' } } } as const;
 
+/** Тематические названия сезонов — ротация по месяцам. */
+const SEASON_THEMES = [
+  'Сезон пиратов',
+  'Северный флот',
+  'Битва адмиралов',
+  'Карибский рейд',
+  'Великий шторм',
+  'Глубоководье',
+  'Тихоокеанский фронт',
+  'Арктический конвой',
+  'Корсары',
+  'Линкоры зари',
+  'Багровый прилив',
+  'Зимняя гавань',
+];
+
 @Injectable()
 export class LeaderboardService {
   constructor(private readonly prisma: PrismaService) {}
@@ -25,8 +41,25 @@ export class LeaderboardService {
       : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     const name =
       process.env.SEASON_NAME ||
-      start.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+      `${SEASON_THEMES[now.getUTCMonth() % SEASON_THEMES.length]} ${now.getUTCFullYear()}`;
     return { name, start: start.toISOString(), end: end.toISOString() };
+  }
+
+  /** Начало текущей недели — последнее воскресенье 00:00 UTC (сброс топа). */
+  getWeek(): SeasonInfo {
+    const now = new Date();
+    const day = now.getUTCDay(); // 0 = воскресенье
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    start.setUTCDate(start.getUTCDate() - day);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 7);
+    return { name: 'Неделя', start: start.toISOString(), end: end.toISOString() };
+  }
+
+  /** Еженедельный рейтинг: победы с последнего воскресенья. */
+  async topWeekly(limit = 50) {
+    const { start, end } = this.getWeek();
+    return this.aggregateWins(new Date(start), new Date(end), limit);
   }
 
   async topByWins(limit = 50) {
@@ -58,11 +91,16 @@ export class LeaderboardService {
   /** Сезонный рейтинг: победы за текущий сезон (по finished matches). */
   async topSeason(limit = 50) {
     const { start, end } = this.getSeason();
+    return this.aggregateWins(new Date(start), new Date(end), limit);
+  }
+
+  /** Победы по завершённым матчам в окне [start, end). Боты исключаются. */
+  private async aggregateWins(start: Date, end: Date, limit: number) {
     const matches = await this.prisma.match.findMany({
       where: {
         status: 'FINISHED',
         winnerId: { not: null },
-        endedAt: { gte: new Date(start), lt: new Date(end) },
+        endedAt: { gte: start, lt: end },
       },
       select: { winnerId: true, prizePool: true, rakeAmount: true },
     });

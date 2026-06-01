@@ -49,6 +49,18 @@ model User {
   lastDailyClaimAt DateTime?
   loginStreak      Int      @default(0)
 
+  // Серия побед подряд (для титулов/ретеншна)
+  winStreak        Int      @default(0)
+  bestWinStreak    Int      @default(0)
+
+  // Косметика (никак не влияет на баланс): выбранные титул/рамка/скин
+  equippedTitle String?
+  equippedFrame String?
+  equippedSkin  String?
+
+  // Ежедневный «сундук» (косметическая награда за вход)
+  lastChestAt   DateTime?
+
   // Уведомления в Telegram-боте
   notifyMatchFound Boolean  @default(true)
   notifyPayout     Boolean  @default(true)
@@ -68,9 +80,28 @@ model User {
   withdrawals   WithdrawalRequest[]
   referrer      User?    @relation("Referral", fields: [referredById], references: [id])
   referrals     User[]   @relation("Referral")
+  groupMemberships GroupMember[] @relation("GroupMembership")
 
   @@index([telegramId])
   @@index([referredById])
+}
+
+// ===========================================================
+// Group membership — учёт игроков в Telegram-группах (для /top по группе)
+// ===========================================================
+model GroupMember {
+  id        String   @id @default(cuid())
+  chatId    String   // id Telegram-группы
+  userId    String
+  title     String?  // закэшированное название группы
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation("GroupMembership", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
 }
 
 // ===========================================================

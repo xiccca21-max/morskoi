@@ -4,7 +4,19 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface DailyBonusResult {
   claimed: boolean;
   streak?: number;
+  reward?: string; // косметический «сундук дня» (фраза/эмодзи, без денег)
 }
+
+/** Косметические «сундуки» за ежедневный вход — без денег, только настроение. */
+const DAILY_CHESTS = [
+  '🧭 Попутного ветра, капитан!',
+  '⚓ Сундук дня: морская удача на борту',
+  '🦜 Боцман передаёт привет',
+  '🌊 Семь футов под килём',
+  '🏴‍☠️ Чёрная метка твоим врагам',
+  '🔱 Нептун благоволит',
+  '🗺️ Карта сокровищ обновлена',
+];
 
 /** Серия входов подряд — только статистика и достижения, без денег. */
 @Injectable()
@@ -33,10 +45,12 @@ export class DailyBonusService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { lastDailyClaimAt: now, loginStreak: streak } as any,
+      data: { lastDailyClaimAt: now, loginStreak: streak, lastChestAt: now } as any,
     });
 
-    return { claimed: true, streak };
+    // Сундук дня — детерминированно по дате, чтобы у всех был «сегодняшний».
+    const idx = Number(today.replace(/-/g, '')) % DAILY_CHESTS.length;
+    return { claimed: true, streak, reward: DAILY_CHESTS[idx] };
   }
 
   private dayKey(d: Date): string {

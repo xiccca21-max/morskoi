@@ -440,18 +440,26 @@ export class WalletService {
           const winnerPayout = roundRub(pool - rake);
           const loserId = winnerId === p1Id ? p2Id : p1Id;
 
-          await tx.user.update({
+          const updatedWinner = await tx.user.update({
             where: { id: winnerId },
             data: {
               balance: { increment: winnerPayout },
               withdrawable: { increment: winnerPayout },
               wins: { increment: 1 },
               totalWon: { increment: winnerPayout },
+              winStreak: { increment: 1 },
             } as any,
           });
+          // Рекорд серии побед (для титулов/ретеншна).
+          const ws = Number((updatedWinner as any).winStreak ?? 0);
+          const best = Number((updatedWinner as any).bestWinStreak ?? 0);
+          if (ws > best) {
+            await tx.user.update({ where: { id: winnerId }, data: { bestWinStreak: ws } as any });
+          }
+          // Поражение обнуляет серию побед.
           await tx.user.update({
             where: { id: loserId },
-            data: { losses: { increment: 1 } },
+            data: { losses: { increment: 1 }, winStreak: 0 } as any,
           });
 
           await tx.transaction.createMany({

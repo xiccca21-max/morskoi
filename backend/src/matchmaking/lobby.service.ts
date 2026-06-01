@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { LobbyStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { GameService } from '../game/game.service';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { assertCanPlay } from '../common/responsible-gaming';
 
 function genCode(len = 6) {
@@ -16,6 +17,7 @@ export class LobbyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly game: GameService,
+    private readonly bot: TelegramBotService,
   ) {}
 
   async create(hostId: string, wagerAmount: number, isPublic = false) {
@@ -51,6 +53,24 @@ export class LobbyService {
       // isPublic — новое поле; каст до регенерации Prisma Client в проде
       data: { code, hostId, wagerAmount, expiresAt, status: LobbyStatus.OPEN, isPublic } as any,
     });
+    return lobby;
+  }
+
+  /**
+   * Принять challenge: вызванный игрок (caller) создаёт приватное лобби и
+   * уведомляет инициатора (opponentId), чтобы тот зашёл и принял бой.
+   */
+  async challenge(callerId: string, opponentId: string, wagerAmount: number) {
+    if (callerId === opponentId) throw new BadRequestException('Нельзя вызвать самого себя');
+    const opponent = await this.prisma.user.findUnique({ where: { id: opponentId } });
+    if (!opponent) throw new NotFoundException('Соперник не найден');
+
+    // create() уже делает проверки самоисключения/ставки/баланса и закрывает старые лобби
+    const lobby = await this.create(callerId, wagerAmount, false);
+
+    const caller = await this.prisma.user.findUnique({ where: { id: callerId } });
+    const fromName = (caller as any)?.nickname || caller?.firstName || caller?.username || 'Соперник';
+    void this.bot.notifyChallenge(opponentId, fromName, wagerAmount, lobby.code);
     return lobby;
   }
 

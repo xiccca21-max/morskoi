@@ -106,7 +106,9 @@ export class AuthService {
       token,
       user: this.publicUser(fresh ?? user),
       startParam: parsed.startParam,
-      dailyBonus: dailyBonus.claimed ? { claimed: true, streak: dailyBonus.streak } : { claimed: false },
+      dailyBonus: dailyBonus.claimed
+        ? { claimed: true, streak: dailyBonus.streak, reward: dailyBonus.reward }
+        : { claimed: false },
     };
   }
 

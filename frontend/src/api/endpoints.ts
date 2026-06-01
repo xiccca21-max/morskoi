@@ -2,7 +2,7 @@ import { api } from './http';
 
 export const AuthAPI = {
   login: (initData: string) =>
-    api.post<{ token: string; user: any; startParam?: string; dailyBonus?: { claimed: boolean; streak?: number } }>('/auth/telegram', { initData })
+    api.post<{ token: string; user: any; startParam?: string; dailyBonus?: { claimed: boolean; streak?: number; reward?: string } }>('/auth/telegram', { initData })
        .then(r => r.data),
   agreeTerms: () => api.post('/auth/agree-terms', {}).then(r => r.data),
   setNickname: (nickname: string) => api.post('/auth/nickname', { nickname }).then(r => r.data),
@@ -74,6 +74,8 @@ export const MatchmakingAPI = {
   createLobby: (wagerAmount: number, isPublic = false) =>
     api.post('/matchmaking/lobby', { wagerAmount, isPublic }).then(r => r.data),
   joinLobby:   (code: string) => api.post('/matchmaking/lobby/join', { code }).then(r => r.data),
+  challenge:   (opponentId: string, wagerAmount: number) =>
+    api.post<{ code: string }>('/matchmaking/challenge', { opponentId, wagerAmount }).then(r => r.data),
   getLobby:    (code: string) => api.get(`/matchmaking/lobby/${code}`).then(r => r.data),
   listOpen: (params: { min?: number; max?: number; q?: string } = {}) => {
     const qs = new URLSearchParams();
@@ -97,9 +99,12 @@ export const HistoryAPI = {
 };
 
 export const LeaderboardAPI = {
-  top: (type: 'wins' | 'earnings' | 'season' = 'wins', limit = 50) =>
-    api.get(`/leaderboard?type=${type === 'season' ? 'season' : type === 'earnings' ? 'earnings' : 'wins'}&limit=${limit}`).then(r => r.data),
+  top: (type: 'wins' | 'earnings' | 'season' | 'weekly' = 'wins', limit = 50) => {
+    const t = ['season', 'earnings', 'weekly'].includes(type) ? type : 'wins';
+    return api.get(`/leaderboard?type=${t}&limit=${limit}`).then(r => r.data);
+  },
   seasonInfo: () => api.get<{ name: string; start: string; end: string }>('/leaderboard/season').then(r => r.data),
+  weekInfo: () => api.get<{ name: string; start: string; end: string }>('/leaderboard/week').then(r => r.data),
 };
 
 export interface Rates { RUB: number; USDT: number; STARS: number; ts: number; live: boolean }

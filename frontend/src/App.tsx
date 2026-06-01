@@ -37,6 +37,7 @@ const SettingsScreen = lazy(() => import('./screens/SettingsScreen'));
 const HowItWorksScreen = lazy(() => import('./screens/HowItWorksScreen'));
 const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
 const RulesScreen = lazy(() => import('./screens/RulesScreen'));
+const ChallengeScreen = lazy(() => import('./screens/ChallengeScreen'));
 
 function LazyScreen({ children }: { children: JSX.Element }) {
   return <Suspense fallback={<div className="flex justify-center py-16"><Spinner /></div>}>{children}</Suspense>;
@@ -169,6 +170,9 @@ export default function App() {
             const prevStreak = Math.max(0, (res.dailyBonus.streak ?? 1) - 1);
             const nextStreak = res.dailyBonus.streak ?? 1;
             toast(`Стрик входа: ${nextStreak} дн. подряд`, 'success', 'anchor');
+            if (res.dailyBonus.reward) {
+              setTimeout(() => toast(res.dailyBonus!.reward as string, 'success', 'trophy'), 300);
+            }
             playSound('win');
             for (const a of newStreakAchievements(prevStreak, nextStreak)) {
               setTimeout(() => toast(`Достижение: ${a.title}`, 'success', a.icon), 600);
@@ -315,6 +319,9 @@ export default function App() {
     if (sp.startsWith('lobby_')) {
       const code = sp.slice('lobby_'.length).toUpperCase();
       if (code) navigate(`/lobby/${code}`);
+    } else if (sp.startsWith('challenge_')) {
+      const cid = sp.slice('challenge_'.length);
+      if (cid) navigate(`/challenge/${cid}`);
     } else if (sp === 'wallet') {
       navigate('/wallet');
     } else if (sp.startsWith('profile_')) {
@@ -375,6 +382,7 @@ export default function App() {
         <Route path="/leaderboard" element={<LazyScreen><LeaderboardScreen /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><ProfileScreen /></LazyScreen>} />
         <Route path="/player/:id" element={<LazyScreen><PlayerScreen /></LazyScreen>} />
+        <Route path="/challenge/:id" element={<LazyScreen><ChallengeScreen /></LazyScreen>} />
         <Route path="/settings" element={<LazyScreen><SettingsScreen /></LazyScreen>} />
         <Route path="/how-it-works" element={<LazyScreen><HowItWorksScreen /></LazyScreen>} />
         <Route path="/rules" element={<LazyScreen><RulesScreen /></LazyScreen>} />

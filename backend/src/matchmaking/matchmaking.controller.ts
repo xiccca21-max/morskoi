@@ -28,6 +28,15 @@ class CreateLobbyDto {
   isPublic?: boolean;
 }
 
+class ChallengeDto {
+  @IsString()
+  opponentId!: string;
+
+  @IsNumber()
+  @IsPositive()
+  wagerAmount!: number;
+}
+
 @Controller('matchmaking')
 @UseGuards(JwtAuthGuard)
 export class MatchmakingController {
@@ -59,6 +68,12 @@ export class MatchmakingController {
   @Post('lobby/join')
   joinLobby(@CurrentUser() u: JwtPayload, @Body() dto: CodeDto) {
     return this.lobbies.join(dto.code.toUpperCase(), u.sub);
+  }
+
+  // Принять вызов по deep-link challenge_<id>: создаёт лобби и зовёт инициатора
+  @Post('challenge')
+  challenge(@CurrentUser() u: JwtPayload, @Body() dto: ChallengeDto) {
+    return this.lobbies.challenge(u.sub, dto.opponentId, dto.wagerAmount);
   }
 
   // Список открытых публичных боёв (для экрана «Поиск матча»)

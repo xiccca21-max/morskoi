@@ -67,7 +67,7 @@ export class TelegramBotService implements OnModuleInit {
         body: JSON.stringify({
           url: webhookUrl,
           secret_token: this.webhookSecret,
-          allowed_updates: ['message', 'callback_query'],
+          allowed_updates: ['message', 'callback_query', 'inline_query'],
           drop_pending_updates: false,
         }),
       })
@@ -155,8 +155,10 @@ export class TelegramBotService implements OnModuleInit {
       }
     });
 
-    // Остальные команды: /play, /balance, /rules, /support, /help
+    // Остальные команды: /play, /balance, /rules, /support, /help, /duel
     this.registerCommands();
+    // Inline-режим (@bot duel) и групповые команды (/duel, /top)
+    this.registerInline();
   }
 
   /**
@@ -194,6 +196,7 @@ export class TelegramBotService implements OnModuleInit {
     await call('setMyCommands', {
       commands: [
         { command: 'start', description: '🚀 Запустить бота' },
+        { command: 'duel', description: '⚓ Вызвать друга на бой' },
         { command: 'play', description: '⚔️ Играть — открыть бой' },
         { command: 'balance', description: '💰 Мой баланс' },
         { command: 'stats', description: '📊 Моя статистика' },
@@ -209,6 +212,7 @@ export class TelegramBotService implements OnModuleInit {
   /** Тексты кнопок reply-клавиатуры (должны совпадать с mainReplyKeyboard). */
   private static readonly BTN = {
     PLAY: '⚔️ В бой',
+    CHALLENGE: '⚓ Вызвать друга на бой',
     BALANCE: '💰 Баланс',
     TOP: '🏆 Рейтинг',
     PROFILE: '👤 Профиль',
@@ -226,6 +230,7 @@ export class TelegramBotService implements OnModuleInit {
     return {
       keyboard: [
         [{ text: BTN.PLAY, web_app: { url } }],
+        [{ text: BTN.CHALLENGE }],
         [{ text: BTN.BALANCE }, { text: BTN.TOP }],
         [{ text: BTN.PROFILE }, { text: BTN.INFO }],
         [{ text: BTN.SUPPORT }],
@@ -343,6 +348,15 @@ export class TelegramBotService implements OnModuleInit {
       );
     };
 
+    bot.onText(/^\/duel\b/, async (msg) => {
+      // В группе — карточка-вызов в чат; в личке — готовый текст для пересылки.
+      if (msg.chat.type !== 'private') {
+        await this.handleGroupDuel(msg);
+        return;
+      }
+      await this.sendChallenge(msg.chat.id, String(msg.from?.id ?? msg.chat.id));
+    });
+
     bot.onText(/^\/play\b/, async (msg) => {
       await bot.sendMessage(msg.chat.id, '⚔️ Нажми «⚔️ В бой» на клавиатуре ниже — откроется игра!', kb());
     });
@@ -356,6 +370,10 @@ export class TelegramBotService implements OnModuleInit {
     });
 
     bot.onText(/^\/top\b/, async (msg) => {
+      if (msg.chat.type !== 'private') {
+        await this.sendGroupTop(msg);
+        return;
+      }
       await sendTop(msg.chat.id);
     });
 
@@ -376,13 +394,23 @@ export class TelegramBotService implements OnModuleInit {
         return;
       }
       const link = `https://t.me/${botName}?start=ref_${user.id}`;
+      const challenge = this.challengeLink(user.id);
       await bot.sendMessage(
         msg.chat.id,
         `🔗 <b>Пригласи друга</b>\n\n` +
           `Твоя ссылка:\n<code>${link}</code>\n\n` +
-          `За каждого нового игрока — +1 к счётчику и прогресс в достижениях.\n` +
+          `За приглашённых — косметика и титулы (1 друг — флаг, 3 — редкий скин, 5 — доступ к турниру, 10 — титул «Адмирал»).\n` +
           `Приглашено: <b>${(user as any).referralCount ?? 0}</b>`,
-        { parse_mode: 'HTML', ...kb() },
+        {
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '⚓ Вызвать друга на бой', switch_inline_query: 'duel' }],
+              [{ text: '⚔️ Ссылка-вызов', url: challenge }],
+            ],
+          },
+        },
       );
     });
 
@@ -399,7 +427,7 @@ export class TelegramBotService implements OnModuleInit {
       await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', ...kb() });
     });
 
-    const KNOWN = /^\/(start|play|balance|stats|top|rules|support|help|invite)\b/;
+    const KNOWN = /^\/(start|duel|play|balance|stats|top|rules|support|help|invite)\b/;
     const unknown = async (chatId: number) => {
       await bot.sendMessage(
         chatId,
@@ -423,6 +451,9 @@ export class TelegramBotService implements OnModuleInit {
       const tgId = String(msg.from?.id ?? msg.chat.id);
 
       switch (text) {
+        case BTN.CHALLENGE:
+          await this.sendChallenge(msg.chat.id, tgId);
+          return;
         case BTN.BALANCE:
           await sendBalance(msg.chat.id, tgId);
           return;
@@ -453,6 +484,166 @@ export class TelegramBotService implements OnModuleInit {
 
   private escapeHtml(s: string): string {
     return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+  }
+
+  private get botUsername(): string {
+    return process.env.TELEGRAM_BOT_USERNAME ?? 'NavalClashBot';
+  }
+
+  /** Diplink-вызов конкретного игрока: открывает мини-апп с экраном «Вызов». */
+  private challengeLink(userId: string): string {
+    return `https://t.me/${this.botUsername}?start=challenge_${userId}`;
+  }
+
+  /** Готовый текст вызова для пересылки в личку/группу/канал. */
+  private challengeText(link: string): string {
+    return `Я вызываю тебя на морской бой ⚓\nСыграй против меня: ${link}`;
+  }
+
+  /**
+   * Отправляет в личку готовый текст вызова + inline-кнопку «Переслать вызов»
+   * (switch_inline_query — открывает выбор чата и вставляет результат бота).
+   */
+  private async sendChallenge(chatId: number, tgId: string) {
+    if (!this.bot) return;
+    const user = await this.prisma.user.findUnique({ where: { telegramId: tgId } });
+    if (!user) {
+      await this.bot.sendMessage(chatId, 'Сначала нажми «⚔️ В бой», чтобы создать аккаунт.', this.replyOpts());
+      return;
+    }
+    const link = this.challengeLink(user.id);
+    await this.bot.sendMessage(
+      chatId,
+      '⚓ <b>Вызов на морской бой</b>\n\n' +
+        'Перешли это сообщение другу — или нажми «Переслать вызов» и выбери чат:\n\n' +
+        `<code>${this.escapeHtml(this.challengeText(link))}</code>`,
+      {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📨 Переслать вызов в чат', switch_inline_query: 'duel' }],
+            [{ text: '⚔️ Принять вызов', url: link }],
+          ],
+        },
+      },
+    );
+  }
+
+  /**
+   * Inline-режим: пользователь в любом чате пишет «@bot duel» и отправляет
+   * карточку вызова. ВАЖНО: inline-режим нужно включить в @BotFather
+   * (/setinline), иначе Telegram не присылает inline_query.
+   */
+  private registerInline() {
+    if (!this.bot) return;
+    const bot = this.bot;
+    bot.on('inline_query', async (q: any) => {
+      try {
+        const tgId = String(q.from?.id ?? '');
+        const user = tgId ? await this.prisma.user.findUnique({ where: { telegramId: tgId } }) : null;
+        const link = user
+          ? this.challengeLink(user.id)
+          : `https://t.me/${this.botUsername}?start=play`;
+        const text = this.challengeText(link);
+        const webAppUrl = process.env.TELEGRAM_WEBAPP_URL;
+        const result: any = {
+          type: 'article',
+          id: 'duel',
+          title: '⚓ Вызвать на морской бой',
+          description: 'Отправь вызов — сыграйте дуэль на ставку',
+          input_message_content: { message_text: text, disable_web_page_preview: false },
+          reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять вызов', url: link }]] },
+        };
+        if (webAppUrl) result.thumb_url = `${webAppUrl}/bot-welcome.png`;
+        await bot.answerInlineQuery(q.id, [result], { cache_time: 5, is_personal: true } as any);
+      } catch (e: any) {
+        this.logger.warn(`inline_query err: ${e?.message}`);
+      }
+    });
+  }
+
+  /** /duel в группе — постит карточку-вызов в чат (без резолва @username). */
+  private async handleGroupDuel(msg: TelegramBot.Message) {
+    if (!this.bot) return;
+    const tgId = String(msg.from?.id ?? '');
+    const caller = tgId ? await this.prisma.user.findUnique({ where: { telegramId: tgId } }) : null;
+    if (!caller) {
+      await this.bot.sendMessage(
+        msg.chat.id,
+        'Сначала запусти бота в личке и нажми «⚔️ В бой», чтобы создать аккаунт, затем вызывай в группе.',
+      );
+      return;
+    }
+    await this.recordGroupMember(String(msg.chat.id), caller.id, msg.chat.title);
+
+    const callerName = (caller as any).nickname || caller.firstName || caller.username || 'Капитан';
+    // Цель из текста (если упомянули @username) — просто для текста, без резолва id.
+    const target = (msg.text ?? '').replace(/^\/duel(@\S+)?\s*/i, '').trim();
+    const who = target ? this.escapeHtml(target) : 'любого смельчака';
+    const link = this.challengeLink(caller.id);
+    await this.bot.sendMessage(
+      msg.chat.id,
+      `⚓ <b>${this.escapeHtml(callerName)}</b> вызывает ${who} на морской бой!\n` +
+        `Нажми «Принять вызов», выбери ставку — и в бой 🚢`,
+      {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять вызов', url: link }]] },
+      },
+    );
+  }
+
+  /** /top в группе — рейтинг известных боту игроков этой группы по победам. */
+  private async sendGroupTop(msg: TelegramBot.Message) {
+    if (!this.bot) return;
+    const chatId = String(msg.chat.id);
+    // фиксируем вызвавшего как участника
+    const tgId = String(msg.from?.id ?? '');
+    const caller = tgId ? await this.prisma.user.findUnique({ where: { telegramId: tgId } }) : null;
+    if (caller) await this.recordGroupMember(chatId, caller.id, msg.chat.title);
+
+    const members = await (this.prisma as any).groupMember.findMany({
+      where: { chatId },
+      include: { user: { select: { nickname: true, firstName: true, username: true, wins: true, losses: true } } },
+      take: 200,
+    });
+    const ranked = (members as any[])
+      .map((m) => m.user)
+      .filter(Boolean)
+      .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+      .slice(0, 10);
+
+    if (!ranked.length) {
+      await this.bot.sendMessage(
+        msg.chat.id,
+        '🏆 В этой группе пока нет известных капитанов.\nНапиши /duel — и пусть начнётся первая дуэль!',
+      );
+      return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    const lines = ranked.map((u, i) => {
+      const place = medals[i] ?? `${i + 1}.`;
+      const name = u.nickname || u.firstName || u.username || 'Капитан';
+      return `${place} <b>${this.escapeHtml(name)}</b> — ${u.wins} побед`;
+    });
+    await this.bot.sendMessage(
+      msg.chat.id,
+      `🏆 <b>Рейтинг группы</b>\n\n${lines.join('\n')}`,
+      { parse_mode: 'HTML' },
+    );
+  }
+
+  /** Фиксирует игрока как участника группы (для /top по группе). */
+  private async recordGroupMember(chatId: string, userId: string, title?: string) {
+    try {
+      await (this.prisma as any).groupMember.upsert({
+        where: { chatId_userId: { chatId, userId } },
+        create: { chatId, userId, title: title ?? null },
+        update: { title: title ?? null },
+      });
+    } catch (e: any) {
+      this.logger.warn(`recordGroupMember err: ${e?.message}`);
+    }
   }
 
   async notify(telegramId: string, text: string, withPlay = false) {
@@ -531,6 +722,27 @@ export class TelegramBotService implements OnModuleInit {
       });
     } catch (e: any) {
       this.logger.warn(`sendDocument ${telegramId} failed: ${e?.message}`);
+    }
+  }
+
+  /** Уведомление вызванному игроку: соперник принял challenge и создал лобби. */
+  async notifyChallenge(opponentId: string, fromName: string, wager: number, code: string) {
+    if (!this.bot) return;
+    const u = await this.prisma.user.findUnique({ where: { id: opponentId } });
+    if (!u) return;
+    if (typeof u.telegramId === 'string' && u.telegramId.startsWith('bot:')) return;
+    const link = `https://t.me/${this.botUsername}?startapp=lobby_${code}`;
+    const text =
+      `⚓ <b>${this.escapeHtml(fromName)}</b> принял твой вызов!\n` +
+      `Ставка: <b>${wager} ₽</b>\n` +
+      `Жми «Принять бой» и расставляй корабли 🚢`;
+    try {
+      await this.bot.sendMessage(Number(u.telegramId), text, {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять бой', url: link }]] },
+      });
+    } catch (e: any) {
+      this.logger.warn(`notifyChallenge tgId=${u.telegramId} failed: ${e?.message}`);
     }
   }
 

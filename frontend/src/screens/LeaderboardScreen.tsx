@@ -11,7 +11,7 @@ import { Spinner } from '../components/Spinner';
 import { formatMoney } from '../lib/format';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
 
-type Tab = 'wins' | 'earnings' | 'season';
+type Tab = 'weekly' | 'wins' | 'earnings' | 'season';
 
 export default function LeaderboardScreen() {
   const [tab, setTab] = useState<Tab>('wins');
@@ -31,6 +31,14 @@ export default function LeaderboardScreen() {
           LeaderboardAPI.top('season', 50),
         ]);
         setSeasonName(info.name);
+        setSeasonEnd(info.end);
+        setItems(list);
+      } else if (tab === 'weekly') {
+        const [info, list] = await Promise.all([
+          LeaderboardAPI.weekInfo(),
+          LeaderboardAPI.top('weekly', 50),
+        ]);
+        setSeasonName('Неделя');
         setSeasonEnd(info.end);
         setItems(list);
       } else {
@@ -65,7 +73,14 @@ export default function LeaderboardScreen() {
           {seasonLeft != null && <span className="ml-2">· осталось {seasonLeft} дн.</span>}
         </p>
       )}
+      {tab === 'weekly' && (
+        <p className="text-muted text-xs -mt-1">
+          Сброс рейтинга — каждое воскресенье
+          {seasonLeft != null && <span className="ml-1">· осталось {seasonLeft} дн.</span>}
+        </p>
+      )}
       <div className="card p-1 flex gap-1">
+        <Tab active={tab === 'weekly'} onClick={() => setTab('weekly')}>Неделя</Tab>
         <Tab active={tab === 'wins'} onClick={() => setTab('wins')}>Все время</Tab>
         <Tab active={tab === 'season'} onClick={() => setTab('season')}>Сезон</Tab>
         <Tab active={tab === 'earnings'} onClick={() => setTab('earnings')}>Выигрыш</Tab>
