@@ -92,15 +92,13 @@ export default function BattleScreen() {
       tgVibrate(35);
       playSound('splash');
     }
-    // Если стрелял соперник — подсказываем, куда именно, и показываем наше поле
+    // Если стрелял соперник — подсказываем, куда именно (поле само покажется
+    // по смене хода, не дёргаем его на каждый выстрел/попадание).
     if (lastAttack.by && me?.id && lastAttack.by !== me.id) {
       const where = coord(lastAttack.x, lastAttack.y);
       if (lastAttack.sunk) toast(`Соперник потопил ваш корабль (${where})`, 'error', 'skull');
       else if (lastAttack.hit) toast(`Попадание по вам: ${where}`, 'error', 'target');
       else toast(`Соперник промахнулся: ${where}`, 'info', 'wave');
-      setView('own');
-      const t = setTimeout(() => setView('enemy'), 1600);
-      return () => clearTimeout(t);
     }
   }, [lastAttack?.ts]); // eslint-disable-line
 
@@ -162,6 +160,21 @@ export default function BattleScreen() {
       tgHaptic('light');
     }
     prevTurnRef.current = myTurn;
+  }, [myTurn, state?.gameStatus]);
+
+  // Авто-переключение поля по очереди хода (а не на каждый выстрел):
+  //  • ход соперника → показываем СВОЁ поле, видно всю его серию попаданий,
+  //    экран не дёргается, пока он бьёт;
+  //  • стал наш ход → даём ~1 секунду «осмотреться» (увидеть итог залпа,
+  //    у обоих успевают переключиться экраны), затем открываем поле атаки.
+  useEffect(() => {
+    if (state?.gameStatus !== 'IN_PROGRESS') return;
+    if (!myTurn) {
+      setView('own');
+      return;
+    }
+    const t = setTimeout(() => setView('enemy'), 1000);
+    return () => clearTimeout(t);
   }, [myTurn, state?.gameStatus]);
   const fuse = Math.max(0, Math.min(100, (remaining / turnMaxRef.current) * 100));
   const lowTime = myTurn && remaining > 0 && remaining <= 10;
