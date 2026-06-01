@@ -226,6 +226,32 @@ button:disabled { cursor: not-allowed; }
 .cell-water { background: var(--c-water); }
 .cell-water:hover { background: rgba(255, 255, 255, 0.06); }
 
+/* Живое море: слои бликов + рябь + виньетка-глубина + тонированная вода.
+   Работает поверх любой темы, придаёт полю объём и движение. */
+.sea-bg {
+  background-image:
+    radial-gradient(60% 45% at 28% 22%, rgba(255, 255, 255, 0.10), transparent 60%),
+    radial-gradient(55% 40% at 76% 74%, rgba(255, 255, 255, 0.06), transparent 60%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 12px),
+    radial-gradient(ellipse at 50% 36%, transparent 50%, rgba(0, 0, 0, 0.30) 100%),
+    linear-gradient(180deg, rgba(38, 92, 134, 0.22) 0%, rgba(11, 36, 62, 0.36) 100%);
+  background-size: 180% 180%, 170% 170%, 28px 28px, 100% 100%, 100% 100%;
+  background-position: 0% 0%, 100% 100%, 0 0, 0 0, 0 0;
+  animation: seaDrift 16s ease-in-out infinite;
+}
+@keyframes seaDrift {
+  0%, 100% { background-position: 0% 0%, 100% 100%, 0 0, 0 0, 0 0; }
+  50%      { background-position: 42% 32%, 58% 66%, 28px -16px, 0 0, 0 0; }
+}
+/* Блик-сияние на поверхности воды (тонкая полоса сверху). */
+.sea-sheen {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 22%);
+  mix-blend-mode: screen;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sea-bg { animation: none; }
+}
+
 /* Подсветка клеток при расстановке/прицеле (работает с цветами темы) */
 .cell-ghost { background: color-mix(in srgb, var(--c-muted) 45%, transparent); }
 .cell-ghost-bad { background: color-mix(in srgb, var(--c-danger) 55%, transparent); }

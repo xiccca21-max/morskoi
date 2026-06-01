@@ -96,18 +96,35 @@ export function Board({
           </div>
 
           {/* Игровое поле — квадрат */}
-          <div className="relative w-full aspect-square rounded-md overflow-hidden bg-panel">
-            {/* Подложка-море */}
-            <div className="absolute inset-0 cell-water sea-bg animate-waveDrift" />
+          <motion.div
+            key={mode}
+            initial={{ opacity: 0, scale: 0.985 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="relative w-full aspect-square rounded-md overflow-hidden bg-panel"
+          >
+            {/* Подложка-море (живая вода) */}
+            <div className="absolute inset-0 cell-water sea-bg" />
+            {/* Блик на поверхности */}
+            <div className="absolute inset-0 pointer-events-none sea-sheen" />
             {/* радар-развёртка для вражеского поля в мой ход */}
             {mode === 'enemy' && myTurn && (
-              <div
-                className="absolute inset-0 pointer-events-none animate-compassSpin opacity-40"
-                style={{ background: 'conic-gradient(from 0deg, transparent 74%, rgba(225,87,75,0.22) 90%, transparent 100%)', animationDuration: '4s' }}
-              />
+              <>
+                <div
+                  className="absolute inset-0 pointer-events-none animate-compassSpin"
+                  style={{ background: 'conic-gradient(from 0deg, transparent 70%, rgba(225,87,75,0.28) 92%, transparent 100%)', animationDuration: '4s' }}
+                />
+                {/* мягкое сонарное «дыхание» */}
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ boxShadow: 'inset 0 0 40px rgba(225,87,75,0.18)' }}
+                  animate={{ opacity: [0.35, 0.7, 0.35] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </>
             )}
             {/* сетка */}
-            <svg className="absolute inset-0 w-full h-full text-muted opacity-40" aria-hidden>
+            <svg className="absolute inset-0 w-full h-full text-main opacity-[0.18]" aria-hidden>
               {Array.from({ length: BOARD_SIZE + 1 }).map((_, i) => (
                 <g key={i}>
                   <line x1={`${i * cellPct}%`} y1="0" x2={`${i * cellPct}%`} y2="100%" stroke="currentColor" strokeWidth="1" />
@@ -214,7 +231,7 @@ export function Board({
                 </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
@@ -243,9 +260,17 @@ function Marker({ hit }: { hit: boolean }) {
       </span>
     );
   }
-  // Попадание: «впечатывающийся» красный квадрат + ударное кольцо.
+  // Попадание: тлеющий очаг + «впечатывающийся» крест + ударное кольцо.
   return (
     <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
+      {/* постоянное тление — клетка «горит» */}
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0.55, 0.9, 0.55] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(circle, rgba(255,140,60,0.55) 0%, rgba(225,87,75,0.35) 45%, transparent 72%)' }}
+      />
       <motion.span
         initial={{ scale: 0, rotate: -18, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
@@ -256,7 +281,7 @@ function Marker({ hit }: { hit: boolean }) {
       </motion.span>
       <motion.span
         initial={{ scale: 0.3, opacity: 0.7 }}
-        animate={{ scale: 2, opacity: 0 }}
+        animate={{ scale: 2.2, opacity: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="absolute inset-[12%] rounded-full border-2 border-danger"
       />
@@ -265,10 +290,25 @@ function Marker({ hit }: { hit: boolean }) {
 }
 
 function Crosshair() {
+  // Прицел «захвата цели»: угловые скобки + пульсирующее кольцо и точка.
+  const corner = 'absolute w-[28%] h-[28%] border-danger';
   return (
-    <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
-      <span className="absolute w-full h-[2px] bg-danger shadow-[2px_2px_0px_#000]" />
-      <span className="absolute h-full w-[2px] bg-danger shadow-[2px_2px_0px_#000]" />
-    </span>
+    <motion.span
+      className="absolute inset-0 pointer-events-none"
+      initial={{ opacity: 0, scale: 1.25 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+    >
+      <span className={`${corner} top-[6%] left-[6%] border-t-2 border-l-2`} />
+      <span className={`${corner} top-[6%] right-[6%] border-t-2 border-r-2`} />
+      <span className={`${corner} bottom-[6%] left-[6%] border-b-2 border-l-2`} />
+      <span className={`${corner} bottom-[6%] right-[6%] border-b-2 border-r-2`} />
+      <motion.span
+        className="absolute inset-[30%] rounded-full border border-danger"
+        animate={{ scale: [1, 1.3, 1], opacity: [0.9, 0.4, 0.9] }}
+        transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[6%] h-[6%] rounded-full bg-danger" />
+    </motion.span>
   );
 }
