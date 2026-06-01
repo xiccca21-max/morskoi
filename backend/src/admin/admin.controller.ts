@@ -3,6 +3,7 @@ import { IsBoolean, IsNumber, IsOptional, IsString, IsIn, Min, Max, MaxLength } 
 import { AdminService } from './admin.service';
 import { PaymentsService } from '../payments/payments.service';
 import { AdminKeyGuard } from '../payments/admin-key.guard';
+import { AdminAlertService } from '../common/admin-alert.service';
 
 class CreditDto {
   @IsNumber()
@@ -41,6 +42,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly payments: PaymentsService,
+    private readonly alerts: AdminAlertService,
   ) {}
 
   @Get('stats')

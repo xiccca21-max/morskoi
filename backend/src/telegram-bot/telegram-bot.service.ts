@@ -510,12 +510,28 @@ export class TelegramBotService implements OnModuleInit {
       await this.sendPlayWithFriendGuide(msg.chat.id);
     });
 
-    bot.onText(/^\/admin\b/, async (msg) => {
+    bot.onText(/^\/admin(?:@\w+)?(?:\s+(\w+))?\b/, async (msg, match) => {
       const tgId = String(msg.from?.id ?? msg.chat.id);
       if (!this.adminAlerts.isAdminTelegramId(tgId)) {
-        await bot.sendMessage(msg.chat.id, '⛔ Команда только для администратора.');
+        await bot.sendMessage(
+          msg.chat.id,
+          `⛔ Команда только для администратора.\n\n` +
+            `Твой TG ID: <code>${tgId}</code>\n` +
+            `Добавь его в ADMIN_TELEGRAM_ID на сервере, если это ты.`,
+          { parse_mode: 'HTML' },
+        );
         return;
       }
+      const sub = (match?.[1] ?? '').toLowerCase();
+      if (sub === 'test') {
+        const r = await this.adminAlerts.sendTest(tgId);
+        await bot.sendMessage(
+          msg.chat.id,
+          r.ok ? '✅ Тест отправлен — проверь личку с ботом.' : `❌ ${r.error}`,
+        );
+        return;
+      }
+      const st = this.adminAlerts.status();
       const onlineIds = await this.presence.listOnlineUserIds();
       let onlineHumans = onlineIds.length;
       if (onlineIds.length > 0) {
@@ -525,20 +541,19 @@ export class TelegramBotService implements OnModuleInit {
         });
         onlineHumans = users.filter((u) => !u.telegramId.startsWith('bot:')).length;
       }
-      const alertsOn = process.env.ADMIN_ALERT_ENABLED !== 'false';
+      const botName = process.env.TELEGRAM_BOT_USERNAME ?? 'игровой бот';
       const panelUrl = process.env.TELEGRAM_WEBAPP_URL
         ? `${process.env.TELEGRAM_WEBAPP_URL.replace(/\/+$/, '')}/admin.html`
         : null;
       await bot.sendMessage(
         msg.chat.id,
-        `🛡 <b>Админ-панель бота</b>\n\n` +
-          `🔔 Уведомления: <b>${alertsOn ? 'включены' : 'выключены'}</b>\n` +
-          `👥 Онлайн сейчас: <b>${onlineHumans}</b>\n\n` +
-          `В личку приходят:\n` +
-          `• входы и регистрации (@username)\n` +
-          `• поиск боя и лобби\n` +
-          `• начало/конец боёв\n` +
-          `• пополнения и выводы\n\n` +
+        `🛡 <b>Админ-мониторинг</b>\n\n` +
+          `🔔 Уведомления: <b>${st.enabled ? 'включены' : 'выключены'}</b>\n` +
+          `📱 ID админа: <code>${st.adminIds.join(', ') || 'не задан'}</code>\n` +
+          `🤖 Бот: <b>@${botName}</b>\n` +
+          `👥 Онлайн: <b>${onlineHumans}</b>\n\n` +
+          `Уведомления приходят в личку <b>игрового бота</b>, не в @Naval_pay_manager.\n\n` +
+          `Проверка: /admin test\n\n` +
           (panelUrl ? `🌐 <a href="${panelUrl}">Веб-админка</a>` : ''),
         { parse_mode: 'HTML', disable_web_page_preview: true, ...kb() },
       );

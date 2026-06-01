@@ -1,6 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 
 type UserRow = {
   id: string;
@@ -13,40 +12,131 @@ type UserRow = {
 /**
  * Рассылает админу в Telegram все значимые события из ActionLog.
  * Получатели: ADMIN_TELEGRAM_ID (можно несколько через запятую).
+ * Отправка напрямую через Bot API (не зависит от TelegramBotService).
  */
 @Injectable()
-export class AdminAlertService {
+export class AdminAlertService implements OnModuleInit {
   private readonly logger = new Logger('AdminAlert');
   private readonly adminIds: string[];
   private readonly enabled: boolean;
+  private readonly apiRoot: string;
+  private readonly botToken: string;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly bot: TelegramBotService,
-  ) {
+  constructor(private readonly prisma: PrismaService) {
     const raw = process.env.ADMIN_TELEGRAM_ID ?? '';
     this.adminIds = raw.split(',').map((s) => s.trim()).filter(Boolean);
     this.enabled = process.env.ADMIN_ALERT_ENABLED !== 'false' && this.adminIds.length > 0;
+    this.botToken = process.env.TELEGRAM_BOT_TOKEN ?? '';
+    this.apiRoot = (process.env.TELEGRAM_API_ROOT || 'https://api.telegram.org').replace(/\/+$/, '');
+  }
+
+  async onModuleInit() {
+    if (!this.enabled) {
+      this.logger.warn(
+        'Admin alerts OFF — задай ADMIN_TELEGRAM_ID в .env на сервере (твой числовой Telegram ID)',
+      );
+      return;
+    }
+    const botName = process.env.TELEGRAM_BOT_USERNAME ?? 'игрового бота';
+    this.logger.log(`Admin alerts ON → ${this.adminIds.join(', ')}`);
+    await this.sendToAll(
+      `🔔 <b>Мониторинг Naval Clash включён</b>\n\n` +
+        `Сюда будут приходить входы, бои и деньги других игроков.\n` +
+        `Бот: <b>@${this.esc(botName)}</b> (не @Naval_pay_manager)\n\n` +
+        `Команда: /admin test — проверка`,
+    );
+  }
+
+  status() {
+    return {
+      enabled: this.enabled,
+      adminIds: this.adminIds,
+      botUsername: process.env.TELEGRAM_BOT_USERNAME ?? null,
+      hasBotToken: !!this.botToken && !this.botToken.startsWith('123456'),
+    };
   }
 
   isAdminTelegramId(telegramId: string): boolean {
-    return this.adminIds.includes(telegramId);
+    return this.adminIds.includes(String(telegramId));
+  }
+
+  /** Тестовое сообщение (из /admin test или админ-API). */
+  async sendTest(requesterTelegramId?: string) {
+    if (!this.enabled) {
+      return { ok: false as const, error: 'ADMIN_TELEGRAM_ID не задан на сервере' };
+    }
+    if (requesterTelegramId && !this.isAdminTelegramId(requesterTelegramId)) {
+      return { ok: false as const, error: 'Не админ' };
+    }
+    const results = await this.sendToAll(
+      '🧪 <b>Тест уведомлений</b>\n\nЕсли видишь это — доставка работает.',
+    );
+    const failed = results.filter((r) => !r.ok);
+    if (failed.length) {
+      return { ok: false as const, error: failed.map((f) => f.error).join('; ') };
+    }
+    return { ok: true as const };
   }
 
   /** Прямая отправка (бэкапы и т.п.). */
   async send(text: string) {
     if (!this.enabled) return;
-    for (const id of this.adminIds) {
-      void this.bot.notify(id, text).catch(() => undefined);
-    }
+    await this.sendToAll(text);
   }
 
-  /** Вызывается из AuditService после записи в БД. */
+  /** Вызывается из AuditService. */
   notifyAction(userId: string | null | undefined, action: string, meta?: Record<string, unknown>) {
     if (!this.enabled) return;
     void this.dispatch(userId, action, meta).catch((e) => {
       this.logger.warn(`notify ${action} failed: ${e?.message}`);
     });
+  }
+
+  private async sendToAll(text: string): Promise<Array<{ id: string; ok: boolean; error?: string }>> {
+    const out: Array<{ id: string; ok: boolean; error?: string }> = [];
+    for (const id of this.adminIds) {
+      out.push({ id, ...(await this.sendTelegram(id, text)) });
+    }
+    return out;
+  }
+
+  private async sendTelegram(
+    chatId: string,
+    text: string,
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!this.botToken) {
+      const err = 'TELEGRAM_BOT_TOKEN не задан';
+      this.logger.warn(err);
+      return { ok: false, error: err };
+    }
+    try {
+      const res = await fetch(`${this.apiRoot}/bot${this.botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; description?: string; error_code?: number };
+      if (!data.ok) {
+        const err = data.description ?? `HTTP ${res.status}`;
+        this.logger.warn(`sendMessage ${chatId} failed: ${err} (code ${data.error_code ?? '?'})`);
+        if (data.error_code === 403) {
+          this.logger.warn(
+            `Админ ${chatId} не написал /start игровому боту @${process.env.TELEGRAM_BOT_USERNAME ?? '?'}`,
+          );
+        }
+        return { ok: false, error: err };
+      }
+      return { ok: true };
+    } catch (e: any) {
+      const err = e?.message ?? String(e);
+      this.logger.warn(`sendMessage ${chatId} error: ${err}`);
+      return { ok: false, error: err };
+    }
   }
 
   private async dispatch(
@@ -69,9 +159,7 @@ export class AdminAlertService {
 
     const text = await this.formatMessage(userId, action, meta, getUser);
     if (!text) return;
-    for (const id of this.adminIds) {
-      await this.bot.notify(id, text);
-    }
+    await this.sendToAll(text);
   }
 
   private async shouldNotify(

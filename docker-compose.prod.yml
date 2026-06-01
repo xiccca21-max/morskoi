@@ -47,8 +47,9 @@ services:
       CRYPTO_PAY_API: ${CRYPTO_PAY_API:-https://pay.crypt.bot/api}
       # Ключ для админских действий (обработка выводов)
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
-      # Telegram ID админа — уведомления о бэкапах
+      # Telegram ID админа — уведомления в личку игрового бота
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}
+      ADMIN_ALERT_ENABLED: ${ADMIN_ALERT_ENABLED:-true}
       # Серия входов (достижения, без денег)
       DAILY_BONUS_MAX_STREAK: ${DAILY_BONUS_MAX_STREAK:-7}
       # Боты-соперники (пока мало живых игроков)
