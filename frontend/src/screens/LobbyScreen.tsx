@@ -187,6 +187,10 @@ export default function LobbyScreen() {
             Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span> спишется
             при старте боя (когда оба расставят флот). Победителю —{' '}
             <span className="text-main font-display">{formatMoney(win)}</span>.
+            <span className="block mt-2 text-warning">
+              ⚠️ Нужен стабильный интернет: при потере связи и пропуске ходов
+              можно проиграть бой и потерять ставку.
+            </span>
             Вы точно согласны?
           </>
         }

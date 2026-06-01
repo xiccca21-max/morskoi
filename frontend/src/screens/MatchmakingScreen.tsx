@@ -408,7 +408,12 @@ export default function MatchmakingScreen() {
             <>
               Бой против <strong>{pendingMatch.host.firstName || pendingMatch.host.username || 'соперника'}</strong>.
               Ставка <strong>{pendingMatch.wagerAmount} ₽</strong> спишется при старте боя
-              (когда оба расставят флот). Вы точно согласны?
+              (когда оба расставят флот).
+              <span className="block mt-2 text-warning">
+                ⚠️ Нужен стабильный интернет: при потере связи и пропуске ходов
+                можно проиграть бой и потерять ставку.
+              </span>
+              Вы точно согласны?
             </>
           ) : null
         }
