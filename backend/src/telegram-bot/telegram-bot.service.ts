@@ -67,14 +67,19 @@ export class TelegramBotService implements OnModuleInit {
         body: JSON.stringify({
           url: webhookUrl,
           secret_token: this.webhookSecret,
-          allowed_updates: ['message', 'callback_query', 'inline_query'],
+          allowed_updates: ['message', 'callback_query', 'inline_query', 'chosen_inline_result'],
           drop_pending_updates: false,
         }),
       })
         .then((r) => r.json())
         .then((r: any) => {
-          if (r.ok) this.logger.log(`Bot started with webhook → ${webhookUrl}`);
-          else this.logger.warn(`setWebhook failed: ${JSON.stringify(r)}`);
+          if (r.ok) {
+            this.logger.log(
+              `Bot started with webhook → ${webhookUrl} (updates: message, callback_query, inline_query)`,
+            );
+          } else {
+            this.logger.warn(`setWebhook failed: ${JSON.stringify(r)}`);
+          }
         })
         .catch((e) => this.logger.warn(`webhook err: ${e.message}`));
     } else if (pollingDisabled) {
@@ -450,6 +455,17 @@ export class TelegramBotService implements OnModuleInit {
 
       const tgId = String(msg.from?.id ?? msg.chat.id);
 
+      // Фолбэк: если inline не сработал и юзер отправил «@bot duel» обычным сообщением.
+      const botUser = this.botUsername.toLowerCase();
+      const inlineLike = text.toLowerCase();
+      if (
+        inlineLike.includes(`@${botUser}`) &&
+        (inlineLike.includes('duel') || inlineLike.includes('вызов') || inlineLike.includes('бой'))
+      ) {
+        await this.sendChallenge(msg.chat.id, tgId);
+        return;
+      }
+
       switch (text) {
         case BTN.CHALLENGE:
           await this.sendChallenge(msg.chat.id, tgId);
@@ -540,25 +556,27 @@ export class TelegramBotService implements OnModuleInit {
     const bot = this.bot;
     bot.on('inline_query', async (q: any) => {
       try {
+        this.logger.log(`inline_query from=${q.from?.id} query="${q.query ?? ''}"`);
         const tgId = String(q.from?.id ?? '');
         const user = tgId ? await this.prisma.user.findUnique({ where: { telegramId: tgId } }) : null;
         const link = user
           ? this.challengeLink(user.id)
           : `https://t.me/${this.botUsername}?start=play`;
         const text = this.challengeText(link);
-        const webAppUrl = process.env.TELEGRAM_WEBAPP_URL;
-        const result: any = {
+        const result: TelegramBot.InlineQueryResultArticle = {
           type: 'article',
-          id: 'duel',
+          id: `duel-${q.id}`,
           title: '⚓ Вызвать на морской бой',
           description: 'Отправь вызов — сыграйте дуэль на ставку',
           input_message_content: { message_text: text, disable_web_page_preview: false },
           reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять вызов', url: link }]] },
         };
-        if (webAppUrl) result.thumb_url = `${webAppUrl}/bot-welcome.png`;
-        await bot.answerInlineQuery(q.id, [result], { cache_time: 5, is_personal: true } as any);
+        await bot.answerInlineQuery(q.id, [result], { cache_time: 0, is_personal: true });
       } catch (e: any) {
         this.logger.warn(`inline_query err: ${e?.message}`);
+        try {
+          await bot.answerInlineQuery(q.id, [], { cache_time: 0, is_personal: true });
+        } catch { /* ignore */ }
       }
     });
   }
