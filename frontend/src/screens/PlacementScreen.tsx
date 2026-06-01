@@ -269,7 +269,7 @@ export default function PlacementScreen() {
   }, [useNative, allPlaced, submitting, sent, placedShips.length, fleet.length]); // eslint-disable-line
 
   return (
-    <div className="max-w-md mx-auto space-y-3">
+    <div className="max-w-md mx-auto space-y-2 pb-2">
       <header className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
@@ -298,31 +298,39 @@ export default function PlacementScreen() {
         </div>
       </header>
 
-      <div className="card p-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="eyebrow">Верфь · выбери корабль</p>
-          <span className="text-xs font-display tabular-nums text-muted">{placedShips.length}/{fleet.length}</span>
+      <div className="placement-dock card p-2">
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="eyebrow text-[10px]">Верфь</p>
+          <span className="text-[10px] font-display tabular-nums text-muted">{placedShips.length}/{fleet.length}</span>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="placement-dock-grid">
           {fleet.map((s) => {
             const isSel = selected?.id === s.id && !s.placed;
             return (
               <button
                 key={s.id}
+                type="button"
                 onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
                 className={[
-                  'shrink-0 min-w-[132px] p-2.5 rounded-lg text-left border transition flex flex-col gap-1.5',
-                  s.placed ? 'border-line bg-base opacity-45' : 'border-line bg-panel',
-                  isSel ? 'ring-2 ring-danger border-danger' : '',
+                  'placement-dock-chip',
+                  s.placed ? 'is-placed' : '',
+                  isSel ? 'is-selected' : '',
                 ].join(' ')}
+                title={s.placed ? 'Убрать с поля' : `${KIND_LABEL[s.kind]}, ${s.size} клетки`}
               >
-                <div className="h-6 w-full">
+                <div className="placement-dock-cells" aria-hidden>
+                  {Array.from({ length: s.size }).map((_, i) => (
+                    <span key={i} className="placement-dock-cell" />
+                  ))}
+                </div>
+                <div
+                  className="placement-dock-ship"
+                  style={{ width: `${s.size * 11 + 6}px` }}
+                >
                   <VintageShip kind={s.kind} size={s.size} orientation="H" icon />
                 </div>
-                <div>
-                  <div className="text-xs text-main font-display">{KIND_LABEL[s.kind]}</div>
-                  <div className="eyebrow">{s.placed ? 'убрать' : `${s.size} кл.`}</div>
-                </div>
+                <span className="placement-dock-name">{KIND_LABEL[s.kind]}</span>
+                <span className="placement-dock-meta">{s.placed ? '✓' : `${s.size}×1`}</span>
               </button>
             );
           })}
@@ -342,28 +350,27 @@ export default function PlacementScreen() {
       />
 
       <div className="flex gap-2">
-        <button type="button" className="btn-secondary flex-1" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
+        <button type="button" className="btn-secondary flex-1 text-xs py-2" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
           <Icon name="rotate" size={16} /> {orientation === 'H' ? 'Поперёк' : 'Вдоль'}
         </button>
-        <button type="button" className="btn-secondary flex-1" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
-        <button type="button" className="btn-ghost flex-1" onClick={reset}>Сброс</button>
+        <button type="button" className="btn-secondary flex-1 text-xs py-2" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
+        <button type="button" className="btn-ghost flex-1 text-xs py-2" onClick={reset}>Сброс</button>
       </div>
 
-      <div className="placement-rules-panel">
-        <div className="placement-rules-title">Правила</div>
+      <details className="placement-rules-panel">
+        <summary className="placement-rules-title cursor-pointer select-none">Правила</summary>
         <ul className="placement-rules-list">
           <li>Корабли ставятся только горизонтально или вертикально</li>
           <li>Между кораблями — минимум 1 клетка (не касаться)</li>
           <li>Двойной тап по клетке — повернуть корабль</li>
           <li>Тап по своему кораблю — поднять и переставить</li>
         </ul>
-      </div>
+      </details>
 
       <div className="placement-hint-box">
         <Icon name="compass" size={14} className="shrink-0 mt-0.5 opacity-70" />
         <span>
-          <strong>Подсказка:</strong>{' '}
-          выбери корабль в верфи → наведи на поле → тап, чтобы поставить.
+          Квадратики = клетки поля. Выбери корабль → тап на поле.
         </span>
       </div>
 

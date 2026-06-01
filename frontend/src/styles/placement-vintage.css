@@ -105,3 +105,109 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* Компактная верфь — сетка 5×2, клетки = размер на поле */
+
+.placement-dock {
+  box-shadow: var(--shadow-card);
+}
+
+.placement-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.placement-dock-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px 3px;
+  border: var(--border-w) solid var(--c-line);
+  background: var(--c-panel);
+  border-radius: 6px;
+  min-height: 0;
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.placement-dock-chip.is-placed {
+  opacity: 0.42;
+  background: var(--c-base);
+}
+
+.placement-dock-chip.is-selected {
+  border-color: var(--c-danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-danger) 35%, transparent);
+}
+
+.placement-dock-cells {
+  display: flex;
+  gap: 1px;
+  height: 9px;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  max-width: 52px;
+}
+
+.placement-dock-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 11px;
+  border: 1px solid var(--c-line);
+  background: color-mix(in srgb, var(--c-sea, #5b8fb9) 22%, var(--c-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 25%, transparent);
+}
+
+.placement-dock-chip.is-selected .placement-dock-cell {
+  border-color: var(--c-danger);
+  background: color-mix(in srgb, var(--c-danger) 12%, var(--c-panel));
+}
+
+.placement-dock-ship {
+  height: 11px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.placement-dock-name {
+  font-family: var(--font-display);
+  font-size: 7px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-main);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placement-dock-meta {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--c-muted);
+  line-height: 1;
+}
+
+details.placement-rules-panel > summary {
+  list-style: none;
+}
+
+details.placement-rules-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.placement-rules-panel > summary::after {
+  content: '+';
+  float: right;
+  font-weight: 700;
+  opacity: 0.5;
+}
+
+details.placement-rules-panel[open] > summary::after {
+  content: '−';
+}

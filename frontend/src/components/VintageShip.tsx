@@ -67,7 +67,7 @@ export function VintageShip({
   return (
     <svg
       viewBox={viewBox}
-      preserveAspectRatio="none"
+      preserveAspectRatio={icon ? 'xMidYMid meet' : 'none'}
       className={['vintage-ship-shadow', className].filter(Boolean).join(' ')}
       style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible' }}
       aria-hidden

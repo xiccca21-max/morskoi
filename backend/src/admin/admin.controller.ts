@@ -60,6 +60,16 @@ export class AdminController {
     return this.admin.getLiveActivity();
   }
 
+  @Get('alerts')
+  alerts() {
+    return this.alerts.status();
+  }
+
+  @Post('alerts/test')
+  async testAlerts() {
+    return this.alerts.sendTest();
+  }
+
   @Get('users')
   users(@Query('q') q?: string) {
     return this.admin.listUsers(q);
