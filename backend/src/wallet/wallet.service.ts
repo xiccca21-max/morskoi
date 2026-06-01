@@ -364,8 +364,8 @@ export class WalletService {
     if (amount <= 0) throw new BadRequestException('Amount must be positive');
     // Сортируем id чтобы избежать deadlock при пересекающихся локах двух процессов
     const ordered = [p1Id, p2Id].sort();
-    return this.redis.withLock(`wallet:${ordered[0]}`, 5000, async () => {
-      return this.redis.withLock(`wallet:${ordered[1]}`, 5000, async () => {
+    return this.redis.withLock(`wallet:${ordered[0]}`, 8000, async () => {
+      return this.redis.withLock(`wallet:${ordered[1]}`, 8000, async () => {
         return this.prisma.$transaction(async (tx) => {
           const [p1, p2] = await Promise.all([
             tx.user.findUnique({ where: { id: p1Id } }),
@@ -417,8 +417,8 @@ export class WalletService {
     rakePercent: number,
   ) {
     const ordered = [p1Id, p2Id].sort();
-    return this.redis.withLock(`wallet:${ordered[0]}`, 5000, async () => {
-      return this.redis.withLock(`wallet:${ordered[1]}`, 5000, async () => {
+    return this.redis.withLock(`wallet:${ordered[0]}`, 8000, async () => {
+      return this.redis.withLock(`wallet:${ordered[1]}`, 8000, async () => {
         return this.prisma.$transaction(async (tx) => {
           // Идемпотентность: если матч уже рассчитан — не платим повторно.
           const current = await tx.match.findUnique({
