@@ -66,6 +66,7 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
       APP_RELEASE: ${GIT_SHA:-}
+      LEADERBOARD_HIDDEN_USERS: ${LEADERBOARD_HIDDEN_USERS:-}
     volumes:
       - naval-data:/data
     expose:
