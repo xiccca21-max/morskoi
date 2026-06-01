@@ -277,12 +277,32 @@ export function tgNotify(kind: 'success' | 'error' | 'warning' = 'success') {
   tgVibrate(pattern);
 }
 
-/** Открыть ссылку или платёжный инвойс Crypto Pay внутри Telegram. */
+/** URL подходит для Telegram.WebApp.openInvoice (только mini-app invoice link). */
+export function isTelegramInvoiceUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false;
+    if (u.hostname !== 't.me' && u.hostname !== 'telegram.me') return false;
+    // Crypto Pay mini-app invoice: t.me/CryptoBot/app?startapp=...
+    if (u.pathname.includes('/app')) return true;
+    // Bot API invoice slug: t.me/$bot/...
+    if (u.pathname.startsWith('/$')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Открыть счёт Crypto Pay: openInvoice только для mini-app URL, иначе — ссылка в @CryptoBot. */
 export function tgOpenPayment(url: string, onDone?: (status: string) => void) {
   const tg = getTelegramWebApp();
-  if (tg?.openInvoice) {
-    tg.openInvoice(url, (status: string) => onDone?.(status));
-    return;
+  if (tg?.openInvoice && isTelegramInvoiceUrl(url)) {
+    try {
+      tg.openInvoice(url, (status: string) => onDone?.(status));
+      return;
+    } catch {
+      /* invalid for openInvoice — fallback below */
+    }
   }
   tgOpenLink(url);
 }

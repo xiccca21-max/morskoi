@@ -35,6 +35,8 @@ export interface DepositResult {
   mode: 'cryptobot';
   payUrl?: string;
   invoiceUrl?: string;
+  miniAppInvoiceUrl?: string;
+  botInvoiceUrl?: string;
   invoiceId?: string;
   amountRub?: number;
   amountUsdt?: number;

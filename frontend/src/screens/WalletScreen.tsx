@@ -116,7 +116,7 @@ export default function WalletScreen() {
     setError(null); setBusy(true);
     try {
       const r = await WalletAPI.deposit(amount);
-      const payUrl = r.invoiceUrl ?? r.payUrl;
+      const payUrl = r.miniAppInvoiceUrl ?? r.invoiceUrl ?? r.botInvoiceUrl ?? r.payUrl;
       if (!payUrl) throw new Error('Нет ссылки на оплату');
       tgHaptic('success');
       tgOpenPayment(payUrl, (status) => {

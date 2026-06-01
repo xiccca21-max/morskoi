@@ -43,7 +43,7 @@ export class PaymentsService {
 
     const amount = roundRub(amountRub);
     const returnUrl = process.env.TELEGRAM_WEBAPP_URL;
-    const { invoiceId, payUrl } = await this.cryptoPay.createInvoice({
+    const { invoiceId, payUrl, miniAppInvoiceUrl, botInvoiceUrl } = await this.cryptoPay.createInvoice({
       amountRub: amount,
       payload: userId,
       returnUrl,
@@ -53,7 +53,9 @@ export class PaymentsService {
     return {
       mode: 'cryptobot' as const,
       payUrl,
-      invoiceUrl: payUrl,
+      invoiceUrl: miniAppInvoiceUrl ?? botInvoiceUrl ?? payUrl,
+      miniAppInvoiceUrl,
+      botInvoiceUrl,
       invoiceId,
       amountRub: amount,
     };

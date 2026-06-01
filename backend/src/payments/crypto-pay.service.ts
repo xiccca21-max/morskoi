@@ -38,7 +38,12 @@ export class CryptoPayService {
     payload: string;
     description?: string;
     returnUrl?: string;
-  }): Promise<{ invoiceId: string; payUrl: string }> {
+  }): Promise<{
+    invoiceId: string;
+    miniAppInvoiceUrl?: string;
+    botInvoiceUrl?: string;
+    payUrl: string;
+  }> {
     const result = await this.call<any>('createInvoice', {
       currency_type: 'fiat',
       fiat: 'RUB',
@@ -50,13 +55,20 @@ export class CryptoPayService {
       allow_comments: false,
       expires_in: 3600,
     });
+    const miniAppInvoiceUrl = result.mini_app_invoice_url as string | undefined;
+    const botInvoiceUrl = result.bot_invoice_url as string | undefined;
     const payUrl =
-      result.mini_app_invoice_url ??
+      miniAppInvoiceUrl ??
+      botInvoiceUrl ??
       result.web_app_invoice_url ??
-      result.bot_invoice_url ??
       result.pay_url;
     if (!payUrl) throw new Error('Crypto Pay: no invoice URL');
-    return { invoiceId: String(result.invoice_id), payUrl };
+    return {
+      invoiceId: String(result.invoice_id),
+      miniAppInvoiceUrl,
+      botInvoiceUrl,
+      payUrl,
+    };
   }
 
   async getRubPerAsset(asset: string): Promise<number> {
