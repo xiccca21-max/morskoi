@@ -107,18 +107,12 @@ export default function PlacementScreen() {
   }, [matchState?.gameStatus, matchId, navigate]);
 
   // Выход во время расстановки разрешён (бой ещё не начался, ставка не списана).
-  useEffect(() => {
-    tgBackButton(true, () => setShowExit(true));
-    return () => tgBackButton(false);
-  }, []);
+  useEffect(() => tgBackButton(true, () => setShowExit(true)), []);
 
   const leaveMatch = () => {
     setShowExit(false);
     clearMatch();
-    tgBackButton(false);
-    if (matchId) {
-      getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
-    }
+    if (matchId) getSocket().emit('game:surrender', { matchId, nonce: newNonce() });
     tgHaptic('warning');
     navigate('/home', { replace: true });
   };
