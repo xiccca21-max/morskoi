@@ -21,6 +21,11 @@ for i in $(seq 1 18); do
   fi
   echo "waiting for backend... ($i/18)"
   sleep 5
+  if [ "$i" -eq 18 ]; then
+    echo "ERROR: backend did not become healthy — last logs:"
+    docker compose -f docker-compose.prod.yml logs --tail=80 app || true
+    exit 1
+  fi
 done
 
 # nginx кэширует IP upstream — перезапуск после redeploy app

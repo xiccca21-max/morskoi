@@ -3,8 +3,8 @@ import { ModuleRef } from '@nestjs/core';
 import TelegramBot from 'node-telegram-bot-api';
 import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AdminAlertService } from '../common/admin-alert.service';
 import { PresenceService } from '../common/presence.service';
+import type { AdminAlertService } from '../common/admin-alert.service';
 import type { LobbyService } from '../matchmaking/lobby.service';
 
 /**
@@ -29,9 +29,15 @@ export class TelegramBotService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly moduleRef: ModuleRef,
-    private readonly adminAlerts: AdminAlertService,
     private readonly presence: PresenceService,
   ) {}
+
+  /** Лениво — без circular import bot ↔ admin-alerts. */
+  private get adminAlerts(): AdminAlertService {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { AdminAlertService: Svc } = require('../common/admin-alert.service') as typeof import('../common/admin-alert.service');
+    return this.moduleRef.get(Svc, { strict: false });
+  }
 
   /** Лениво — без circular import файлов bot ↔ lobby. */
   private get lobbies(): LobbyService {
