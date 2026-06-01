@@ -87,36 +87,87 @@ export function Ship({ kind, size, orientation, sunk = false, icon = false, clas
     'Z',
   ].join(' ');
 
-  // Палубные блоки (надстройки) — простые квадраты/круги
-  const deckMarks: JSX.Element[] = [];
-  const block = (along: number, w = 26) => {
-    const [cx, cy] = pt(along, 50);
-    return (
+  void deck;
+  const uid = `${kind}-${size}-${horizontal ? 'h' : 'v'}`;
+  const gid = `hullg-${uid}`;
+  const cid = `hullc-${uid}`;
+
+  // Детали в координатах along/across (along — вдоль длинной оси).
+  const marks: JSX.Element[] = [];
+  let k = 0;
+  // Прямоугольник по углу (a0,c0) и размерам вдоль/поперёк — учитывает ориентацию.
+  const rer = (a0: number, aLen: number, c0: number, cLen: number, fill: string, rx = 0, opacity = 1) => {
+    const [x, y] = pt(a0, c0);
+    marks.push(
       <rect
-        key={`b${along}`}
-        x={cx - (horizontal ? w / 2 : 14)}
-        y={cy - (horizontal ? 14 : w / 2)}
-        width={horizontal ? w : 28}
-        height={horizontal ? 28 : w}
-        rx={2}
-        fill={deck}
-      />
+        key={`r${k++}`}
+        x={x}
+        y={y}
+        width={horizontal ? aLen : cLen}
+        height={horizontal ? cLen : aLen}
+        rx={rx}
+        fill={fill}
+        opacity={opacity}
+      />,
     );
   };
-  const dot = (along: number, r = 11) => {
-    const [cx, cy] = pt(along, 50);
-    return <circle key={`d${along}`} cx={cx} cy={cy} r={r} fill={deck} />;
+  const cir = (a: number, c: number, r: number, fill: string, opacity = 1) => {
+    const [cx, cy] = pt(a, c);
+    marks.push(<circle key={`c${k++}`} cx={cx} cy={cy} r={r} fill={fill} opacity={opacity} />);
+  };
+  // Орудийная башня с двумя стволами, направленными к носу.
+  const turret = (a: number, r = 13, barrel = 34) => {
+    rer(a - r, r * 2, 50 - r, r * 2, 'rgba(0,0,0,0.34)', r * 0.55);
+    rer(a + r * 0.4, barrel, 44, 4, 'var(--c-line)', 1);
+    rer(a + r * 0.4, barrel, 52, 4, 'var(--c-line)', 1);
+    cir(a, 50, r * 0.45, 'rgba(255,255,255,0.18)');
+  };
+  // Дымовая труба.
+  const funnel = (a: number, w = 16) => {
+    rer(a - w / 2, w, 36, 28, 'rgba(0,0,0,0.40)', 2);
+    rer(a - w / 2, w, 34, 5, 'rgba(0,0,0,0.55)', 1);
+  };
+  // Мостик/надстройка (ступенчатая).
+  const bridge = (a: number, len: number) => {
+    rer(a - len / 2, len, 30, 40, 'rgba(255,255,255,0.16)', 3);
+    rer(a - len / 4, len / 2, 38, 24, 'rgba(255,255,255,0.24)', 2);
+    cir(a, 50, 4, 'rgba(0,0,0,0.45)'); // мачта/радар
+  };
+  // Иллюминаторы вдоль борта.
+  const portholes = (from: number, to: number, step: number) => {
+    for (let a = from; a <= to; a += step) cir(a, 70, 2.4, 'rgba(0,0,0,0.35)');
   };
 
+  // Приподнятая палуба (светлая полоса по всей длине).
+  rer(8, L - 14, 28, 44, 'rgba(255,255,255,0.10)', 8);
+
   if (kind === 'submarine') {
-    deckMarks.push(dot(50, 13));
+    // ПЛ: рубка + перископ + люки.
+    rer(40, 24, 38, 24, 'rgba(255,255,255,0.20)', 5);
+    rer(58, 4, 22, 18, 'var(--c-line)', 1); // перископ
+    cir(28, 50, 3.5, 'rgba(0,0,0,0.4)');
+    cir(76, 50, 3.5, 'rgba(0,0,0,0.4)');
   } else if (kind === 'destroyer') {
-    deckMarks.push(block(70, 28), dot(150, 9));
+    turret(150, 11, 30);   // носовое орудие
+    bridge(95, 34);
+    funnel(125, 14);
+    portholes(30, 80, 18);
   } else if (kind === 'cruiser') {
-    deckMarks.push(dot(55, 11), block(150, 34), dot(245, 11));
+    turret(248, 12, 34);   // носовое
+    turret(60, 12, 30);    // кормовое
+    bridge(150, 40);
+    funnel(180, 16);
+    funnel(205, 16);
+    portholes(30, 110, 18);
   } else {
     // battleship (4)
-    deckMarks.push(dot(60, 12), block(175, 40), dot(245, 12), dot(330, 12));
+    turret(330, 14, 40);   // носовые орудия
+    turret(285, 13, 36);
+    turret(70, 14, 38);    // кормовое
+    bridge(180, 52);
+    funnel(215, 18);
+    funnel(245, 18);
+    portholes(30, 130, 16);
   }
 
   return (
@@ -126,10 +177,23 @@ export function Ship({ kind, size, orientation, sunk = false, icon = false, clas
       className={className}
       style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible' }}
     >
-      {/* Корпус */}
-      <path d={hullPath} fill={hull} strokeLinejoin="round" />
-      {/* Палубные блоки (вырезы цветом фона) */}
-      {deckMarks}
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2={horizontal ? '0' : '1'} y2={horizontal ? '1' : '0'}>
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+          <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.32" />
+        </linearGradient>
+        <clipPath id={cid}>
+          <path d={hullPath} />
+        </clipPath>
+      </defs>
+      {/* Корпус с обводкой */}
+      <path d={hullPath} fill={hull} stroke="var(--c-line)" strokeWidth={3} strokeLinejoin="round" />
+      {/* Объём и надстройки — обрезаны по силуэту корпуса */}
+      <g clipPath={`url(#${cid})`}>
+        <rect x={0} y={0} width={horizontal ? L : 100} height={horizontal ? 100 : L} fill={`url(#${gid})`} />
+        {marks}
+      </g>
     </svg>
   );
 }
