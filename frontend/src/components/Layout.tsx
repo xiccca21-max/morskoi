@@ -15,17 +15,15 @@ export function Layout() {
   const match = useMatchStore((s) => s.state);
   const navigate = useNavigate();
   const loc = useLocation();
-  useCurrencyStore((s) => s.currency); // ре-рендер баланса при смене валюты
-  useCurrencyStore((s) => s.ratesVersion); // и при обновлении живого курса
+  useCurrencyStore((s) => s.currency);
+  useCurrencyStore((s) => s.ratesVersion);
 
   const [scrolled, setScrolled] = useState(false);
 
-  // При смене экрана прокручиваем наверх — иначе новый экран открывается «в середине».
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [loc.pathname]);
 
-  // Тень у шапки появляется при скролле — даёт ощущение глубины.
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -54,18 +52,37 @@ export function Layout() {
     <div className="min-h-[100dvh] flex flex-col">
       <Toaster />
       <OfflineBanner />
+
       <header
-        className={['px-4 h-14 flex items-center justify-between sticky top-0 z-30 border-b border-line/50 backdrop-blur-xl bg-panel/80 transition-shadow', scrolled ? 'shadow-[0_4px_20px_rgba(0,0,0,0.15)]' : ''].join(' ')}
-        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
+        className={[
+          'px-4 flex items-center justify-between sticky top-0 z-30 border-b border-line/40 backdrop-blur-xl transition-all duration-300',
+          scrolled ? 'shadow-[0_4px_24px_rgba(0,0,0,0.25)]' : '',
+        ].join(' ')}
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          height: 'calc(3.5rem + env(safe-area-inset-top)',
+          background: 'rgba(var(--c-panel-rgb) / 0.82)',
+        }}
       >
-        <NavLink to="/home" className="flex items-center gap-2 text-main" aria-label="На палубу">
-          <span className="w-7 h-7 rounded-md bg-danger text-white flex items-center justify-center shrink-0">
-            <Icon name="anchor" size={16} />
-          </span>
-          <span className="title text-[13px] leading-none">Морской Бой</span>
+        <NavLink to="/home" className="flex items-center gap-2.5 text-main" aria-label="На палубу">
+          <NavalEmblem />
+          <div className="flex flex-col leading-none gap-[1px]">
+            <span className="font-display text-[10px] tracking-[0.32em] uppercase text-danger">Морской</span>
+            <span className="font-display text-[15px] tracking-[0.18em] uppercase text-main">Бой</span>
+          </div>
         </NavLink>
-        <NavLink to="/wallet" className="flex items-center gap-2 plate px-3 py-1.5 text-main" aria-label="Кошелёк">
-          <Icon name="coins" size={15} className="text-muted" />
+
+        <NavLink
+          to="/wallet"
+          aria-label="Кошелёк"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-main transition"
+          style={{
+            background: 'rgba(var(--c-panel-rgb) / 0.8)',
+            border: '1px solid rgba(var(--c-line-rgb) / 0.6)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          }}
+        >
+          <Icon name="coins" size={14} className="text-warning" />
           <span className="font-display text-sm tabular-nums">
             <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
           </span>
@@ -75,7 +92,7 @@ export function Layout() {
       <AnimatePresence mode="wait" initial={false}>
         <motion.main
           key={loc.pathname}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
@@ -88,8 +105,11 @@ export function Layout() {
 
       {!hideNav && (
         <nav
-          className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line/50 bg-panel/85 backdrop-blur-xl"
-          style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
+          className="fixed bottom-0 inset-x-0 z-40 px-2 py-2 border-t border-line/40 backdrop-blur-xl"
+          style={{
+            paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
+            background: 'rgba(var(--c-panel-rgb) / 0.88)',
+          }}
         >
           <ul className="flex items-end justify-around">
             <Tab to="/home" icon="grid" label="Палуба" />
@@ -104,26 +124,81 @@ export function Layout() {
   );
 }
 
+/* ─── Герб Морского Боя ──────────────────────────────────────────────────── */
+function NavalEmblem() {
+  return (
+    <svg width="32" height="36" viewBox="0 0 32 36" fill="none" aria-hidden>
+      {/* Щит */}
+      <path
+        d="M16 1 L31 6.5 L31 20.5 C31 28.5 23.5 33 16 35.5 C8.5 33 1 28.5 1 20.5 L1 6.5 Z"
+        fill="url(#emblemRed)"
+      />
+      {/* Золотая рамка */}
+      <path
+        d="M16 1 L31 6.5 L31 20.5 C31 28.5 23.5 33 16 35.5 C8.5 33 1 28.5 1 20.5 L1 6.5 Z"
+        fill="none"
+        stroke="rgba(212,168,44,0.80)"
+        strokeWidth="1.4"
+      />
+      {/* Внутренняя рамка */}
+      <path
+        d="M16 3.5 L28.5 8 L28.5 20.5 C28.5 27 22.5 31 16 33 C9.5 31 3.5 27 3.5 20.5 L3.5 8 Z"
+        fill="none"
+        stroke="rgba(212,168,44,0.22)"
+        strokeWidth="0.8"
+      />
+      {/* Якорь — кольцо */}
+      <circle cx="16" cy="10.5" r="2.2" fill="none" stroke="white" strokeWidth="1.5" />
+      {/* Якорь — поперечина */}
+      <line x1="11" y1="13.5" x2="21" y2="13.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      {/* Якорь — шток */}
+      <line x1="16" y1="13.5" x2="16" y2="27.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      {/* Якорь — левая лапа */}
+      <path d="M16 27.5 Q12 27.5 11 23.5" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      {/* Якорь — правая лапа */}
+      <path d="M16 27.5 Q20 27.5 21 23.5" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      {/* Звёздочки по бокам якоря */}
+      <circle cx="10" cy="20" r="0.9" fill="rgba(212,168,44,0.7)" />
+      <circle cx="22" cy="20" r="0.9" fill="rgba(212,168,44,0.7)" />
+      <defs>
+        <linearGradient id="emblemRed" x1="1" y1="1" x2="31" y2="36" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#d82020" />
+          <stop offset="55%" stopColor="#b01616" />
+          <stop offset="100%" stopColor="#880e0e" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+/* ─── Центральная кнопка баланса ─────────────────────────────────────────── */
 function BalanceTab({ balance }: { balance: number }) {
   return (
     <li className="flex-1 flex justify-center">
-      <NavLink to="/wallet" aria-label="Баланс" className="flex flex-col items-center gap-1 -mt-8">
+      <NavLink to="/wallet" aria-label="Баланс" className="flex flex-col items-center gap-1 -mt-7">
         {({ isActive }) => (
           <>
             <motion.div
-              whileTap={{ scale: 0.92 }}
-              className={[
-                'w-16 h-16 rounded-full flex flex-col items-center justify-center text-white border-4 border-panel',
-                'bg-danger shadow-[0_6px_18px_rgba(225,87,75,0.5)]',
-                isActive ? 'ring-2 ring-danger ring-offset-2 ring-offset-panel' : '',
-              ].join(' ')}
+              whileTap={{ scale: 0.90 }}
+              className="flex flex-col items-center justify-center text-white border-[3px] border-panel"
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                background: isActive
+                  ? 'linear-gradient(145deg, #e83228, #ff4438, #c02018)'
+                  : 'linear-gradient(145deg, #d42020, #e83228, #b01818)',
+                boxShadow: isActive
+                  ? '0 6px 24px rgba(240,75,65,0.65), 0 0 0 2px rgba(240,75,65,0.3)'
+                  : '0 5px 18px rgba(225,87,75,0.50)',
+              }}
             >
-              <Icon name="coins" size={18} />
-              <span className="font-display text-[11px] leading-none tabular-nums mt-0.5">
+              <Icon name="coins" size={17} />
+              <span className="font-display text-[10px] leading-none tabular-nums mt-0.5">
                 <AnimatedNumber value={balance} formatter={formatCompactMoney} />
               </span>
             </motion.div>
-            <span className={['text-[10px] font-display uppercase tracking-wider', isActive ? 'text-main' : 'text-muted'].join(' ')}>
+            <span className={['text-[10px] font-display uppercase tracking-wider', isActive ? 'text-danger' : 'text-muted'].join(' ')}>
               Баланс
             </span>
           </>
@@ -133,6 +208,7 @@ function BalanceTab({ balance }: { balance: number }) {
   );
 }
 
+/* ─── Вкладка навигации ──────────────────────────────────────────────────── */
 function Tab({ to, icon, label }: { to: string; icon: IconName; label: string }) {
   return (
     <li className="flex-1">
@@ -140,21 +216,32 @@ function Tab({ to, icon, label }: { to: string; icon: IconName; label: string })
         to={to}
         className={({ isActive }) =>
           [
-            'flex flex-col items-center gap-1 py-1.5 rounded-lg transition text-[10px] font-display uppercase tracking-wider',
-            isActive ? 'text-main' : 'text-muted hover:text-main',
+            'relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all text-[10px] font-display uppercase tracking-wider',
+            isActive ? 'text-main' : 'text-muted',
           ].join(' ')
         }
       >
         {({ isActive }) => (
           <>
+            {/* Активный фон */}
+            {isActive && (
+              <motion.span
+                layoutId="navBg"
+                className="absolute inset-0 rounded-xl"
+                style={{ background: 'rgba(var(--c-danger-rgb) / 0.08)' }}
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              />
+            )}
             <Icon name={icon} size={20} />
             <span>{label}</span>
-            <span className="relative h-0.5 w-5">
+            {/* Красная черта снизу */}
+            <span className="h-0.5 w-4 rounded-full overflow-hidden">
               {isActive && (
                 <motion.span
                   layoutId="navIndicator"
-                  className="absolute inset-0 rounded-full bg-danger"
-                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                  className="block h-full w-full bg-danger"
+                  style={{ boxShadow: '0 0 6px rgba(240,75,65,0.8)' }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                 />
               )}
             </span>

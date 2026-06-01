@@ -17,8 +17,6 @@ export default function HomeScreen() {
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
 
-  // Подтянуть активный матч при входе — чтобы кнопка «вернуться в бой» работала
-  // даже после перезапуска мини-аппа.
   useEffect(() => {
     GameAPI.active()
       .then((m) => {
@@ -83,44 +81,59 @@ export default function HomeScreen() {
   return (
     <div className="max-w-md mx-auto space-y-4">
       <Onboarding />
-      {/* Каюта капитана */}
-      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-5">
-        <p className="eyebrow">{greeting}</p>
-        <h2 className="font-display text-2xl text-main leading-tight mt-0.5">
-          {user?.nickname ?? user?.firstName ?? user?.username ?? 'без имени'}
+
+      {/* ── Каюта капитана ── */}
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="card p-5 relative overflow-hidden"
+      >
+        {/* Компас-водяной знак */}
+        <div className="absolute right-[-16px] top-[-16px] pointer-events-none select-none opacity-[0.045]">
+          <Icon name="wheel" size={130} className="text-main" />
+        </div>
+
+        <p className="eyebrow">{greeting}, капитан</p>
+        <h2 className="font-display text-[22px] text-main leading-tight mt-1 tracking-wide">
+          {user?.nickname ?? user?.firstName ?? user?.username ?? 'Без имени'}
         </h2>
 
-        <div className="grid grid-cols-3 gap-px mt-4 bg-line rounded-lg overflow-hidden">
-          <Stat icon="trophy" label="Победы" value={wins} />
-          <Stat icon="skull" label="Поражения" value={losses} accent />
-          <Stat icon="target" label="Точность" value={`${wr}%`} />
+        {/* Статы */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          <StatCard icon="trophy" label="Победы" value={wins} color="success" />
+          <StatCard icon="skull" label="Поражения" value={losses} color="danger" />
+          <StatCard icon="target" label="% побед" value={`${wr}%`} color="accent" />
         </div>
       </motion.section>
 
+      {/* ── Вернуться в бой ── */}
       {activeMatch && (
-        <button
+        <motion.button
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
           onClick={() => navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`)}
-          className="btn-danger w-full"
+          className="w-full btn-danger flex items-center justify-center gap-2"
         >
           <Icon name="swords" size={18} /> Вернуться в бой
-        </button>
+        </motion.button>
       )}
 
+      {/* ── Предупреждение о балансе ── */}
       {balance > 0 && balance < minWager && !activeMatch && (
         <button
           onClick={() => { tgHaptic('light'); navigate('/wallet'); }}
-          className="w-full card card-press p-3 flex items-center gap-3 border-warning text-left"
+          className="w-full card card-press p-3 flex items-center gap-3 border-warning/60 text-left"
         >
           <Icon name="coins" size={18} className="text-warning shrink-0" />
-          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {minWager} ₽. Пополни казну.</span>
+          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {minWager} ₽</span>
           <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
       )}
-
       {balance <= 0 && !activeMatch && (
         <button
           onClick={() => { tgHaptic('light'); navigate('/wallet'); }}
-          className="w-full card card-press p-3 flex items-center gap-3 border-danger text-left"
+          className="w-full card card-press p-3 flex items-center gap-3 border-danger/50 text-left"
         >
           <Icon name="coins" size={18} className="text-danger shrink-0" />
           <span className="flex-1 text-main text-sm">Баланс пуст — пополни, чтобы играть на ставку</span>
@@ -128,37 +141,99 @@ export default function HomeScreen() {
         </button>
       )}
 
-      <button
+      {/* ══ В БОЙ — главная кнопка ══ */}
+      <motion.button
         onClick={() => { tgHaptic('medium'); navigate('/matchmaking'); }}
-        className="w-full card card-press p-5 text-left flex items-center justify-between hover:border-line transition group"
+        className="w-full text-left relative overflow-hidden"
+        style={{ borderRadius: 'var(--radius-card)', minHeight: 88 }}
+        whileTap={{ scale: 0.975 }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.08 }}
       >
-        <div>
-          <span className="title text-xl text-main">В бой</span>
-          <p className="text-muted text-sm mt-1">Найти соперника и сразиться на ставку</p>
+        {/* Красный градиент */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(130deg, #c01c14 0%, #e02820 38%, #f03830 60%, #c42018 100%)',
+          }}
+        />
+        {/* Диагональная штриховка (текстура) */}
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',
+            backgroundSize: '10px 10px',
+          }}
+        />
+        {/* Белая линия сверху */}
+        <div
+          className="absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%)' }}
+        />
+        {/* Мерцающий блик */}
+        <motion.div
+          className="absolute inset-y-0 w-2/5 pointer-events-none"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)' }}
+          animate={{ x: ['-120%', '320%'] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
+        />
+        {/* Содержимое */}
+        <div className="relative px-5 py-5 flex items-center justify-between gap-4">
+          <div>
+            <div
+              className="font-display text-white text-[26px] uppercase tracking-[0.12em] leading-none"
+              style={{ textShadow: '0 2px 12px rgba(0,0,0,0.35)' }}
+            >
+              В бой
+            </div>
+            <p className="text-white/60 text-sm mt-1.5">Найти соперника и сразиться на ставку</p>
+          </div>
+          <motion.div
+            className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center border border-white/25"
+            style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+            animate={{ x: [0, 5, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Icon name="arrow-right" size={22} className="text-white" />
+          </motion.div>
         </div>
-        <motion.span
-          className="w-11 h-11 rounded-full bg-danger flex items-center justify-center text-white"
-          animate={{ x: [0, 4, 0] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <Icon name="arrow-right" size={20} />
-        </motion.span>
-      </button>
+      </motion.button>
 
-      <button
+      {/* ── Тренировка ── */}
+      <motion.button
         onClick={startTrainingLobby}
         disabled={trainingBusy}
-        className="w-full card card-press p-5 text-left flex items-center justify-between hover:border-line transition disabled:opacity-60"
+        className="w-full card card-press text-left flex items-center justify-between gap-4 px-5 py-4 disabled:opacity-60"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.13 }}
+        whileTap={{ scale: 0.975 }}
       >
         <div>
-          <span className="title text-xl text-main">Тренировка</span>
+          <span className="font-display text-[17px] text-main uppercase tracking-[0.1em] leading-none">Тренировка</span>
           <p className="text-muted text-sm mt-1">Бесплатный бой с другом — без ставки</p>
         </div>
-        <span className="w-11 h-11 rounded-full bg-panel border border-line flex items-center justify-center text-main shrink-0">
-          <Icon name={trainingBusy ? 'anchor' : 'target'} size={20} />
-        </span>
-      </button>
+        <div
+          className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+          style={{
+            background: 'rgba(var(--c-panel-rgb) / 0.8)',
+            border: '1px solid rgba(var(--c-line-rgb) / 0.8)',
+          }}
+        >
+          <Icon name={trainingBusy ? 'anchor' : 'target'} size={20} className="text-main" />
+        </div>
+      </motion.button>
 
+      {/* ── 2×2 тайлы ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <Tile index={0} icon="coins"   title="Казна"            sub="Пополнить / вывести"     onClick={() => navigate('/wallet')} />
+        <Tile index={1} icon="trophy"  title="Топ"              sub="Лучшие капитаны"          onClick={() => navigate('/leaderboard')} />
+        <Tile index={2} icon="compass" title="Как это работает" sub="Пошаговое объяснение"    onClick={() => navigate('/how-it-works')} />
+        <Tile index={3} icon="scroll"  title="Правила"          sub="Флот, ходы, штрафы"      onClick={() => navigate('/rules')} />
+      </div>
+
+      {/* Скрытая кнопка теста */}
       <button
         onClick={startBotTest}
         disabled={botTestBusy}
@@ -166,40 +241,62 @@ export default function HomeScreen() {
       >
         {botTestBusy ? 'Запуск теста с ботом…' : 'Тест с ботом (для проверки)'}
       </button>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Tile index={0} icon="coins" title="Казна" sub="Пополнить / вывести" onClick={() => navigate('/wallet')} />
-        <Tile index={1} icon="trophy" title="Топ" sub="Лучшие капитаны" onClick={() => navigate('/leaderboard')} />
-        <Tile index={2} icon="compass" title="Как это работает" sub="Пошаговое объяснение" onClick={() => navigate('/how-it-works')} />
-        <Tile index={3} icon="scroll" title="Правила" sub="Флот, ходы, штрафы" onClick={() => navigate('/rules')} />
-      </div>
     </div>
   );
 }
 
-function Stat({ icon, label, value, accent }: { icon: IconName; label: string; value: any; accent?: boolean }) {
+/* ─── Stat карточка ──────────────────────────────────────────────────────── */
+function StatCard({
+  icon, label, value, color,
+}: {
+  icon: IconName; label: string; value: any; color: 'success' | 'danger' | 'accent';
+}) {
+  const colorMap = {
+    success: { bg: 'rgba(46,196,96,0.10)', border: 'rgba(46,196,96,0.20)', icon: 'text-success' },
+    danger:  { bg: 'rgba(240,75,65,0.10)', border: 'rgba(240,75,65,0.20)', icon: 'text-danger' },
+    accent:  { bg: 'rgba(212,168,44,0.10)', border: 'rgba(212,168,44,0.20)', icon: 'text-warning' },
+  }[color];
+
   return (
-    <div className="bg-panel py-4 px-3 text-center flex flex-col items-center gap-1">
-      <Icon name={icon} size={16} className={accent ? 'text-danger' : 'text-muted'} />
-      <div className={['font-display text-xl tabular-nums leading-none', accent ? 'text-danger' : 'text-main'].join(' ')}>{value}</div>
-      <div className="eyebrow">{label}</div>
+    <div
+      className="rounded-xl py-3 px-2 flex flex-col items-center gap-1.5 text-center"
+      style={{ background: colorMap.bg, border: `1px solid ${colorMap.border}` }}
+    >
+      <Icon name={icon} size={15} className={colorMap.icon} />
+      <div className="font-display text-xl tabular-nums leading-none text-main">{value}</div>
+      <div className="eyebrow text-[9px]">{label}</div>
     </div>
   );
 }
 
-function Tile({ icon, title, sub, onClick, index = 0 }: { icon: IconName; title: string; sub: string; onClick: () => void; index?: number }) {
+/* ─── Тайл ───────────────────────────────────────────────────────────────── */
+function Tile({
+  icon, title, sub, onClick, index = 0,
+}: {
+  icon: IconName; title: string; sub: string; onClick: () => void; index?: number;
+}) {
   return (
     <motion.button
       onClick={onClick}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: 0.05 + index * 0.05 }}
-      className="card card-press p-4 text-left hover:border-line transition"
+      transition={{ duration: 0.25, delay: 0.1 + index * 0.05 }}
+      whileTap={{ scale: 0.97 }}
+      className="card card-press p-4 text-left"
     >
-      <Icon name={icon} size={22} className="text-danger" />
-      <div className="font-display text-main mt-2">{title}</div>
-      <div className="text-[11px] text-muted">{sub}</div>
+      {/* Иконка в красном круге с свечением */}
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5"
+        style={{
+          background: 'linear-gradient(135deg, rgba(var(--c-danger-rgb)/0.18), rgba(var(--c-danger-rgb)/0.07))',
+          border: '1px solid rgba(var(--c-danger-rgb)/0.22)',
+          boxShadow: '0 2px 10px rgba(var(--c-danger-rgb)/0.12)',
+        }}
+      >
+        <Icon name={icon} size={19} className="text-danger" />
+      </div>
+      <div className="font-display text-main text-[14px] leading-tight uppercase tracking-wide">{title}</div>
+      <div className="text-[11px] text-muted mt-0.5 leading-snug">{sub}</div>
     </motion.button>
   );
 }
-
