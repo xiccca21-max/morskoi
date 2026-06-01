@@ -338,6 +338,14 @@ export default function PlacementScreen() {
         </div>
       </div>
 
+      <div className="flex gap-2">
+        <button type="button" className="btn-secondary flex-1 text-xs py-2" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
+          <Icon name="rotate" size={16} /> {orientation === 'H' ? 'Поперёк' : 'Вдоль'}
+        </button>
+        <button type="button" className="btn-secondary flex-1 text-xs py-2" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
+        <button type="button" className="btn-ghost flex-1 text-xs py-2" onClick={reset}>Сброс</button>
+      </div>
+
       <Board
         mode="placement"
         skin={skin}
@@ -349,31 +357,6 @@ export default function PlacementScreen() {
         onCellEnter={(x, y) => setHover({ x, y })}
         highlight={hover}
       />
-
-      <div className="flex gap-2">
-        <button type="button" className="btn-secondary flex-1 text-xs py-2" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
-          <Icon name="rotate" size={16} /> {orientation === 'H' ? 'Поперёк' : 'Вдоль'}
-        </button>
-        <button type="button" className="btn-secondary flex-1 text-xs py-2" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
-        <button type="button" className="btn-ghost flex-1 text-xs py-2" onClick={reset}>Сброс</button>
-      </div>
-
-      <details className="placement-rules-panel">
-        <summary className="placement-rules-title cursor-pointer select-none">Правила</summary>
-        <ul className="placement-rules-list">
-          <li>Корабли ставятся только горизонтально или вертикально</li>
-          <li>Между кораблями — минимум 1 клетка (не касаться)</li>
-          <li>Двойной тап по клетке — повернуть корабль</li>
-          <li>Тап по своему кораблю — поднять и переставить</li>
-        </ul>
-      </details>
-
-      <div className="placement-hint-box">
-        <Icon name="compass" size={14} className="shrink-0 mt-0.5 opacity-70" />
-        <span>
-          Квадратики = клетки поля. Выбери корабль → тап на поле.
-        </span>
-      </div>
 
       {sent ? (
         <div className="card p-4 text-center text-main title text-sm flex items-center justify-center gap-2">
