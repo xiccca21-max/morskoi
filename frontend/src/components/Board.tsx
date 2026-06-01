@@ -240,22 +240,29 @@ export function Board({
 
 function Marker({ hit }: { hit: boolean }) {
   if (!hit) {
-    // Промах: мягко «вливающаяся» точка + расходящееся кольцо по воде.
+    // Промах: клетка плавно закрашивается целиком + короткий всплеск-кольцо.
     return (
       <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
         <motion.span
-          initial={{ scale: 0.2, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.6 }}
-          transition={{ duration: 0.32, ease: 'easeOut' }}
-          className="rounded-full bg-muted"
-          style={{ width: '26%', height: '26%' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="absolute inset-0"
+          style={{ background: 'color-mix(in srgb, var(--c-muted) 34%, transparent)' }}
         />
         <motion.span
-          initial={{ scale: 0.3, opacity: 0.55 }}
-          animate={{ scale: 1.6, opacity: 0 }}
+          initial={{ scale: 0.25, opacity: 0.55 }}
+          animate={{ scale: 1.7, opacity: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="absolute rounded-full border border-muted"
-          style={{ width: '42%', height: '42%' }}
+          style={{ width: '46%', height: '46%' }}
+        />
+        <motion.span
+          initial={{ scale: 0.2, opacity: 0 }}
+          animate={{ scale: 1, opacity: 0.7 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="rounded-full bg-muted"
+          style={{ width: '20%', height: '20%' }}
         />
       </span>
     );
