@@ -66,7 +66,22 @@ export default function App() {
   const [matchFound, setMatchFound] = useState<{ open: boolean; wager?: number; matchId?: string }>({
     open: false,
   });
-  const matchFoundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Авто-закрытие оверлея «Соперник найден» + переход к расстановке.
+  // Таймер привязан к самому состоянию оверлея, поэтому гарантированно
+  // отрабатывает и не зависит от пересоздания сокет-эффекта.
+  useEffect(() => {
+    if (!matchFound.open || !matchFound.matchId) return;
+    const id = matchFound.matchId;
+    const t = setTimeout(() => {
+      setMatchFound({ open: false });
+      const path = window.location.pathname;
+      if (!path.includes('/placement/') && !path.includes('/battle/')) {
+        navigate(`/placement/${id}`);
+      }
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [matchFound.open, matchFound.matchId, navigate]);
 
   // Публичные игровые константы с сервера
   useEffect(() => {
@@ -260,15 +275,14 @@ export default function App() {
     const onMatchFound = (e: any) => { // eslint-disable-line
       if (!e?.matchId) return;
       playSound('win');
-      if (matchFoundTimer.current) clearTimeout(matchFoundTimer.current);
-      setMatchFound({ open: true, wager: e.wagerAmount, matchId: e.matchId });
-      matchFoundTimer.current = setTimeout(() => {
-        setMatchFound({ open: false });
-        const path = window.location.pathname;
-        if (!path.includes('/placement/') && !path.includes('/battle/')) {
-          navigate(`/placement/${e.matchId}`);
-        }
-      }, 1800);
+      // Только показываем оверлей. Авто-закрытие и переход к расстановке
+      // живут в отдельном эффекте (ниже), чтобы их таймер не сбрасывался
+      // при пересоздании сокет-эффекта — иначе оверлей «зависает».
+      setMatchFound((prev) =>
+        prev.open && prev.matchId === e.matchId
+          ? prev
+          : { open: true, wager: e.wagerAmount, matchId: e.matchId },
+      );
     };
     sock.on('match:found', onMatchFound);
 
@@ -285,7 +299,6 @@ export default function App() {
       sock.off('wallet:update', onWalletUpdate);
       sock.off('match:found', onMatchFound);
       if (toastTimer) clearTimeout(toastTimer);
-      if (matchFoundTimer.current) clearTimeout(matchFoundTimer.current);
       closeSocket();
     };
   }, [authenticated, setMatchState, setLastAttack, updateBalance, updateWallet, clearMatch, navigate]);
