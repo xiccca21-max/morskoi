@@ -3,6 +3,8 @@ import { ModuleRef } from '@nestjs/core';
 import TelegramBot from 'node-telegram-bot-api';
 import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminAlertService } from '../common/admin-alert.service';
+import { PresenceService } from '../common/presence.service';
 import type { LobbyService } from '../matchmaking/lobby.service';
 
 /**
@@ -27,6 +29,8 @@ export class TelegramBotService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly moduleRef: ModuleRef,
+    private readonly adminAlerts: AdminAlertService,
+    private readonly presence: PresenceService,
   ) {}
 
   /** Лениво — без circular import файлов bot ↔ lobby. */
@@ -500,6 +504,40 @@ export class TelegramBotService implements OnModuleInit {
       await this.sendPlayWithFriendGuide(msg.chat.id);
     });
 
+    bot.onText(/^\/admin\b/, async (msg) => {
+      const tgId = String(msg.from?.id ?? msg.chat.id);
+      if (!this.adminAlerts.isAdminTelegramId(tgId)) {
+        await bot.sendMessage(msg.chat.id, '⛔ Команда только для администратора.');
+        return;
+      }
+      const onlineIds = await this.presence.listOnlineUserIds();
+      let onlineHumans = onlineIds.length;
+      if (onlineIds.length > 0) {
+        const users = await this.prisma.user.findMany({
+          where: { id: { in: onlineIds } },
+          select: { id: true, telegramId: true },
+        });
+        onlineHumans = users.filter((u) => !u.telegramId.startsWith('bot:')).length;
+      }
+      const alertsOn = process.env.ADMIN_ALERT_ENABLED !== 'false';
+      const panelUrl = process.env.TELEGRAM_WEBAPP_URL
+        ? `${process.env.TELEGRAM_WEBAPP_URL.replace(/\/+$/, '')}/admin.html`
+        : null;
+      await bot.sendMessage(
+        msg.chat.id,
+        `🛡 <b>Админ-панель бота</b>\n\n` +
+          `🔔 Уведомления: <b>${alertsOn ? 'включены' : 'выключены'}</b>\n` +
+          `👥 Онлайн сейчас: <b>${onlineHumans}</b>\n\n` +
+          `В личку приходят:\n` +
+          `• входы и регистрации (@username)\n` +
+          `• поиск боя и лобби\n` +
+          `• начало/конец боёв\n` +
+          `• пополнения и выводы\n\n` +
+          (panelUrl ? `🌐 <a href="${panelUrl}">Веб-админка</a>` : ''),
+        { parse_mode: 'HTML', disable_web_page_preview: true, ...kb() },
+      );
+    });
+
     bot.onText(/^\/help\b/, async (msg) => {
       const text =
         'ℹ️ <b>Помощь</b>\n\n' +
@@ -516,7 +554,7 @@ export class TelegramBotService implements OnModuleInit {
       await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', ...kb() });
     });
 
-    const KNOWN = /^\/(start|duel|friends|play|balance|stats|top|rules|support|help|invite)\b/;
+    const KNOWN = /^\/(start|duel|friends|play|balance|stats|top|rules|support|help|invite|admin)\b/;
     const unknown = async (chatId: number) => {
       await bot.sendMessage(
         chatId,

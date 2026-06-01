@@ -115,9 +115,6 @@ export class AuthService {
       username: user.username,
       isNew,
     });
-    if (isNew) {
-      this.notifyAdminNewUser(fresh ?? user).catch(() => undefined);
-    }
 
     return {
       token,
@@ -201,15 +198,5 @@ export class AuthService {
       throw new ForbiddenException('Self-exclusion active');
     }
     return payload;
-  }
-
-  private async notifyAdminNewUser(user: { id: string; username?: string | null; firstName?: string | null; telegramId: string }) {
-    const adminTg = process.env.ADMIN_TELEGRAM_ID;
-    if (!adminTg) return;
-    const name = user.username ? `@${user.username}` : user.firstName ?? user.telegramId;
-    await this.bot.notify(
-      adminTg,
-      `🆕 <b>Новый игрок</b>\n${name}\nTG: <code>${user.telegramId}</code>\nID: <code>${user.id}</code>`,
-    );
   }
 }

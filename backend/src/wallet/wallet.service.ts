@@ -167,7 +167,6 @@ export class WalletService {
     });
 
     setImmediate(() => {
-      this.notifyAdminNewWithdrawal(userId, result).catch(() => undefined);
       this.audit.log(userId, 'WITHDRAW_REQUEST', { ...result });
     });
 
@@ -180,27 +179,6 @@ export class WalletService {
       label: USDT_NETWORKS[id].label,
       hint: USDT_NETWORKS[id].hint,
     }));
-  }
-
-  private async notifyAdminNewWithdrawal(
-    userId: string,
-    wr: { id: string; net: number; method: string; network?: string; address?: string; destination?: string },
-  ) {
-    const adminTg = process.env.ADMIN_TELEGRAM_ID;
-    if (!adminTg) return;
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    const name = user?.username ?? user?.firstName ?? userId.slice(0, 8);
-    const network = wr.network ?? wr.method.replace('USDT_', '');
-    const addr = wr.address ?? wr.destination ?? '—';
-    await this.botService.notify(
-      adminTg,
-      `💸 <b>Новая заявка на вывод</b>\n` +
-        `Игрок: ${name}\n` +
-        `Сумма: <b>${wr.net.toFixed(0)} ₽</b> → USDT\n` +
-        `Сеть: <b>${network}</b>\n` +
-        `Кошелёк: <code>${addr}</code>\n` +
-        `ID: <code>${wr.id}</code>`,
-    );
   }
 
   /** Список заявок на вывод пользователя. */
@@ -273,21 +251,9 @@ export class WalletService {
     }).then((r) => {
       if (r.credited) {
         this.audit.log(userId, 'DEPOSIT', { amount: r.amountRub, invoiceId, source: 'cryptobot' });
-        this.notifyAdminDeposit(userId, r.amountRub).catch(() => undefined);
       }
       return r;
     });
-  }
-
-  private async notifyAdminDeposit(userId: string, amount: number) {
-    const adminTg = process.env.ADMIN_TELEGRAM_ID;
-    if (!adminTg) return;
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    const name = user?.username ? `@${user.username}` : user?.firstName ?? userId.slice(0, 8);
-    await this.botService.notify(
-      adminTg,
-      `💰 <b>Пополнение</b>\nИгрок: ${name}\nСумма: <b>${amount.toFixed(0)} ₽</b>\nID: <code>${userId}</code>`,
-    );
   }
 
   /** Получить заявку на вывод по id. */

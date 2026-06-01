@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { AdminAlertService } from '../common/admin-alert.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { promises as fs } from 'fs';
@@ -20,6 +21,7 @@ export class BackupService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bot: TelegramBotService,
+    private readonly adminAlerts: AdminAlertService,
   ) {
     const url = process.env.DATABASE_URL || '';
     this.dbPath = url.startsWith('file:') ? url.slice('file:'.length) : null;
@@ -47,7 +49,7 @@ export class BackupService implements OnModuleInit {
       const sizeMb = (stat.size / 1024 / 1024).toFixed(2);
       this.logger.log(`backup created: ${dest} (${sizeMb} MB)`);
       await this.prune(dir);
-      await this.notifyAdmin(
+      await this.adminAlerts.send(
         `✅ <b>Бэкап БД создан</b>\n` +
           `Файл: <code>${dest.split(/[/\\]/).pop()}</code>\n` +
           `Размер: ${sizeMb} MB\n` +
@@ -63,13 +65,8 @@ export class BackupService implements OnModuleInit {
     } catch (e: any) {
       const msg = e?.message || String(e);
       this.logger.warn(`backup failed: ${msg}`);
-      await this.notifyAdmin(`❌ <b>Бэкап БД не удался</b>\n${msg}`);
+      await this.adminAlerts.send(`❌ <b>Бэкап БД не удался</b>\n${msg}`);
     }
-  }
-
-  private async notifyAdmin(text: string) {
-    if (!this.adminTgId) return;
-    await this.bot.notify(this.adminTgId, text).catch(() => undefined);
   }
 
   private async prune(dir: string) {
