@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../components/Board';
 import { Ship } from '../components/Ship';
-import { Explosion, Splash } from '../components/Effects';
 import { getSocket, newNonce } from '../api/socket';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
@@ -34,8 +33,6 @@ export default function BattleScreen() {
 
   const [now, setNow] = useState(Date.now());
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
-  const [explosionKey, setExplosionKey] = useState(0);
-  const [splashKey, setSplashKey] = useState(0);
   const [shake, setShake] = useState(false);
   const [view, setView] = useState<'enemy' | 'own'>('enemy');
   const [reactions, setReactions] = useState<Array<{ id: number; icon: IconName; isMine: boolean }>>([]);
@@ -85,14 +82,12 @@ export default function BattleScreen() {
   useEffect(() => {
     if (!lastAttack) return;
     if (lastAttack.hit) {
-      setExplosionKey((k) => k + 1);
       setShake(true);
       setTimeout(() => setShake(false), 400);
       // Вибрация как при уведомлении: двойной импульс на попадание, длиннее — на потопление
       tgNotify(lastAttack.sunk ? 'error' : 'success');
       playSound('boom');
     } else {
-      setSplashKey((k) => k + 1);
       tgHaptic('light');
       tgVibrate(35);
       playSound('splash');
@@ -327,10 +322,6 @@ export default function BattleScreen() {
               myTurn={myTurn}
               highlight={hover && myTurn ? hover : null}
             />
-            <AnimatePresence>
-              {lastAttack?.by === me?.id && lastAttack?.hit && <Explosion keyId={explosionKey} />}
-              {lastAttack?.by === me?.id && lastAttack?.hit === false && <Splash keyId={splashKey} />}
-            </AnimatePresence>
           </>
         ) : (
           <Board mode="own" ships={ownShips as any} attacks={ownAttacks} disabled />
