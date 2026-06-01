@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
@@ -8,6 +8,7 @@ import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Onboarding } from '../components/Onboarding';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { toast } from '../stores/toast-store';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
@@ -42,6 +43,24 @@ export default function HomeScreen() {
   })();
 
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
+  const [trainingBusy, setTrainingBusy] = useState(false);
+
+  const startTraining = async () => {
+    if (activeMatch) {
+      navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`);
+      return;
+    }
+    setTrainingBusy(true);
+    try {
+      tgHaptic('medium');
+      const { matchId } = await GameAPI.startTraining();
+      navigate(`/placement/${matchId}`);
+    } catch (e: any) {
+      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось начать тренировку', 'error');
+    } finally {
+      setTrainingBusy(false);
+    }
+  };
 
   return (
     <div className="max-w-md mx-auto space-y-4">
@@ -106,6 +125,20 @@ export default function HomeScreen() {
         >
           <Icon name="arrow-right" size={20} />
         </motion.span>
+      </button>
+
+      <button
+        onClick={startTraining}
+        disabled={trainingBusy}
+        className="w-full card card-press p-5 text-left flex items-center justify-between hover:border-line transition disabled:opacity-60"
+      >
+        <div>
+          <span className="title text-xl text-main">Тренировка</span>
+          <p className="text-muted text-sm mt-1">Бесплатный бой с ботом — без ставки и риска</p>
+        </div>
+        <span className="w-11 h-11 rounded-full bg-panel border border-line flex items-center justify-center text-main shrink-0">
+          <Icon name={trainingBusy ? 'anchor' : 'target'} size={20} />
+        </span>
       </button>
 
       <div className="grid grid-cols-2 gap-3">

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -174,6 +174,36 @@ export class BotsService implements OnModuleInit {
       }
     }
     return true;
+  }
+
+  /** Мгновенный бесплатный бой против бота для тренировки. */
+  async startTraining(userId: string): Promise<{ matchId: string }> {
+    if (!this.enabled) {
+      throw new ServiceUnavailableException('Тренировка временно недоступна');
+    }
+    const active = await this.game.findActiveMatchForUser(userId);
+    if (active) throw new BadRequestException('У вас уже есть активный бой');
+
+    try {
+      await assertCanPlay(this.prisma, userId);
+    } catch (e: any) {
+      throw new BadRequestException(e?.message ?? 'Нельзя играть');
+    }
+
+    const bot = await this.pickBot(0);
+    if (!bot) throw new ServiceUnavailableException('Нет доступных соперников для тренировки');
+
+    return this.redis.withLock(`training:${userId}`, 5000, async () => {
+      const stillActive = await this.game.findActiveMatchForUser(userId);
+      if (stillActive) throw new BadRequestException('У вас уже есть активный бой');
+
+      const match = await this.game.createTrainingMatch(userId, bot.id);
+      this.matchSkill.set(match.id, 'weak');
+      await this.prepareBotMatch(match.id);
+      await this.matchEvents.notifyMatchFound(match.id);
+      this.logger.log(`Training match ${match.id}: ${userId} vs bot ${bot.id}`);
+      return { matchId: match.id };
+    });
   }
 
   /**

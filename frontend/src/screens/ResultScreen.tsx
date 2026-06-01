@@ -61,7 +61,7 @@ export default function ResultScreen() {
   const resultApplied = useRef(false);
   const achievementsShown = useRef(false);
   useEffect(() => {
-    if (!matchState?.winnerId || !me?.id || matchState.matchId !== matchId) return;
+    if (!matchState?.winnerId || !me?.id || matchState.matchId !== matchId || matchState.isTraining) return;
     const storageKey = `naval_result_${matchId}`;
     if (sessionStorage.getItem(storageKey)) return;
     sessionStorage.setItem(storageKey, '1');
@@ -90,10 +90,21 @@ export default function ResultScreen() {
 
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;
+  const isTraining = !!matchState?.isTraining;
   const useNative = isTelegram();
-  const rankedUp = !!(won && me && getRank(me.wins).title !== getRank(Math.max(0, me.wins - 1)).title);
+  const rankedUp = !isTraining && !!(won && me && getRank(me.wins).title !== getRank(Math.max(0, me.wins - 1)).title);
   const newRank = me ? getRank(me.wins) : null;
-  const canAffordRematch = (me?.balance ?? 0) >= (matchState?.wagerAmount ?? 0);
+  const canAffordRematch = !isTraining && (me?.balance ?? 0) >= (matchState?.wagerAmount ?? 0);
+
+  const startTraining = async () => {
+    try {
+      tgHaptic('medium');
+      const { matchId: nextId } = await GameAPI.startTraining();
+      navigate(`/placement/${nextId}`);
+    } catch (e: any) {
+      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось начать тренировку', 'error');
+    }
+  };
 
   const rematch = () => {
     if (!matchId) return;
@@ -126,14 +137,14 @@ export default function ResultScreen() {
   };
 
   useEffect(() => {
-    if (!useNative) return;
+    if (!useNative || isTraining) return;
     return tgMainButton({
       text: waitingRematch ? 'Ждём соперника' : rematchOffer ? 'Принять реванш' : 'Реванш',
       onClick: rematch,
       progress: waitingRematch,
       active: !waitingRematch && canAffordRematch,
     });
-  }, [useNative, waitingRematch, rematchOffer, canAffordRematch]); // eslint-disable-line
+  }, [useNative, isTraining, waitingRematch, rematchOffer, canAffordRematch]); // eslint-disable-line
 
   const pool = matchState?.prizePool ?? 0;
   const rake = matchState?.rakeAmount ?? 0;
@@ -155,7 +166,7 @@ export default function ResultScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-5 pt-6">
-      {rematchOffer && !waitingRematch && (
+      {rematchOffer && !waitingRematch && !isTraining && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="card p-3 border-danger flex items-center gap-3">
           <Icon name="swords" size={18} className="text-danger shrink-0" />
           <p className="flex-1 text-sm text-main">Соперник предлагает реванш</p>
@@ -190,7 +201,11 @@ export default function ResultScreen() {
           {draw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}
         </p>
 
-        {!draw && (
+        {isTraining && (
+          <p className="text-muted text-sm mt-2">Тренировка · статистика и баланс не меняются</p>
+        )}
+
+        {!draw && !isTraining && (
           <p className={['font-display text-4xl mt-1 tabular-nums', won ? 'text-success' : 'text-danger'].join(' ')}>
             {won ? `+${formatMoney(payout)}` : `−${formatMoney(matchState?.wagerAmount ?? 0)}`}
           </p>
@@ -222,16 +237,20 @@ export default function ResultScreen() {
 
         <div className="rope my-5" />
 
-        <div className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
-          <Stat label="Банк" value={formatMoney(pool)} />
-          <Stat label="Комиссия" value={formatMoney(rake)} />
-          <Stat label="Добыча" value={won ? formatMoney(payout) : '—'} />
-        </div>
+        {!isTraining && (
+          <>
+            <div className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
+              <Stat label="Банк" value={formatMoney(pool)} />
+              <Stat label="Комиссия" value={formatMoney(rake)} />
+              <Stat label="Добыча" value={won ? formatMoney(payout) : '—'} />
+            </div>
 
-        <div className="rope my-4" />
-        <p className="text-muted text-xs">
-          Баланс: <span className="font-display text-main tabular-nums">{formatMoney(me?.balance ?? 0)}</span>
-        </p>
+            <div className="rope my-4" />
+            <p className="text-muted text-xs">
+              Баланс: <span className="font-display text-main tabular-nums">{formatMoney(me?.balance ?? 0)}</span>
+            </p>
+          </>
+        )}
 
         {matchId && (
           <p className="text-[10px] text-muted font-mono tracking-wide mt-3">
@@ -241,17 +260,28 @@ export default function ResultScreen() {
       </motion.section>
 
       <div className="space-y-2">
-        {!useNative && (
-          <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch || !canAffordRematch}>
-            {waitingRematch ? 'Ждём соперника…' : rematchOffer ? 'Принять реванш' : 'Реванш'}
-          </button>
-        )}
-        {!canAffordRematch && (
-          <p className="text-center text-xs text-warning">Нужно {formatMoney(matchState.wagerAmount)} ₽ для реванша</p>
-        )}
-        <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking?quick=1'); }}>Новый бой</button>
-        {won && (
-          <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Поделиться победой</button>
+        {isTraining ? (
+          <>
+            <button className="btn-primary w-full" onClick={startTraining}>Ещё тренировка</button>
+            <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking?quick=1'); }}>
+              Играть на ставку
+            </button>
+          </>
+        ) : (
+          <>
+            {!useNative && (
+              <button className="btn-primary w-full" onClick={rematch} disabled={waitingRematch || !canAffordRematch}>
+                {waitingRematch ? 'Ждём соперника…' : rematchOffer ? 'Принять реванш' : 'Реванш'}
+              </button>
+            )}
+            {!canAffordRematch && (
+              <p className="text-center text-xs text-warning">Нужно {formatMoney(matchState.wagerAmount)} ₽ для реванша</p>
+            )}
+            <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking?quick=1'); }}>Новый бой</button>
+            {won && (
+              <button className="btn-ghost w-full" onClick={shareResult}><Icon name="share" size={16} /> Поделиться победой</button>
+            )}
+          </>
         )}
         <button className="btn-ghost w-full" onClick={() => { clearMatch(); navigate('/home'); }}>На палубу</button>
       </div>

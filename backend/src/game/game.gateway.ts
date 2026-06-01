@@ -584,6 +584,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
     if (!match || match.status !== 'FINISHED') return { ok: false, error: 'Match not finished' };
+    if (match.isTraining) return { ok: false, error: 'Реванш недоступен в тренировке' };
     if (match.player1Id !== s.data.userId && match.player2Id !== s.data.userId) {
       return { ok: false, error: 'Not your match' };
     }

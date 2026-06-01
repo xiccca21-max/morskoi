@@ -38,6 +38,7 @@ export interface MatchState {
   wagerAmount: number;
   prizePool: number;
   rakeAmount: number;
+  isTraining?: boolean;
   winnerId: string | null;
   currentTurn: string | null;
   turnDeadline: string | null;

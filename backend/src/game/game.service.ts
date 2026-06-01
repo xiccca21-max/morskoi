@@ -48,13 +48,24 @@ export class GameService {
 
   async createMatch(p1Id: string, p2Id: string, wagerAmount: number) {
     if (p1Id === p2Id) throw new BadRequestException('Same user');
+    return this.createMatchInternal(p1Id, p2Id, wagerAmount, false);
+  }
+
+  /** Бесплатная тренировка против бота — без ставки и без влияния на статистику. */
+  async createTrainingMatch(p1Id: string, p2Id: string) {
+    if (p1Id === p2Id) throw new BadRequestException('Same user');
+    return this.createMatchInternal(p1Id, p2Id, 0, true);
+  }
+
+  private async createMatchInternal(p1Id: string, p2Id: string, wagerAmount: number, isTraining: boolean) {
     return this.prisma.$transaction(async (tx) => {
       const match = await tx.match.create({
         data: {
           player1Id: p1Id,
           player2Id: p2Id,
           wagerAmount,
-          prizePool: wagerAmount * 2,
+          prizePool: isTraining ? 0 : wagerAmount * 2,
+          isTraining,
           status: MatchStatus.PLACEMENT,
           startedAt: new Date(),
         },
@@ -163,18 +174,20 @@ export class GameService {
           where: { id: matchId },
           data: { status: MatchStatus.IN_PROGRESS },
         });
-        // Списываем ставку у обоих, только когда бой действительно начался.
-        try {
-          await this.wallet.lockWagerForMatch(
-            matchId,
-            match.player1Id,
-            match.player2Id!,
-            Number(match.wagerAmount),
-          );
-        } catch (e) {
-          // если кто-то «успел потратить» — отменяем матч
-          await this.cancelMatch(matchId, 'insufficient funds');
-          throw e;
+        if (!match.isTraining) {
+          // Списываем ставку у обоих, только когда бой действительно начался.
+          try {
+            await this.wallet.lockWagerForMatch(
+              matchId,
+              match.player1Id,
+              match.player2Id!,
+              Number(match.wagerAmount),
+            );
+          } catch (e) {
+            // если кто-то «успел потратить» — отменяем матч
+            await this.cancelMatch(matchId, 'insufficient funds');
+            throw e;
+          }
         }
       }
 
@@ -235,15 +248,19 @@ export class GameService {
       if (result.gameOver) {
         newStatus = GameStatus.FINISHED;
         winnerId = userId;
-        const rake = Number(process.env.PLATFORM_RAKE_PERCENT ?? 5);
-        await this.wallet.settleMatch(
-          match.id,
-          match.player1Id,
-          match.player2Id!,
-          Number(match.wagerAmount),
-          winnerId,
-          rake,
-        );
+        if (match.isTraining) {
+          await this.finishTrainingMatch(match.id, winnerId);
+        } else {
+          const rake = Number(process.env.PLATFORM_RAKE_PERCENT ?? 5);
+          await this.wallet.settleMatch(
+            match.id,
+            match.player1Id,
+            match.player2Id!,
+            Number(match.wagerAmount),
+            winnerId,
+            rake,
+          );
+        }
       }
 
       await this.prisma.gameState.update({
@@ -298,6 +315,11 @@ export class GameService {
         return { winnerId: null, cancelled: true };
       }
 
+      if (match.isTraining) {
+        await this.finishTrainingMatch(match.id, winnerId);
+        return { winnerId };
+      }
+
       const rake = Number(process.env.PLATFORM_RAKE_PERCENT ?? 5);
       await this.wallet.settleMatch(
         match.id,
@@ -336,6 +358,13 @@ export class GameService {
         },
       });
       return { nextTurn: next, timedOut: cur };
+    });
+  }
+
+  private async finishTrainingMatch(matchId: string, winnerId: string | null) {
+    await this.prisma.match.update({
+      where: { id: matchId },
+      data: { status: MatchStatus.FINISHED, winnerId, endedAt: new Date() },
     });
   }
 
@@ -387,6 +416,7 @@ export class GameService {
       wagerAmount: Number(match.wagerAmount),
       prizePool: Number(match.prizePool),
       rakeAmount: Number(match.rakeAmount),
+      isTraining: match.isTraining,
       winnerId: match.winnerId,
       currentTurn: match.gameState.currentTurn,
       turnDeadline: match.gameState.turnDeadline,

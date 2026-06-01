@@ -114,6 +114,7 @@ export const CosmeticsAPI = {
 export const GameAPI = {
   active: () => api.get('/game/active').then(r => r.data),
   state:  (matchId: string) => api.get(`/game/state/${matchId}`).then(r => r.data),
+  startTraining: () => api.post<{ matchId: string }>('/game/training/start', {}).then(r => r.data),
 };
 
 export const HistoryAPI = {

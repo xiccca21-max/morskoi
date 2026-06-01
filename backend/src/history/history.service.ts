@@ -9,6 +9,7 @@ export class HistoryService {
     const matches = (await this.prisma.match.findMany({
       where: {
         status: { in: ['FINISHED', 'CANCELLED'] },
+        isTraining: false,
         OR: [{ player1Id: userId }, { player2Id: userId }],
       },
       orderBy: { endedAt: 'desc' },
@@ -48,6 +49,7 @@ export class HistoryService {
     const matches = await this.prisma.match.findMany({
       where: {
         status: 'FINISHED',
+        isTraining: false,
         endedAt: { gte: since },
         OR: [{ player1Id: userId }, { player2Id: userId }],
       },

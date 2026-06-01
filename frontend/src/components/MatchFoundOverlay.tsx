@@ -32,8 +32,11 @@ export function MatchFoundOverlay({ open, wager }: Props) {
               <Icon name="swords" size={44} className="text-danger" />
             </motion.div>
             <p className="font-display text-2xl text-main tracking-wide">Соперник найден!</p>
-            {wager != null && (
+            {wager != null && wager > 0 && (
               <p className="text-muted text-sm mt-2">Ставка {formatMoney(wager)}</p>
+            )}
+            {wager === 0 && (
+              <p className="text-muted text-sm mt-2">Тренировка · без ставки</p>
             )}
             <p className="text-muted text-xs mt-4 animate-pulse">Расставляем флот…</p>
           </motion.div>

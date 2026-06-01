@@ -117,6 +117,7 @@ model Match {
   wagerAmount   Float
   rakeAmount    Float     @default(0)
   prizePool     Float
+  isTraining    Boolean   @default(false)
 
   status        String    @default("PENDING")
 
