@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
-import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI } from './api/endpoints';
+import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI } from './api/endpoints';
 import { useGameConfigStore } from './stores/game-config-store';
 import { MatchFoundOverlay } from './components/MatchFoundOverlay';
 import { useCurrencyStore } from './stores/currency-store';
@@ -62,6 +62,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
+  const resumeHandled = useRef(false);
   const applyGameConfig = useGameConfigStore((s) => s.apply);
   const [matchFound, setMatchFound] = useState<{ open: boolean; wager?: number; matchId?: string }>({
     open: false,
@@ -321,6 +322,26 @@ export default function App() {
       if (id) navigate(`/player/${id}`);
     }
   }, [ready, authenticated, navigate]);
+
+  // Авто-возврат в активный бой после перезапуска мини-аппа.
+  // Идёт ход (IN_PROGRESS) — каждый пропущенный ход грозит AFK-поражением и
+  // потерей ставки, поэтому сразу возвращаем игрока в бой. Для PLACEMENT
+  // оставляем мягкую кнопку «Вернуться в бой» на главной (там штрафа нет).
+  useEffect(() => {
+    if (!ready || !authenticated || resumeHandled.current) return;
+    resumeHandled.current = true;
+    GameAPI.active()
+      .then((m) => {
+        if (!m?.matchId) return;
+        setMatchState(m);
+        const path = window.location.pathname;
+        const inGame = path.includes('/placement/') || path.includes('/battle/') || path.includes('/result/');
+        if (m.gameStatus === 'IN_PROGRESS' && !inGame) {
+          navigate(`/battle/${m.matchId}`);
+        }
+      })
+      .catch(() => {});
+  }, [ready, authenticated, navigate, setMatchState]);
 
   if (ready && !authenticated) {
     return (
