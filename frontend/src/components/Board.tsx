@@ -2,9 +2,11 @@ import { useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { AttackCell, BOARD_SIZE, ShipPlacement } from '../lib/game-types';
 import { Ship } from './Ship';
+import { VintageShip } from './VintageShip';
 import { Smoke } from './Effects';
 
 type Mode = 'own' | 'enemy' | 'placement';
+type BoardAesthetic = 'default' | 'vintage';
 
 interface BoardProps {
   mode: Mode;
@@ -20,6 +22,8 @@ interface BoardProps {
   highlight?: { x: number; y: number } | null;
   /** Скин кораблей (косметика) для своих/расставляемых судов. */
   skin?: string;
+  /** Винтажный стиль тактической карты (экран расстановки). */
+  aesthetic?: BoardAesthetic;
 }
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
@@ -37,7 +41,9 @@ export function Board({
   myTurn = true,
   highlight = null,
   skin = 'classic',
+  aesthetic = 'default',
 }: BoardProps) {
+  const vintage = aesthetic === 'vintage';
   const attackMap = useMemo(() => {
     const m = new Map<string, AttackCell>();
     for (const a of attacks) m.set(`${a.x}:${a.y}`, a);
@@ -87,11 +93,10 @@ export function Board({
   }, [mode, disabled, onCellEnter, cellFromClient]);
 
   return (
-    <div className="relative w-full max-w-[480px] mx-auto select-none">
-      {/* Графитовая рама */}
+    <div className={['relative w-full max-w-[480px] mx-auto select-none', vintage ? 'board-vintage' : ''].filter(Boolean).join(' ')}>
       <div
-        className="rounded-xl p-2"
-        style={{
+        className={vintage ? 'board-vintage__frame' : 'rounded-xl p-2'}
+        style={vintage ? undefined : {
           background: 'var(--c-panel)',
           boxShadow: 'inset 0 0 0 var(--border-w) var(--c-line), var(--shadow-card)',
         }}
@@ -105,7 +110,7 @@ export function Board({
           {/* буквы сверху */}
           <div className="flex">
             {LETTERS.map((l) => (
-              <div key={l} className="flex-1 flex items-center justify-center text-[9px] font-display text-muted">
+              <div key={l} className={['flex-1 flex items-center justify-center text-[9px] font-display', vintage ? 'board-vintage__label' : 'text-muted'].join(' ')}>
                 {l}
               </div>
             ))}
@@ -113,7 +118,7 @@ export function Board({
           {/* числа слева */}
           <div className="flex flex-col">
             {Array.from({ length: BOARD_SIZE }).map((_, i) => (
-              <div key={i} className="flex-1 flex items-center justify-center text-[9px] font-display text-muted">
+              <div key={i} className={['flex-1 flex items-center justify-center text-[9px] font-display', vintage ? 'board-vintage__label' : 'text-muted'].join(' ')}>
                 {i + 1}
               </div>
             ))}
@@ -125,14 +130,15 @@ export function Board({
             initial={{ opacity: 0, scale: 0.985 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="relative w-full aspect-square rounded-md overflow-hidden bg-panel"
+            className={['relative w-full aspect-square overflow-hidden', vintage ? 'board-vintage__grid' : 'rounded-md bg-panel'].join(' ')}
           >
-            {/* Подложка-море (живая вода) */}
-            <div className="absolute inset-0 cell-water sea-bg" />
-            {/* Блик на поверхности */}
-            <div className="absolute inset-0 pointer-events-none sea-sheen" />
-            {/* радар-развёртка для вражеского поля в мой ход */}
-            {mode === 'enemy' && myTurn && (
+            {!vintage && (
+              <>
+                <div className="absolute inset-0 cell-water sea-bg" />
+                <div className="absolute inset-0 pointer-events-none sea-sheen" />
+              </>
+            )}
+            {!vintage && mode === 'enemy' && myTurn && (
               <>
                 <div
                   className="absolute inset-0 pointer-events-none animate-compassSpin opacity-50"
@@ -148,7 +154,7 @@ export function Board({
               </>
             )}
             {/* сетка */}
-            <svg className="absolute inset-0 w-full h-full text-main opacity-[0.18]" aria-hidden>
+            <svg className={['absolute inset-0 w-full h-full', vintage ? 'board-vintage__grid-lines' : 'text-main opacity-[0.18]'].join(' ')} aria-hidden>
               {Array.from({ length: BOARD_SIZE + 1 }).map((_, i) => (
                 <g key={i}>
                   <line x1={`${i * cellPct}%`} y1="0" x2={`${i * cellPct}%`} y2="100%" stroke="currentColor" strokeWidth="1" />
@@ -176,7 +182,11 @@ export function Board({
                       zIndex: 5,
                     }}
                   >
-                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} skin={skin} />
+                    {vintage ? (
+                      <VintageShip kind={s.kind} size={s.size} orientation={s.orientation} />
+                    ) : (
+                      <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} skin={skin} />
+                    )}
                   </motion.div>
                 );
               })}
@@ -185,18 +195,29 @@ export function Board({
             {mode === 'placement' && ghostShip && (
               <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ opacity: ghostInvalid ? 0.45 : 0.72 }}
-                className="absolute pointer-events-none"
+                animate={{ opacity: ghostInvalid ? 0.55 : 0.88 }}
+                className={[
+                  'absolute pointer-events-none',
+                  vintage
+                    ? ghostInvalid
+                      ? 'vintage-ship-ghost-invalid'
+                      : 'vintage-ship-ghost-valid'
+                    : '',
+                ].join(' ')}
                 style={{
                   left: `${ghostShip.x * cellPct}%`,
                   top: `${ghostShip.y * cellPct}%`,
                   width: `${ghostShip.orientation === 'H' ? ghostShip.size * cellPct : cellPct}%`,
                   height: `${ghostShip.orientation === 'V' ? ghostShip.size * cellPct : cellPct}%`,
                   zIndex: 8,
-                  filter: ghostInvalid ? 'sepia(1) saturate(3) hue-rotate(-30deg)' : undefined,
+                  filter: !vintage && ghostInvalid ? 'sepia(1) saturate(3) hue-rotate(-30deg)' : undefined,
                 }}
               >
-                <Ship kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} skin={skin} />
+                {vintage ? (
+                  <VintageShip kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} />
+                ) : (
+                  <Ship kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} skin={skin} />
+                )}
               </motion.div>
             )}
 
@@ -231,8 +252,11 @@ export function Board({
                   (highlight!.x === x || highlight!.y === y);
 
                 let cls = 'relative w-full h-full transition-colors';
-                if (isGhost) cls += ghostInvalid ? ' cell-ghost-bad' : ' cell-ghost';
-                if (isClickable) cls += ' cell-aim';
+                if (isGhost) {
+                  if (ghostInvalid) cls += vintage ? ' cell-vintage-bad' : ' cell-ghost-bad';
+                  else cls += vintage ? ' cell-vintage-ghost' : ' cell-ghost';
+                }
+                if (isClickable) cls += vintage ? ' cell-vintage-aim' : ' cell-aim';
 
                 const onSunk = sunkCellSet.has(key);
                 return (
@@ -272,7 +296,11 @@ export function Board({
                     zIndex: 20,
                   }}
                 >
-                  <Ship kind={s.kind} size={s.size} orientation={s.orientation} sunk />
+                  {vintage ? (
+                    <VintageShip kind={s.kind} size={s.size} orientation={s.orientation} sunk />
+                  ) : (
+                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} sunk />
+                  )}
                   <Smoke seed={s.x + s.y} />
                 </motion.div>
               );

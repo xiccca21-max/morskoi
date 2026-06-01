@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Board } from '../components/Board';
-import { Ship } from '../components/Ship';
 import {
   autoPlaceLocal,
   shipCells,
@@ -14,10 +13,11 @@ import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVerticalSwipes, tgMainButton, tgBackButton, isTelegram } from '../lib/telegram';
 import { toast as showToast } from '../stores/toast-store';
 import { useMatchStore } from '../stores/match-store';
-import { useAuthStore } from '../stores/auth-store';
 import { Icon } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
+import { VintageShip } from '../components/VintageShip';
+import '../styles/placement-vintage.css';
 
 interface SlotShip {
   id: string;
@@ -54,7 +54,6 @@ export default function PlacementScreen() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const matchState = useMatchStore((s) => s.state);
-  const skin = useAuthStore((s) => s.user?.equippedSkin) ?? 'classic';
 
   const [fleet, setFleet] = useState<SlotShip[]>(initialFleet);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -231,6 +230,7 @@ export default function PlacementScreen() {
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
   const fuse = Math.max(0, Math.min(100, (remaining / totalSec) * 100));
   const lowTime = remaining <= 10;
+  const timerText = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
 
   // Автостановка: если время вышло и игрок не отправил флот —
   // ставим корабли автоматически и отправляем, чтобы не потерять матч.
@@ -267,73 +267,48 @@ export default function PlacementScreen() {
   }, [useNative, allPlaced, submitting, sent, placedShips.length, fleet.length]); // eslint-disable-line
 
   return (
-    <div className="max-w-md mx-auto space-y-3">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            onClick={() => setShowExit(true)}
-            className="btn-ghost text-xs py-1.5 px-2 shrink-0"
-            title="Выйти из боя"
-          >
-            <Icon name="logout" size={16} />
-          </button>
-          <h2 className="title text-main text-base truncate">Расставь флот</h2>
+    <div className="placement-vintage max-w-lg mx-auto space-y-3">
+      {/* Шапка */}
+      <header className="space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 min-w-0">
+            <button
+              onClick={() => setShowExit(true)}
+              className="placement-vintage__shield mt-0.5"
+              title="Выйти"
+              type="button"
+            >
+              <Icon name="anchor" size={16} />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="placement-vintage__stripe shrink-0" />
+                <h1 className="placement-vintage__header-title truncate">Расставь свой флот</h1>
+                <span className="placement-vintage__stripe shrink-0" />
+              </div>
+              <p className="text-[10px] uppercase tracking-wider mt-1 opacity-75 leading-snug">
+                Размещай корабли на поле. Готовься к бою!
+              </p>
+            </div>
+          </div>
+          <div className="placement-vintage__timer-box shrink-0">
+            <div className="placement-vintage__timer-label">Время на расстановку</div>
+            <div className={['placement-vintage__timer-digits text-right', lowTime ? 'text-[var(--pv-red)]' : ''].join(' ')}>
+              {timerText}
+            </div>
+            <div className="placement-vintage__timer-bar">
+              <div className="placement-vintage__timer-fill" style={{ width: `${fuse}%` }} />
+            </div>
+          </div>
         </div>
-        <span className={['text-xs font-display uppercase tracking-wider flex items-center gap-1.5 shrink-0', matchState?.opponentReady ? 'text-main' : 'text-muted'].join(' ')}>
-          {matchState?.opponentReady ? <Icon name="check" size={14} /> : null}
-          {matchState?.opponentReady ? 'соперник готов' : 'соперник готовится'}
-        </span>
+        <p className={['text-[10px] uppercase tracking-wide text-center', matchState?.opponentReady ? 'opacity-90' : 'opacity-55'].join(' ')}>
+          {matchState?.opponentReady ? '✓ Соперник готов' : 'Соперник расставляет флот…'}
+        </p>
       </header>
-
-      {/* Таймер расстановки */}
-      <div className="flex items-center gap-2">
-        <Icon name="clock" size={14} className={lowTime ? 'text-danger' : 'text-muted'} />
-        <div className="flex-1 h-1.5 rounded-full bg-panel overflow-hidden">
-          <div
-            className={['h-full transition-all duration-300 ease-linear', lowTime ? 'bg-danger animate-pulse' : 'bg-danger'].join(' ')}
-            style={{ width: `${fuse}%` }}
-          />
-        </div>
-        <span className={['text-sm font-display tabular-nums shrink-0 w-10 text-right', lowTime ? 'text-danger animate-pulse' : 'text-muted'].join(' ')}>
-          {remaining}с
-        </span>
-      </div>
-
-      {/* Верфь — над полем, чтобы не скроллить туда-сюда */}
-      <div className="card p-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="eyebrow">Верфь · выбери корабль</p>
-          <span className="text-xs font-display tabular-nums text-muted">{placedShips.length}/{fleet.length}</span>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {fleet.map((s) => {
-            const isSel = selected?.id === s.id && !s.placed;
-            return (
-              <button
-                key={s.id}
-                onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
-                className={[
-                  'shrink-0 min-w-[132px] p-2.5 rounded-lg text-left border transition flex flex-col gap-1.5',
-                  s.placed ? 'border-line bg-base opacity-45' : 'border-line bg-panel',
-                  isSel ? 'ring-2 ring-danger border-danger' : '',
-                ].join(' ')}
-              >
-                <div className="h-6 w-full">
-                  <Ship kind={s.kind} size={s.size} orientation="H" sunk={false} icon />
-                </div>
-                <div>
-                  <div className="text-xs text-main font-display">{KIND_LABEL[s.kind]}</div>
-                  <div className="eyebrow">{s.placed ? 'убрать' : `${s.size} кл.`}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       <Board
         mode="placement"
-        skin={skin}
+        aesthetic="vintage"
         ships={placedShips}
         ghostCells={ghost.cells}
         ghostShip={ghost.ship}
@@ -343,27 +318,90 @@ export default function PlacementScreen() {
         highlight={hover}
       />
 
-      {/* Управление */}
-      <div className="flex gap-2">
-        <button className="btn-secondary flex-1" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
-          <Icon name="rotate" size={16} /> {orientation === 'H' ? 'Поперёк' : 'Вдоль'}
-        </button>
-        <button className="btn-secondary flex-1" onClick={autoPlace}><Icon name="dice" size={16} /> Авто</button>
-        <button className="btn-ghost flex-1" onClick={reset}>Сброс</button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Твой флот */}
+        <div className="placement-vintage__panel">
+          <div className="placement-vintage__panel-title">Твой флот</div>
+          <div>
+            {fleet.map((s) => {
+              const isSel = selected?.id === s.id && !s.placed;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => (s.placed ? removeShip(s.id) : setSelectedId(s.id))}
+                  className={[
+                    'placement-vintage__fleet-item w-full text-left',
+                    s.placed ? 'is-placed' : '',
+                    isSel ? 'is-selected' : '',
+                  ].join(' ')}
+                >
+                  <div className="placement-vintage__fleet-thumb">
+                    <VintageShip kind={s.kind} size={s.size} orientation="H" icon />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-display uppercase tracking-wide">{KIND_LABEL[s.kind]}</div>
+                    <div className="text-[10px] opacity-70">{s.size} клет · ×1</div>
+                  </div>
+                  <div className="text-[10px] font-display uppercase shrink-0">
+                    {s.placed ? 'убрать' : isSel ? '→' : ''}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {!allPlaced && (
+            <div className="placement-vintage__status-box mx-2 mb-2">
+              Все корабли должны быть размещены
+            </div>
+          )}
+        </div>
+
+        {/* Правила */}
+        <div className="placement-vintage__panel">
+          <div className="placement-vintage__panel-title">Правила</div>
+          <ul className="placement-vintage__rules p-2.5 list-none m-0">
+            <li>Корабли ставятся только горизонтально или вертикально</li>
+            <li>Между кораблями — минимум 1 клетка (не касаться)</li>
+            <li>Двойной тап по клетке — повернуть корабль</li>
+            <li>Тап по своему кораблю — поднять и переставить</li>
+          </ul>
+        </div>
       </div>
 
-      <p className="text-center text-muted text-[11px] leading-relaxed">
-        Выбери корабль → наведи на поле → тап — поставить.
-        <span className="block mt-0.5">Двойной тап по клетке — повернуть · тап по кораблю — передвинуть</span>
-      </p>
+      <div className="placement-vintage__hint flex gap-2 items-start">
+        <Icon name="compass" size={14} className="shrink-0 mt-0.5 opacity-70" />
+        <span>
+          <strong className="uppercase text-[10px] tracking-wide">Подсказка:</strong>{' '}
+          выбери корабль слева → наведи на поле → тап, чтобы поставить.
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <button type="button" className="placement-vintage__btn-outline" onClick={() => setOrientation((o) => (o === 'H' ? 'V' : 'H'))}>
+          <Icon name="rotate" size={14} /> {orientation === 'H' ? 'Вдоль' : 'Поперёк'}
+        </button>
+        <button type="button" className="placement-vintage__btn-outline col-span-1" onClick={autoPlace}>
+          <Icon name="dice" size={14} /> Авто
+        </button>
+        <button type="button" className="placement-vintage__btn-outline" onClick={reset}>
+          Сброс
+        </button>
+      </div>
 
       {sent ? (
-        <div className="card p-4 text-center text-main title text-sm flex items-center justify-center gap-2">
+        <div className="placement-vintage__panel p-4 text-center font-display uppercase tracking-wide text-sm flex items-center justify-center gap-2">
           <Icon name="check" size={16} /> Флот на позиции · ждём соперника
         </div>
       ) : !useNative ? (
-        <motion.button className="btn-primary w-full" onClick={submit} disabled={!allPlaced || submitting} whileTap={{ scale: 0.98 }}>
-          {submitting ? 'Отправка…' : allPlaced ? 'К бою' : `Расставьте ещё ${left} ${shipWord(left)}`}
+        <motion.button
+          type="button"
+          className="placement-vintage__btn-red"
+          onClick={submit}
+          disabled={!allPlaced || submitting}
+          whileTap={{ scale: 0.99 }}
+        >
+          {submitting ? 'Отправка…' : allPlaced ? 'К бою!' : `Ещё ${left} ${shipWord(left)}`}
         </motion.button>
       ) : null}
 
