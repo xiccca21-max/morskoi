@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { LobbyStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { GameService } from '../game/game.service';
@@ -17,8 +18,12 @@ export class LobbyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly game: GameService,
-    private readonly bot: TelegramBotService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  private get bot(): TelegramBotService {
+    return this.moduleRef.get(TelegramBotService, { strict: false });
+  }
 
   async create(hostId: string, wagerAmount: number, isPublic = false) {
     const min = Number(process.env.MIN_WAGER ?? 100);

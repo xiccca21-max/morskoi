@@ -1,8 +1,9 @@
-import { Inject, Injectable, Logger, OnModuleInit, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import TelegramBot from 'node-telegram-bot-api';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { LobbyService } from '../matchmaking/lobby.service';
+import type { LobbyService } from '../matchmaking/lobby.service';
 
 /**
  * TelegramBotService — лёгкий бот:
@@ -25,8 +26,15 @@ export class TelegramBotService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(forwardRef(() => LobbyService)) private readonly lobbies: LobbyService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  /** Лениво — без circular import файлов bot ↔ lobby. */
+  private get lobbies(): LobbyService {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { LobbyService: LS } = require('../matchmaking/lobby.service') as typeof import('../matchmaking/lobby.service');
+    return this.moduleRef.get(LS, { strict: false });
+  }
 
   /**
    * Передаёт апдейт от Telegram боту (используется webhook-контроллером).
