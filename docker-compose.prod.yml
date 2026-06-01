@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_TG_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
-        VITE_SUPPORT_URL: ${SUPPORT_URL:-https://t.me/kronlead}
+        VITE_SUPPORT_URL: ${SUPPORT_URL:-https://t.me/Naval_pay_manager}
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     restart: unless-stopped
     depends_on:
@@ -24,7 +24,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL}
-      SUPPORT_URL: ${SUPPORT_URL:-https://t.me/kronlead}
+      SUPPORT_URL: ${SUPPORT_URL:-https://t.me/Naval_pay_manager}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       TELEGRAM_BOT_POLLING: ${TELEGRAM_BOT_POLLING:-false}

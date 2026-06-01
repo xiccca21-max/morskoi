@@ -39,7 +39,7 @@ export default function ProfileScreen() {
   const displayName = user.nickname ?? user.firstName ?? user.username ?? 'Капитан';
   const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : null;
 
-  const supportUrl = (import.meta.env.VITE_SUPPORT_URL as string) || 'https://t.me/kronlead';
+  const supportUrl = (import.meta.env.VITE_SUPPORT_URL as string) || 'https://t.me/Naval_pay_manager';
 
   const copyId = () => {
     navigator.clipboard.writeText(user.telegramId).catch(() => {});

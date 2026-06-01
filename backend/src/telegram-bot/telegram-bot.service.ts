@@ -285,7 +285,7 @@ export class TelegramBotService implements OnModuleInit {
   private registerCommands() {
     if (!this.bot) return;
     const bot = this.bot;
-    const supportUrl = process.env.SUPPORT_URL ?? process.env.VITE_SUPPORT_URL ?? 'https://t.me/kronlead';
+    const supportUrl = process.env.SUPPORT_URL ?? process.env.VITE_SUPPORT_URL ?? 'https://t.me/Naval_pay_manager';
     const { BTN } = TelegramBotService;
     const kb = () => this.replyOpts();
 
