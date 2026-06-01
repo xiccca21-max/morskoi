@@ -26,6 +26,33 @@
   color-scheme: light;
 }
 
+/* ═══ ПРЕМИУМ ТЁМНАЯ МОРСКАЯ ТЕМА ═══ */
+[data-theme="navy"] {
+  --c-base-rgb: 5 10 20;
+  --c-panel-rgb: 10 19 38;
+  --c-main-rgb: 220 232 255;
+  --c-muted-rgb: 95 125 175;
+  --c-accent-rgb: 212 168 44;
+  --c-danger-rgb: 240 75 65;
+  --c-success-rgb: 46 196 96;
+  --c-warning-rgb: 220 148 24;
+  --c-line-rgb: 28 48 88;
+  --c-water: rgba(14, 80, 190, 0.55);
+  --radius-card: 14px;
+  --radius-btn: 10px;
+  --border-w: 1px;
+  --shadow-card:
+    0 4px 24px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(212,168,44,0.09),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  --font-display: 'Oswald', Impact, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --bg-pattern:
+    radial-gradient(ellipse at 50% -10%, rgba(212,168,44,0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 88% 88%, rgba(14,80,190,0.12) 0%, transparent 45%);
+  color-scheme: dark;
+}
+
 [data-theme="radar"] {
   --c-base-rgb: 2 10 4;
   --c-panel-rgb: 4 20 8;
@@ -154,7 +181,7 @@ button:disabled { cursor: not-allowed; }
 
 /* ===== Кнопки ===== */
 .btn {
-  @apply inline-flex items-center justify-center gap-2 px-4 py-3 transition-all active:scale-[0.98] select-none;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-3 transition-all active:scale-[0.97] select-none;
   font-family: var(--font-display);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -163,13 +190,31 @@ button:disabled { cursor: not-allowed; }
   border: var(--border-w) solid transparent;
   box-shadow: var(--shadow-card);
 }
+
+/* PRIMARY — насыщенный красный с белым текстом */
 .btn-primary {
-  @apply btn text-white;
+  @apply btn;
+  color: #ffffff;
   background: var(--c-danger);
   border-color: var(--c-danger);
 }
-.btn-primary:hover { filter: brightness(1.1); }
+.btn-primary:hover { filter: brightness(1.12); }
 .btn-primary:disabled { opacity: 0.5; filter: grayscale(1); }
+
+/* Navy: красный с свечением + белый текст */
+[data-theme="navy"] .btn-primary {
+  background: linear-gradient(145deg, #e83228, #ff5548, #c42820);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow:
+    0 4px 20px rgba(240,75,65,0.45),
+    0 1px 0 rgba(255,255,255,0.18) inset;
+}
+[data-theme="navy"] .btn-primary:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 6px 28px rgba(240,75,65,0.6);
+}
 
 .btn-secondary {
   @apply btn;
@@ -179,13 +224,31 @@ button:disabled { cursor: not-allowed; }
 }
 .btn-secondary:hover { filter: brightness(1.1); }
 
+[data-theme="navy"] .btn-secondary {
+  background: rgba(20,36,72,0.85);
+  border-color: rgba(28,48,88,0.9);
+  color: rgb(var(--c-main-rgb));
+}
+
+/* DANGER — красная рамка, прозрачный фон */
 .btn-danger {
   @apply btn;
   color: var(--c-danger);
   background: transparent;
   border-color: var(--c-danger);
 }
-.btn-danger:hover { background: rgba(200, 69, 59, 0.1); }
+.btn-danger:hover { background: rgba(200,69,59,0.1); }
+
+[data-theme="navy"] .btn-danger {
+  color: rgb(var(--c-danger-rgb));
+  background: rgba(240,75,65,0.07);
+  border: 1px solid rgba(240,75,65,0.4);
+}
+[data-theme="navy"] .btn-danger:hover {
+  background: rgba(240,75,65,0.16);
+  border-color: rgb(var(--c-danger-rgb));
+  box-shadow: 0 0 20px rgba(240,75,65,0.25);
+}
 
 .btn-ghost {
   @apply btn;
@@ -195,6 +258,14 @@ button:disabled { cursor: not-allowed; }
   box-shadow: none;
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--c-main); }
+
+[data-theme="navy"] .btn-ghost {
+  border-color: rgba(28,48,88,0.9);
+}
+[data-theme="navy"] .btn-ghost:hover {
+  background: rgba(28,48,88,0.55);
+  color: rgb(var(--c-main-rgb));
+}
 
 /* ===== Карточки ===== */
 .card {
@@ -217,6 +288,36 @@ button:disabled { cursor: not-allowed; }
   border-radius: 0;
 }
 
+/* === Стекломорфизм — только для тёмных тем === */
+[data-theme="navy"] .card,
+[data-theme="depth"] .card {
+  background: linear-gradient(145deg,
+    rgba(var(--c-panel-rgb) / 0.96),
+    rgba(var(--c-panel-rgb) / 0.88));
+  border-color: rgba(212,168,44,0.13);
+  box-shadow:
+    0 4px 28px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(212,168,44,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+[data-theme="navy"] .plate,
+[data-theme="depth"] .plate {
+  background: rgba(5,10,20,0.75);
+  border-color: rgba(var(--c-line-rgb) / 0.8);
+}
+
+/* === Золотой акцент — заголовки в navy === */
+[data-theme="navy"] .title {
+  background: linear-gradient(120deg, #e8c050 0%, #f8d878 45%, #c8940c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+[data-theme="navy"] .eyebrow {
+  color: rgba(212,168,44,0.7);
+  letter-spacing: 0.26em;
+}
+
 /* ===== Акценты ===== */
 .text-gold { color: var(--c-main); }
 .text-foam { color: var(--c-main); }
@@ -226,29 +327,63 @@ button:disabled { cursor: not-allowed; }
 .cell-water { background: var(--c-water); }
 .cell-water:hover { background: rgba(255, 255, 255, 0.06); }
 
-/* Живое море: слои бликов + рябь + виньетка-глубина + тонированная вода.
-   Работает поверх любой темы, придаёт полю объём и движение. */
+/* ══ ЖИВОЕ МОРЕ: глубина, каустика, рябь, виньетка ══
+   Семь слоёв, создающих иллюзию настоящей морской воды. */
 .sea-bg {
-  background-color: rgba(42, 118, 178, 0.42);
+  background-color: rgba(8, 44, 96, 0.80);
   background-image:
-    radial-gradient(60% 45% at 28% 22%, rgba(186, 230, 255, 0.28), transparent 62%),
-    radial-gradient(55% 40% at 76% 74%, rgba(120, 200, 255, 0.16), transparent 60%),
-    repeating-linear-gradient(115deg, rgba(160, 220, 255, 0.10) 0 2px, transparent 2px 12px),
-    radial-gradient(ellipse at 50% 36%, transparent 48%, rgba(8, 48, 96, 0.38) 100%),
-    linear-gradient(180deg, rgba(72, 160, 230, 0.55) 0%, rgba(18, 72, 130, 0.72) 100%);
-  background-size: 180% 180%, 170% 170%, 28px 28px, 100% 100%, 100% 100%;
-  background-position: 0% 0%, 100% 100%, 0 0, 0 0, 0 0;
-  animation: seaDrift 16s ease-in-out infinite;
+    /* каустические блики (прыгающие пятна света) */
+    radial-gradient(ellipse 90% 50% at 18% 14%, rgba(150,225,255,0.26), transparent 58%),
+    radial-gradient(ellipse 65% 55% at 84% 78%, rgba(60,165,245,0.20), transparent 52%),
+    radial-gradient(ellipse 45% 35% at 52% 42%, rgba(210,248,255,0.12), transparent 48%),
+    /* диагональные рябь-полосы */
+    repeating-linear-gradient(112deg, rgba(180,235,255,0.09) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(68deg,  rgba(110,195,255,0.06) 0 1px, transparent 1px 30px),
+    /* тёмная виньетка-глубина к краям */
+    radial-gradient(ellipse at 50% 55%, transparent 28%, rgba(3,12,36,0.72) 100%),
+    /* базовый океанский градиент сверху вниз */
+    linear-gradient(188deg,
+      rgba(28,112,210,0.90) 0%,
+      rgba(12, 56,130,0.94) 42%,
+      rgba( 4, 20, 58,1.00) 100%);
+  background-size: 210% 190%, 200% 200%, 170% 170%, 38px 38px, 30px 30px, 100% 100%, 100% 100%;
+  background-position: 0% 0%, 100% 100%, 50% 50%, 0 0, 0 0, 0 0, 0 0;
+  animation: seaDrift 18s ease-in-out infinite;
 }
 @keyframes seaDrift {
-  0%, 100% { background-position: 0% 0%, 100% 100%, 0 0, 0 0, 0 0; }
-  50%      { background-position: 42% 32%, 58% 66%, 28px -16px, 0 0, 0 0; }
+  0%,100% { background-position: 0% 0%, 100% 100%, 50% 50%, 0 0, 0 0, 0 0, 0 0; }
+  33%     { background-position: 38% 28%, 62% 68%, 30% 65%, 38px -20px, -8px 12px, 0 0, 0 0; }
+  66%     { background-position: 18% 48%, 80% 40%, 70% 35%, -10px 18px, 22px -14px, 0 0, 0 0; }
 }
-/* Блик-сияние на поверхности воды (тонкая полоса сверху). */
+
+/* Бликовое сияние поверхности: верхний полупрозрачный блик + прожектор */
 .sea-sheen {
-  background: linear-gradient(180deg, rgba(210, 240, 255, 0.35) 0%, rgba(120, 200, 255, 0.08) 35%, transparent 55%);
+  background:
+    linear-gradient(180deg, rgba(230,248,255,0.42) 0%, rgba(140,215,255,0.10) 30%, transparent 52%),
+    radial-gradient(ellipse 70% 20% at 50% 0%, rgba(255,255,255,0.14), transparent 70%);
   mix-blend-mode: screen;
 }
+
+/* Navy-тема: ещё насыщеннее, добавляем зеленоватый подводный оттенок */
+[data-theme="navy"] .sea-bg {
+  background-image:
+    radial-gradient(ellipse 90% 50% at 18% 14%, rgba(120,210,255,0.30), transparent 58%),
+    radial-gradient(ellipse 65% 55% at 84% 78%, rgba(40,140,230,0.22), transparent 52%),
+    radial-gradient(ellipse 50% 40% at 52% 42%, rgba(180,240,255,0.14), transparent 48%),
+    repeating-linear-gradient(112deg, rgba(160,225,255,0.10) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(68deg,  rgba( 90,180,255,0.07) 0 1px, transparent 1px 30px),
+    radial-gradient(ellipse at 50% 55%, transparent 25%, rgba(2, 8, 26,0.80) 100%),
+    linear-gradient(188deg,
+      rgba(20, 95,200,0.92) 0%,
+      rgba( 8, 44,115,0.96) 42%,
+      rgba( 2, 12, 42,1.00) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sea-bg { animation: none; }
+}
+
+/* Подсветка клеток при расстановке/прицеле (работает с цветами темы) */
 @media (prefers-reduced-motion: reduce) {
   .sea-bg { animation: none; }
 }
@@ -261,6 +396,35 @@ button:disabled { cursor: not-allowed; }
 .cell-hit { background: var(--c-danger); opacity: 0.8; }
 .cell-miss { background: var(--c-muted); opacity: 0.3; }
 .cell-sunk { background: var(--c-danger); }
+
+/* Рамка поля боя — premium glow для navy */
+[data-theme="navy"] [data-board-frame] {
+  box-shadow:
+    inset 0 0 0 1px rgba(240,75,65,0.22),
+    0 8px 48px rgba(0,0,0,0.65),
+    0 0 80px rgba(14,60,160,0.25);
+}
+[data-theme="navy"] [data-board-frame]:has([data-my-turn="true"]) {
+  box-shadow:
+    inset 0 0 0 1px rgba(240,75,65,0.35),
+    0 8px 48px rgba(0,0,0,0.65),
+    0 0 80px rgba(240,75,65,0.15);
+}
+
+/* Инпуты на navy-теме */
+[data-theme="navy"] input,
+[data-theme="navy"] textarea,
+[data-theme="navy"] select {
+  background: rgba(5,10,20,0.75);
+  border-color: rgba(28,48,88,0.85);
+  color: rgb(var(--c-main-rgb));
+}
+[data-theme="navy"] input:focus,
+[data-theme="navy"] textarea:focus,
+[data-theme="navy"] select:focus {
+  border-color: rgba(240,75,65,0.6) !important;
+  box-shadow: 0 0 0 3px rgba(240,75,65,0.12);
+}
 
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

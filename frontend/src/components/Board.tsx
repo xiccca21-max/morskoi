@@ -90,12 +90,15 @@ export function Board({
 
   return (
     <div className="relative w-full max-w-[480px] mx-auto select-none">
-      {/* Графитовая рама */}
+      {/* Рама поля боя */}
       <div
         className="rounded-xl p-2"
+        data-board-frame
+        data-my-turn={myTurn ? 'true' : 'false'}
         style={{
           background: 'var(--c-panel)',
           boxShadow: 'inset 0 0 0 var(--border-w) var(--c-line), var(--shadow-card)',
+          transition: 'box-shadow 0.4s ease',
         }}
       >
         <div
@@ -296,41 +299,91 @@ export function Board({
 
 function Marker({ hit }: { hit: boolean }) {
   if (!hit) {
-    // Промах: клетка плавно закрашивается целиком (без кругов/точек).
+    // Промах: синий тон + белый кружок по традиции морского боя
     return (
       <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'color-mix(in srgb, var(--c-muted) 34%, transparent)' }}
-      />
+        initial={{ opacity: 0, scale: 0.4 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute inset-0 pointer-events-none flex items-center justify-center"
+      >
+        <span className="absolute inset-0" style={{ background: 'rgba(30,80,160,0.30)' }} />
+        <motion.span
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.08, duration: 0.28, ease: 'backOut' }}
+          className="relative flex items-center justify-center"
+          style={{ width: '52%', height: '52%' }}
+        >
+          {/* Белое кольцо-промах */}
+          <span
+            className="absolute inset-0 rounded-full"
+            style={{
+              border: '2px solid rgba(255,255,255,0.75)',
+              boxShadow: '0 0 6px rgba(180,220,255,0.4)',
+            }}
+          />
+          {/* Синяя точка в центре */}
+          <span
+            className="rounded-full"
+            style={{
+              width: '28%', height: '28%',
+              background: 'rgba(140,200,255,0.85)',
+              boxShadow: '0 0 4px rgba(140,200,255,0.6)',
+            }}
+          />
+        </motion.span>
+      </motion.span>
     );
   }
-  // Попадание: тлеющий очаг + «впечатывающийся» крест + ударное кольцо.
+
+  // Попадание: красный взрыв + пульсирующее пламя + белый крест
   return (
     <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
-      {/* постоянное тление — клетка «горит» */}
+      {/* Пульсирующее тление (огонь) */}
       <motion.span
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0.55, 0.9, 0.55] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        animate={{ opacity: [0.6, 1.0, 0.6] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute inset-0"
-        style={{ background: 'radial-gradient(circle, rgba(255,140,60,0.55) 0%, rgba(225,87,75,0.35) 45%, transparent 72%)' }}
+        style={{
+          background: `
+            radial-gradient(circle at 50% 50%,
+              rgba(255,200,80,0.70) 0%,
+              rgba(255,100,40,0.55) 30%,
+              rgba(225,40,30,0.40) 55%,
+              transparent 75%)
+          `,
+        }}
       />
+      {/* Ударная вспышка (однократная) */}
       <motion.span
-        initial={{ scale: 0, rotate: -18, opacity: 0 }}
+        initial={{ scale: 0.2, opacity: 0.9 }}
+        animate={{ scale: 2.8, opacity: 0 }}
+        transition={{ duration: 0.55, ease: 'easeOut' }}
+        className="absolute inset-[8%] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(255,200,80,0.8), rgba(240,75,65,0.4) 60%, transparent 80%)' }}
+      />
+      {/* Красный крест с белым текстом */}
+      <motion.span
+        initial={{ scale: 0, rotate: -22, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 17 }}
-        className="absolute inset-[14%] rounded-sm bg-danger text-white flex items-center justify-center shadow-[2px_2px_0px_#000]"
+        transition={{ type: 'spring', stiffness: 380, damping: 18, delay: 0.08 }}
+        className="absolute inset-[12%] rounded-[3px] flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(145deg, #e83228, #c42018)',
+          boxShadow: '0 2px 8px rgba(240,60,50,0.6), inset 0 1px 0 rgba(255,255,255,0.2)',
+        }}
       >
-        <span className="font-display text-[14px] leading-none">✕</span>
+        <span className="font-display text-white leading-none" style={{ fontSize: '13px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>✕</span>
       </motion.span>
+      {/* Расходящееся кольцо */}
       <motion.span
-        initial={{ scale: 0.3, opacity: 0.7 }}
-        animate={{ scale: 2.2, opacity: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="absolute inset-[12%] rounded-full border-2 border-danger"
+        initial={{ scale: 0.3, opacity: 0.8 }}
+        animate={{ scale: 2.4, opacity: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut', delay: 0.05 }}
+        className="absolute inset-[10%] rounded-full"
+        style={{ border: '2px solid rgba(240,75,65,0.9)' }}
       />
     </span>
   );
