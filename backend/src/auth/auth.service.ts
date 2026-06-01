@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
@@ -162,5 +162,17 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  /** Проверяет токен и блокирует доступ забаненным аккаунтам. */
+  async verifyActiveToken(token: string): Promise<JwtPayload> {
+    const payload = await this.verifyToken(token);
+    const u = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { banned: true },
+    });
+    if (!u) throw new UnauthorizedException('User not found');
+    if (u.banned) throw new ForbiddenException('Account banned');
+    return payload;
   }
 }

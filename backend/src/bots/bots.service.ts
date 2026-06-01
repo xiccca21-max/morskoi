@@ -102,10 +102,10 @@ export class BotsService implements OnModuleInit {
   private readonly matchSkill = new Map<string, BotSkillLevel>();
 
   private readonly enabled = (process.env.BOTS_ENABLED ?? 'true') !== 'false';
-  private readonly targetCount = Number(process.env.BOTS_COUNT ?? 50);
+  private readonly targetCount = Number(process.env.BOTS_COUNT ?? 1);
   private readonly winRate = Number(process.env.BOT_WIN_RATE ?? 0.62);
   private readonly waitSec = Number(process.env.BOT_MATCH_WAIT_SEC ?? 10);
-  private readonly openLobbies = Number(process.env.BOT_OPEN_LOBBIES ?? 6);
+  private readonly openLobbies = Number(process.env.BOT_OPEN_LOBBIES ?? 1);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -175,15 +175,37 @@ export class BotsService implements OnModuleInit {
     return true;
   }
 
-  /** Идемпотентно создаёт недостающих ботов до targetCount. */
+  /**
+   * Идемпотентно поддерживает ровно targetCount активных ботов.
+   * Лишних (если раньше создавалось больше) — баним и закрываем их лобби,
+   * чтобы они исчезли из матчмейкинга/лобби, но без удаления из БД (FK).
+   */
   async ensureBots() {
-    const existing = await this.prisma.user.findMany({
+    const all = await this.prisma.user.findMany({
       where: { telegramId: { startsWith: 'bot:' } },
       select: { id: true },
+      orderBy: { telegramId: 'asc' },
     });
-    existing.forEach((u) => this.botIds.add(u.id));
 
-    for (let i = existing.length; i < this.targetCount; i++) {
+    const keep = all.slice(0, this.targetCount);
+    const surplus = all.slice(this.targetCount);
+    keep.forEach((u) => this.botIds.add(u.id));
+
+    if (surplus.length) {
+      const ids = surplus.map((u) => u.id);
+      await this.prisma.lobby.updateMany({
+        where: { hostId: { in: ids }, status: 'OPEN' },
+        data: { status: 'CLOSED' },
+      });
+      await this.prisma.user.updateMany({
+        where: { id: { in: ids }, banned: false },
+        data: { banned: true } as any,
+      });
+      ids.forEach((id) => this.botIds.delete(id));
+      this.logger.log(`Neutralized ${surplus.length} surplus bot(s)`);
+    }
+
+    for (let i = all.length; i < this.targetCount; i++) {
       const p = buildBotProfile(i);
       try {
         const u = await this.prisma.user.create({

@@ -7,6 +7,9 @@ export interface SeasonInfo {
   end: string;
 }
 
+/** Боты не участвуют в публичном рейтинге. */
+const NOT_BOT = { telegramId: { not: { startsWith: 'bot:' } } } as const;
+
 @Injectable()
 export class LeaderboardService {
   constructor(private readonly prisma: PrismaService) {}
@@ -28,6 +31,7 @@ export class LeaderboardService {
 
   async topByWins(limit = 50) {
     const users = await this.prisma.user.findMany({
+      where: NOT_BOT,
       orderBy: [{ wins: 'desc' }, { totalWon: 'desc' }],
       take: limit,
       select: {
@@ -40,6 +44,7 @@ export class LeaderboardService {
 
   async topByEarnings(limit = 50) {
     const users = await this.prisma.user.findMany({
+      where: NOT_BOT,
       orderBy: [{ totalWon: 'desc' }],
       take: limit,
       select: {
@@ -78,12 +83,14 @@ export class LeaderboardService {
     if (!sorted.length) return [];
 
     const users = await this.prisma.user.findMany({
-      where: { id: { in: sorted.map(([id]) => id) } },
+      where: { id: { in: sorted.map(([id]) => id) }, ...NOT_BOT },
       select: { id: true, username: true, firstName: true, avatar: true, losses: true },
     });
     const byId = new Map(users.map((u) => [u.id, u]));
 
-    return sorted.map(([id, s], i) => {
+    return sorted
+      .filter(([id]) => byId.has(id)) // отсеиваем ботов
+      .map(([id, s], i) => {
       const u = byId.get(id);
       return {
         rank: i + 1,

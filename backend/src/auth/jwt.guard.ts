@@ -10,7 +10,7 @@ export class JwtAuthGuard implements CanActivate {
     const header: string | undefined = req.headers['authorization'];
     if (!header?.startsWith('Bearer ')) throw new UnauthorizedException('No token');
     const token = header.slice(7);
-    const payload: JwtPayload = await this.auth.verifyToken(token);
+    const payload: JwtPayload = await this.auth.verifyActiveToken(token);
     req.user = payload;
     return true;
   }
