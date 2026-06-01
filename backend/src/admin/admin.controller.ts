@@ -61,12 +61,12 @@ export class AdminController {
   }
 
   @Get('alerts')
-  alerts() {
+  alertsStatus() {
     return this.alerts.status();
   }
 
   @Post('alerts/test')
-  async testAlerts() {
+  async alertsTest() {
     return this.alerts.sendTest();
   }
 
