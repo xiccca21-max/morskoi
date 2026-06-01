@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
-import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI } from './api/endpoints';
+import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
 import { useGameConfigStore } from './stores/game-config-store';
 import { MatchFoundOverlay } from './components/MatchFoundOverlay';
 import { useCurrencyStore } from './stores/currency-store';
@@ -320,8 +320,12 @@ export default function App() {
       const code = sp.slice('lobby_'.length).toUpperCase();
       if (code) navigate(`/lobby/${code}`);
     } else if (sp.startsWith('challenge_')) {
-      const cid = sp.slice('challenge_'.length);
-      if (cid) navigate(`/challenge/${cid}`);
+      const hostId = sp.slice('challenge_'.length);
+      if (hostId) {
+        MatchmakingAPI.lobbyByHost(hostId)
+          .then((l) => navigate(`/lobby/${l.code}`, { replace: true }))
+          .catch(() => toast('Приглашение устарело. Попроси друга отправить новую ссылку.', 'error'));
+      }
     } else if (sp === 'wallet') {
       navigate('/wallet');
     } else if (sp.startsWith('profile_')) {

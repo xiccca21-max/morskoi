@@ -96,6 +96,12 @@ export class MatchmakingController {
     return this.lobbies.cancelMine(u.sub);
   }
 
+  /** Активное лобби хоста (legacy deep-link challenge_<hostId>). */
+  @Get('lobby/host/:userId')
+  getHostLobby(@Param('userId') userId: string) {
+    return this.lobbies.getOpenByHost(userId);
+  }
+
   @Get('lobby/:code')
   getLobby(@Param('code') code: string) {
     return this.lobbies.get(code.toUpperCase());

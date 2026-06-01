@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic, tgOpenPayment, tgMainButton, isTelegram } from '../lib/telegram';
@@ -51,6 +52,9 @@ const WD_STATUS: Record<string, { label: string; cls: string }> = {
 export default function WalletScreen() {
   const user = useAuthStore((s) => s.user);
   const updateWallet = useAuthStore((s) => s.updateWallet);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
 
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState(100);
@@ -182,6 +186,16 @@ export default function WalletScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
+      {returnTo && (
+        <button
+          type="button"
+          className="card card-press p-3 w-full flex items-center gap-2 text-left border-danger"
+          onClick={() => navigate(returnTo)}
+        >
+          <Icon name="arrow-right" size={16} className="rotate-180 text-danger shrink-0" />
+          <span className="text-main text-sm">Вернуться к приглашению на бой</span>
+        </button>
+      )}
       <section className="card p-6 relative overflow-hidden">
         {celebrate && <VictoryBurst />}
         <div className="flex items-start justify-between">

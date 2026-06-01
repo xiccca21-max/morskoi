@@ -74,6 +74,8 @@ export const MatchmakingAPI = {
   createLobby: (wagerAmount: number, isPublic = false) =>
     api.post('/matchmaking/lobby', { wagerAmount, isPublic }).then(r => r.data),
   joinLobby:   (code: string) => api.post('/matchmaking/lobby/join', { code }).then(r => r.data),
+  lobbyByHost: (userId: string) =>
+    api.get<{ code: string; wagerAmount: number }>(`/matchmaking/lobby/host/${userId}`).then(r => r.data),
   challenge:   (opponentId: string, wagerAmount: number) =>
     api.post<{ code: string }>('/matchmaking/challenge', { opponentId, wagerAmount }).then(r => r.data),
   getLobby:    (code: string) => api.get(`/matchmaking/lobby/${code}`).then(r => r.data),

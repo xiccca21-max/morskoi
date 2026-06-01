@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MatchmakingAPI } from '../api/endpoints';
@@ -22,6 +22,7 @@ export default function LobbyScreen() {
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmJoin, setConfirmJoin] = useState(false);
+  const autoPrompted = useRef(false);
 
   const load = () => {
     if (!code) return;
@@ -32,14 +33,12 @@ export default function LobbyScreen() {
 
   useEffect(load, [code]);
 
-  // Уже стартовавшее лобби — сразу в расстановку
   useEffect(() => {
     if (lobby?.status === 'STARTED' && lobby?.matchId) {
       navigate(`/placement/${lobby.matchId}`);
     }
   }, [lobby?.status, lobby?.matchId, navigate]);
 
-  // Когда соперник принимает вызов — сервер шлёт match:found обоим
   useEffect(() => {
     const sock = getSocket();
     const onFound = (data: any) => {
@@ -50,11 +49,27 @@ export default function LobbyScreen() {
     return () => { sock.off('match:found', onFound); };
   }, [navigate]);
 
+  const isHost = !!user && lobby?.host?.id === user.id;
+  const lowFunds = !!user && lobby && user.balance < lobby.wagerAmount;
+
+  // Гость с достаточным балансом — сразу показываем подтверждение (один тап до боя).
+  useEffect(() => {
+    if (!lobby || !user || isHost || autoPrompted.current) return;
+    if (lobby.status !== 'OPEN') return;
+    if (user.balance < lobby.wagerAmount) return;
+    autoPrompted.current = true;
+    const t = setTimeout(() => setConfirmJoin(true), 400);
+    return () => clearTimeout(t);
+  }, [lobby, user, isHost]);
+
   const inviteUrl = `https://t.me/${BOT}?startapp=lobby_${code}`;
 
   const share = () => {
     if (!lobby) return;
-    tgShare(inviteUrl, `Вызываю на морскую дуэль. Ставка ${lobby.wagerAmount} ₽. Код: ${lobby.code}`);
+    tgShare(
+      inviteUrl,
+      `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
+    );
   };
 
   const copy = async () => {
@@ -62,22 +77,9 @@ export default function LobbyScreen() {
       await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       tgHaptic('success');
-      toast('Ссылка-приглашение скопирована', 'success', 'share');
+      toast('Ссылка скопирована', 'success', 'share');
       setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const requestAccept = () => {
-    if (!lobby || !code) return;
-    if (user && user.balance < lobby.wagerAmount) {
-      setError('Недостаточно средств для этой ставки');
-      return;
-    }
-    setError(null);
-    tgHaptic('light');
-    setConfirmJoin(true);
+    } catch { /* ignore */ }
   };
 
   const accept = () => {
@@ -96,32 +98,72 @@ export default function LobbyScreen() {
     });
   };
 
-  if (error && !lobby)
+  const goWallet = () => {
+    navigate('/wallet', { state: { returnTo: `/lobby/${code}` } });
+  };
+
+  if (error && !lobby) {
     return (
       <div className="max-w-md mx-auto space-y-4">
         <div className="card p-6 text-danger">{error}</div>
         <button className="btn-ghost w-full" onClick={() => navigate('/matchmaking')}>В поиск боя</button>
       </div>
     );
+  }
+
   if (!lobby) return <div className="card p-6 max-w-md mx-auto text-muted">Загрузка…</div>;
 
-  const isHost = !!user && lobby.host?.id === user.id;
   const hostName = lobby.host?.firstName || lobby.host?.username || 'Капитан';
   const pool = lobby.wagerAmount * 2;
   const win = +(pool - pool * 0.05).toFixed(2);
-  const lowFunds = !!user && user.balance < lobby.wagerAmount;
+  const need = Math.max(0, lobby.wagerAmount - (user?.balance ?? 0));
+
+  // Гость без денег — сначала пополнение, без лишних кнопок.
+  if (!isHost && lowFunds) {
+    return (
+      <div className="max-w-md mx-auto space-y-4">
+        <h2 className="title text-main text-lg">Приглашение на бой</h2>
+        <div className="card p-6 text-center space-y-4">
+          <Avatar name={hostName} src={lobby.host?.avatar} size={56} className="mx-auto" />
+          <p className="text-main font-display">{hostName} вызывает на дуэль</p>
+          <p className="text-muted text-sm">
+            Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span>
+          </p>
+          <div className="card p-4 border-warning text-left space-y-2">
+            <p className="text-warning text-sm font-display">Недостаточно средств</p>
+            <p className="text-muted text-xs leading-relaxed">
+              На балансе {formatMoney(user?.balance ?? 0)}. Для входа в бой нужно минимум{' '}
+              {formatMoney(lobby.wagerAmount)} — не хватает {formatMoney(need)}.
+            </p>
+          </div>
+          <button className="btn-primary w-full" onClick={goWallet}>
+            <Icon name="coins" size={18} /> Пополнить баланс
+          </button>
+          <button className="btn-ghost w-full" onClick={() => navigate('/home')}>Позже</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto space-y-4">
       <h2 className="title text-main text-lg">{isHost ? 'Ваше лобби' : 'Приглашение на бой'}</h2>
 
       <div className="card p-6 text-center">
-        <p className="eyebrow">Код приглашения</p>
-        <p className="font-display text-5xl tracking-[0.3em] text-main mt-2">{lobby.code}</p>
-        {lobby.matchId && (
-          <p className="text-[10px] text-muted font-mono tracking-wide mt-1">
-            Игра #{lobby.matchId.slice(-8).toUpperCase()}
-          </p>
+        {!isHost && (
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Avatar name={hostName} src={lobby.host?.avatar} size={40} />
+            <div className="text-left">
+              <p className="text-main text-sm font-display">{hostName}</p>
+              <p className="eyebrow">ждёт вас в лобби</p>
+            </div>
+          </div>
+        )}
+        {isHost && (
+          <>
+            <p className="eyebrow">Код приглашения</p>
+            <p className="font-display text-5xl tracking-[0.3em] text-main mt-2">{lobby.code}</p>
+          </>
         )}
         <div className="rope my-4" />
         <div className="grid grid-cols-2 gap-px bg-line rounded-lg overflow-hidden">
@@ -144,7 +186,7 @@ export default function LobbyScreen() {
             <span className="relative w-6 h-6 shrink-0">
               <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
             </span>
-            <p className="text-main text-sm">Ждём соперника. Отправьте ссылку или код другу — бой начнётся автоматически.</p>
+            <p className="text-main text-sm">Ждём соперника. Отправьте ссылку — друг сразу попадёт сюда.</p>
           </motion.div>
           <div className="grid grid-cols-2 gap-3">
             <button className="btn-primary" onClick={share}><Icon name="share" size={16} /> Отправить</button>
@@ -159,21 +201,9 @@ export default function LobbyScreen() {
         </>
       ) : (
         <>
-          <div className="card p-5 flex items-center gap-3">
-            <Avatar name={hostName} src={lobby.host?.avatar} size={40} />
-            <div>
-              <p className="text-main text-sm font-display">{hostName}</p>
-              <p className="eyebrow">вызывает вас на дуэль</p>
-            </div>
-          </div>
-          <button className="btn-primary w-full" onClick={requestAccept} disabled={joining || lowFunds}>
+          <button className="btn-primary w-full" onClick={() => setConfirmJoin(true)} disabled={joining}>
             <Icon name="swords" size={18} /> {joining ? 'Подключение…' : 'Принять вызов'}
           </button>
-          {lowFunds && (
-            <button className="btn-secondary w-full" onClick={() => navigate('/wallet')}>
-              <Icon name="coins" size={16} /> Пополнить баланс
-            </button>
-          )}
           <button className="btn-ghost w-full" onClick={() => navigate('/home')}>Отклонить</button>
         </>
       )}
@@ -185,13 +215,11 @@ export default function LobbyScreen() {
         message={
           <>
             Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span> спишется
-            при старте боя (когда оба расставят флот). Победителю —{' '}
+            при старте боя. Победителю —{' '}
             <span className="text-main font-display">{formatMoney(win)}</span>.
             <span className="block mt-2 text-warning">
-              ⚠️ Нужен стабильный интернет: при потере связи и пропуске ходов
-              можно проиграть бой и потерять ставку.
+              ⚠️ Нужен стабильный интернет — при обрыве связи можно проиграть ставку.
             </span>
-            Вы точно согласны?
           </>
         }
         confirmLabel="Да, в бой"

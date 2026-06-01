@@ -174,4 +174,24 @@ export class LobbyService {
       expiresAt: l.expiresAt,
     };
   }
+
+  /** Открытое приватное лобби хоста (для ссылок-приглашений). */
+  async getOpenByHost(hostId: string) {
+    const l = await this.prisma.lobby.findFirst({
+      where: {
+        hostId,
+        status: LobbyStatus.OPEN,
+        expiresAt: { gt: new Date() },
+        isPublic: false,
+      } as any,
+      orderBy: { createdAt: 'desc' },
+      include: { host: { select: { id: true, username: true, firstName: true, avatar: true } } },
+    });
+    if (!l) throw new NotFoundException('Нет активного приглашения — попроси друга отправить новую ссылку');
+    return {
+      code: l.code,
+      wagerAmount: Number(l.wagerAmount),
+      host: l.host,
+    };
+  }
 }
