@@ -1,0 +1,1 @@
+ALTER TABLE "Lobby" ADD COLUMN "isTraining" BOOLEAN NOT NULL DEFAULT false;

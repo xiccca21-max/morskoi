@@ -43,6 +43,18 @@ export class LobbyService {
       throw new BadRequestException('Insufficient balance');
     }
 
+    return this.createLobbyRecord(hostId, wagerAmount, isPublic, false);
+  }
+
+  /** Бесплатное тренировочное лобби — друг заходит по ссылке, без ставки. */
+  async createTraining(hostId: string) {
+    await assertCanPlay(this.prisma, hostId);
+    const host = await this.prisma.user.findUnique({ where: { id: hostId } });
+    if (!host) throw new NotFoundException('User not found');
+    return this.createLobbyRecord(hostId, 0, false, true);
+  }
+
+  private async createLobbyRecord(hostId: string, wagerAmount: number, isPublic: boolean, isTraining: boolean) {
     // У одного игрока не может «висеть» несколько открытых лобби —
     // закрываем предыдущие, чтобы список не засорялся.
     await this.prisma.lobby.updateMany({
@@ -59,8 +71,7 @@ export class LobbyService {
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 минут
     const lobby = await this.prisma.lobby.create({
-      // isPublic — новое поле; каст до регенерации Prisma Client в проде
-      data: { code, hostId, wagerAmount, expiresAt, status: LobbyStatus.OPEN, isPublic } as any,
+      data: { code, hostId, wagerAmount, expiresAt, status: LobbyStatus.OPEN, isPublic, isTraining } as any,
     });
     return lobby;
   }
@@ -91,6 +102,7 @@ export class LobbyService {
     const lobbies = (await this.prisma.lobby.findMany({
       where: {
         isPublic: true,
+        isTraining: false,
         status: LobbyStatus.OPEN,
         expiresAt: { gt: new Date() },
         ...(opts.minWager != null || opts.maxWager != null
@@ -120,6 +132,7 @@ export class LobbyService {
         id: l.id,
         code: l.code,
         wagerAmount: Number(l.wagerAmount),
+        isTraining: !!l.isTraining,
         createdAt: l.createdAt,
         isMine: l.hostId === viewerId,
         host: {
@@ -155,7 +168,8 @@ export class LobbyService {
 
       const joiner = await this.prisma.user.findUnique({ where: { id: joinerId } });
       if (!joiner) throw new NotFoundException('User not found');
-      if (Number(joiner.balance) < Number(lobby.wagerAmount)) {
+      const isTraining = !!(lobby as any).isTraining;
+      if (!isTraining && Number(joiner.balance) < Number(lobby.wagerAmount)) {
         throw new BadRequestException('Insufficient balance');
       }
 
@@ -167,7 +181,14 @@ export class LobbyService {
       if (claimed.count !== 1) throw new BadRequestException('Lobby is not open');
 
       const host = await this.prisma.user.findUnique({ where: { id: lobby.hostId } });
-      if (!host || Number(host.balance) < Number(lobby.wagerAmount)) {
+      if (!host) {
+        await this.prisma.lobby.updateMany({
+          where: { id: lobby.id, status: LobbyStatus.STARTED, matchId: null },
+          data: { status: LobbyStatus.CLOSED },
+        });
+        throw new BadRequestException('Host not found');
+      }
+      if (!isTraining && Number(host.balance) < Number(lobby.wagerAmount)) {
         await this.prisma.lobby.updateMany({
           where: { id: lobby.id, status: LobbyStatus.STARTED, matchId: null },
           data: { status: LobbyStatus.CLOSED },
@@ -176,7 +197,9 @@ export class LobbyService {
       }
 
       try {
-        const match = await this.game.createMatch(lobby.hostId, joinerId, Number(lobby.wagerAmount));
+        const match = isTraining
+          ? await this.game.createTrainingMatch(lobby.hostId, joinerId)
+          : await this.game.createMatch(lobby.hostId, joinerId, Number(lobby.wagerAmount));
         await this.prisma.lobby.update({
           where: { id: lobby.id },
           data: { matchId: match.id },
@@ -202,6 +225,7 @@ export class LobbyService {
       id: l.id,
       code: l.code,
       wagerAmount: Number(l.wagerAmount),
+      isTraining: !!(l as any).isTraining,
       status: l.status,
       matchId: l.matchId,
       host: l.host,
@@ -225,6 +249,7 @@ export class LobbyService {
     return {
       code: l.code,
       wagerAmount: Number(l.wagerAmount),
+      isTraining: !!(l as any).isTraining,
       host: l.host,
     };
   }

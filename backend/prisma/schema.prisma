@@ -246,6 +246,7 @@ model Lobby {
   wagerAmount Float
   status      String   @default("OPEN")
   isPublic    Boolean  @default(false)
+  isTraining  Boolean  @default(false)
   matchId     String?
   createdAt   DateTime @default(now())
   expiresAt   DateTime

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
-import { GameAPI } from '../api/endpoints';
+import { GameAPI, MatchmakingAPI } from '../api/endpoints';
 import { tgHaptic } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Onboarding } from '../components/Onboarding';
@@ -44,8 +44,9 @@ export default function HomeScreen() {
 
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
   const [trainingBusy, setTrainingBusy] = useState(false);
+  const [botTestBusy, setBotTestBusy] = useState(false);
 
-  const startTraining = async () => {
+  const startTrainingLobby = async () => {
     if (activeMatch) {
       navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`);
       return;
@@ -53,12 +54,29 @@ export default function HomeScreen() {
     setTrainingBusy(true);
     try {
       tgHaptic('medium');
-      const { matchId } = await GameAPI.startTraining();
-      navigate(`/placement/${matchId}`);
+      const lobby = await MatchmakingAPI.createTrainingLobby();
+      navigate(`/lobby/${lobby.code}`);
     } catch (e: any) {
-      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось начать тренировку', 'error');
+      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось создать тренировку', 'error');
     } finally {
       setTrainingBusy(false);
+    }
+  };
+
+  const startBotTest = async () => {
+    if (activeMatch) {
+      navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`);
+      return;
+    }
+    setBotTestBusy(true);
+    try {
+      tgHaptic('light');
+      const { matchId } = await GameAPI.startBotTest();
+      navigate(`/placement/${matchId}`);
+    } catch (e: any) {
+      toast(e?.response?.data?.message ?? e?.message ?? 'Тест с ботом недоступен', 'error');
+    } finally {
+      setBotTestBusy(false);
     }
   };
 
@@ -128,17 +146,25 @@ export default function HomeScreen() {
       </button>
 
       <button
-        onClick={startTraining}
+        onClick={startTrainingLobby}
         disabled={trainingBusy}
         className="w-full card card-press p-5 text-left flex items-center justify-between hover:border-line transition disabled:opacity-60"
       >
         <div>
           <span className="title text-xl text-main">Тренировка</span>
-          <p className="text-muted text-sm mt-1">Бесплатный бой с ботом — без ставки и риска</p>
+          <p className="text-muted text-sm mt-1">Бесплатный бой с другом — без ставки</p>
         </div>
         <span className="w-11 h-11 rounded-full bg-panel border border-line flex items-center justify-center text-main shrink-0">
           <Icon name={trainingBusy ? 'anchor' : 'target'} size={20} />
         </span>
+      </button>
+
+      <button
+        onClick={startBotTest}
+        disabled={botTestBusy}
+        className="w-full text-left px-1 py-1 text-[11px] text-muted hover:text-main transition disabled:opacity-50"
+      >
+        {botTestBusy ? 'Запуск теста с ботом…' : 'Тест с ботом (для проверки)'}
       </button>
 
       <div className="grid grid-cols-2 gap-3">

@@ -5,7 +5,7 @@ import { VictoryBurst } from '../components/Effects';
 import { Ship } from '../components/Ship';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
-import { GameAPI, WalletAPI, UsersAPI } from '../api/endpoints';
+import { GameAPI, MatchmakingAPI, UsersAPI, WalletAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgShare, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
@@ -96,13 +96,13 @@ export default function ResultScreen() {
   const newRank = me ? getRank(me.wins) : null;
   const canAffordRematch = !isTraining && (me?.balance ?? 0) >= (matchState?.wagerAmount ?? 0);
 
-  const startTraining = async () => {
+  const inviteTraining = async () => {
     try {
       tgHaptic('medium');
-      const { matchId: nextId } = await GameAPI.startTraining();
-      navigate(`/placement/${nextId}`);
+      const lobby = await MatchmakingAPI.createTrainingLobby();
+      navigate(`/lobby/${lobby.code}`);
     } catch (e: any) {
-      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось начать тренировку', 'error');
+      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось создать тренировку', 'error');
     }
   };
 
@@ -262,7 +262,7 @@ export default function ResultScreen() {
       <div className="space-y-2">
         {isTraining ? (
           <>
-            <button className="btn-primary w-full" onClick={startTraining}>Ещё тренировка</button>
+            <button className="btn-primary w-full" onClick={inviteTraining}>Пригласить друга</button>
             <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking?quick=1'); }}>
               Играть на ставку
             </button>

@@ -43,13 +43,14 @@ export default function LobbyScreen() {
   // Убран дублирующий match:found — навигация через ack lobby:join / App overlay.
 
   const isHost = !!user && lobby?.host?.id === user.id;
-  const lowFunds = !!user && lobby && user.balance < lobby.wagerAmount;
+  const isTraining = !!lobby?.isTraining;
+  const lowFunds = !isTraining && !!user && lobby && user.balance < lobby.wagerAmount;
 
   // Гость с достаточным балансом — сразу показываем подтверждение (один тап до боя).
   useEffect(() => {
     if (!lobby || !user || isHost || autoPrompted.current) return;
     if (lobby.status !== 'OPEN') return;
-    if (user.balance < lobby.wagerAmount) return;
+    if (!isTraining && user.balance < lobby.wagerAmount) return;
     autoPrompted.current = true;
     const t = setTimeout(() => setConfirmJoin(true), 400);
     return () => clearTimeout(t);
@@ -61,7 +62,9 @@ export default function LobbyScreen() {
     if (!lobby) return;
     tgShare(
       inviteUrl,
-      `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
+      isTraining
+        ? `Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби`
+        : `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
     );
   };
 
@@ -140,7 +143,9 @@ export default function LobbyScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <h2 className="title text-main text-lg">{isHost ? 'Ваше лобби' : 'Приглашение на бой'}</h2>
+      <h2 className="title text-main text-lg">
+        {isTraining ? 'Тренировка с другом' : isHost ? 'Ваше лобби' : 'Приглашение на бой'}
+      </h2>
 
       <div className="card p-6 text-center">
         {!isHost && (
@@ -159,16 +164,23 @@ export default function LobbyScreen() {
           </>
         )}
         <div className="rope my-4" />
-        <div className="grid grid-cols-2 gap-px bg-line rounded-lg overflow-hidden">
-          <div className="bg-panel p-3">
-            <div className="font-display tabular-nums text-main">{formatMoney(lobby.wagerAmount)}</div>
-            <div className="eyebrow mt-0.5">Ставка</div>
+        {isTraining ? (
+          <div className="bg-panel p-4 rounded-lg">
+            <div className="font-display text-main">Без ставки</div>
+            <div className="eyebrow mt-1">Тренировка · баланс не меняется</div>
           </div>
-          <div className="bg-panel p-3">
-            <div className="font-display tabular-nums text-main">{formatMoney(win)}</div>
-            <div className="eyebrow mt-0.5">Победителю</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-px bg-line rounded-lg overflow-hidden">
+            <div className="bg-panel p-3">
+              <div className="font-display tabular-nums text-main">{formatMoney(lobby.wagerAmount)}</div>
+              <div className="eyebrow mt-0.5">Ставка</div>
+            </div>
+            <div className="bg-panel p-3">
+              <div className="font-display tabular-nums text-main">{formatMoney(win)}</div>
+              <div className="eyebrow mt-0.5">Победителю</div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
@@ -179,7 +191,7 @@ export default function LobbyScreen() {
             <span className="relative w-6 h-6 shrink-0">
               <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
             </span>
-            <p className="text-main text-sm">Ждём соперника. Отправьте ссылку — друг сразу попадёт сюда.</p>
+            <p className="text-main text-sm">Ждём друга. Отправьте ссылку — он сразу попадёт сюда.</p>
           </motion.div>
           <div className="grid grid-cols-2 gap-3">
             <button className="btn-primary" onClick={share}><Icon name="share" size={16} /> Отправить</button>
@@ -206,16 +218,20 @@ export default function LobbyScreen() {
         title="Принять бой?"
         icon="swords"
         message={
-          <>
-            Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span> спишется
-            при старте боя. Победителю —{' '}
-            <span className="text-main font-display">{formatMoney(win)}</span>.
-            <span className="block mt-2 text-warning">
-              ⚠️ Нужен стабильный интернет — при обрыве связи можно проиграть ставку.
-            </span>
-          </>
+          isTraining ? (
+            <>Тренировочный бой без ставки. Статистика и баланс не изменятся.</>
+          ) : (
+            <>
+              Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span> спишется
+              при старте боя. Победителю —{' '}
+              <span className="text-main font-display">{formatMoney(win)}</span>.
+              <span className="block mt-2 text-warning">
+                ⚠️ Нужен стабильный интернет — при обрыве связи можно проиграть ставку.
+              </span>
+            </>
+          )
         }
-        confirmLabel="Да, в бой"
+        confirmLabel={isTraining ? 'В тренировку' : 'Да, в бой'}
         cancelLabel="Отмена"
         onConfirm={accept}
         onCancel={() => setConfirmJoin(false)}

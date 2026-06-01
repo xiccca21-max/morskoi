@@ -71,6 +71,12 @@ export class MatchmakingController {
     return this.lobbies.create(u.sub, dto.wagerAmount, dto.isPublic ?? false);
   }
 
+  @Post('training/lobby')
+  @Throttle({ default: { limit: 12, ttl: 60_000 } })
+  createTrainingLobby(@CurrentUser() u: JwtPayload) {
+    return this.lobbies.createTraining(u.sub);
+  }
+
   @Post('lobby/join')
   joinLobby(@CurrentUser() u: JwtPayload, @Body() dto: CodeDto) {
     return this.lobbies.join(dto.code.toUpperCase(), u.sub);

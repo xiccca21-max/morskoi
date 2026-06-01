@@ -75,6 +75,8 @@ export const MatchmakingAPI = {
   status:  () => api.get('/matchmaking/queue/status').then(r => r.data),
   createLobby: (wagerAmount: number, isPublic = false) =>
     api.post('/matchmaking/lobby', { wagerAmount, isPublic }).then(r => r.data),
+  createTrainingLobby: () =>
+    api.post<{ code: string; wagerAmount: number; isTraining: boolean }>('/matchmaking/training/lobby', {}).then(r => r.data),
   joinLobby:   (code: string) => api.post('/matchmaking/lobby/join', { code }).then(r => r.data),
   lobbyByHost: (userId: string) =>
     api.get<{ code: string; wagerAmount: number }>(`/matchmaking/lobby/host/${userId}`).then(r => r.data),
@@ -114,7 +116,7 @@ export const CosmeticsAPI = {
 export const GameAPI = {
   active: () => api.get('/game/active').then(r => r.data),
   state:  (matchId: string) => api.get(`/game/state/${matchId}`).then(r => r.data),
-  startTraining: () => api.post<{ matchId: string }>('/game/training/start', {}).then(r => r.data),
+  startBotTest: () => api.post<{ matchId: string }>('/game/training/bot', {}).then(r => r.data),
 };
 
 export const HistoryAPI = {

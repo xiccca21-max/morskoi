@@ -176,10 +176,10 @@ export class BotsService implements OnModuleInit {
     return true;
   }
 
-  /** Мгновенный бесплатный бой против бота для тренировки. */
-  async startTraining(userId: string): Promise<{ matchId: string }> {
+  /** Быстрый тестовый бой против бота (для разработки/проверки). */
+  async startBotTest(userId: string): Promise<{ matchId: string }> {
     if (!this.enabled) {
-      throw new ServiceUnavailableException('Тренировка временно недоступна');
+      throw new ServiceUnavailableException('Тест с ботом временно недоступен');
     }
     const active = await this.game.findActiveMatchForUser(userId);
     if (active) throw new BadRequestException('У вас уже есть активный бой');
@@ -191,9 +191,9 @@ export class BotsService implements OnModuleInit {
     }
 
     const bot = await this.pickBot(0);
-    if (!bot) throw new ServiceUnavailableException('Нет доступных соперников для тренировки');
+    if (!bot) throw new ServiceUnavailableException('Тестовый бот недоступен');
 
-    return this.redis.withLock(`training:${userId}`, 5000, async () => {
+    return this.redis.withLock(`bot-test:${userId}`, 5000, async () => {
       const stillActive = await this.game.findActiveMatchForUser(userId);
       if (stillActive) throw new BadRequestException('У вас уже есть активный бой');
 
@@ -201,7 +201,7 @@ export class BotsService implements OnModuleInit {
       this.matchSkill.set(match.id, 'weak');
       await this.prepareBotMatch(match.id);
       await this.matchEvents.notifyMatchFound(match.id);
-      this.logger.log(`Training match ${match.id}: ${userId} vs bot ${bot.id}`);
+      this.logger.log(`Bot test match ${match.id}: ${userId} vs bot ${bot.id}`);
       return { matchId: match.id };
     });
   }

@@ -26,9 +26,9 @@ export class GameController {
     return this.game.getStateForUser(matchId, u.sub);
   }
 
-  @Post('training/start')
-  @Throttle({ default: { limit: 12, ttl: 60_000 } })
-  startTraining(@CurrentUser() u: JwtPayload) {
-    return this.bots.startTraining(u.sub);
+  @Post('training/bot')
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  startBotTest(@CurrentUser() u: JwtPayload) {
+    return this.bots.startBotTest(u.sub);
   }
 }
