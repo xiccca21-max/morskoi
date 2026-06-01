@@ -75,15 +75,15 @@ export function Ship({ kind, size, orientation, sunk = false, icon = false, clas
     );
   }
 
-  // Корпус: корма скруглена, нос заострён
-  const bowTip = L - 6;
-  const bowBase = L - 40;
+  // Корпус: корма скруглена, нос заострён. Силуэт растянут почти на всю клетку.
+  const bowTip = L - 2;
+  const bowBase = L - 34;
   const hullPath = [
-    `M ${P(14, 22)}`,
-    `Q ${P(14, 50)} ${P(14, 78)}`,            // скруглённая корма
-    `L ${P(bowBase, 78)}`,
-    `Q ${P(bowTip, 64)} ${P(bowTip, 50)}`,    // нос
-    `Q ${P(bowTip, 36)} ${P(bowBase, 22)}`,
+    `M ${P(6, 10)}`,
+    `Q ${P(6, 50)} ${P(6, 90)}`,              // скруглённая корма
+    `L ${P(bowBase, 90)}`,
+    `Q ${P(bowTip, 70)} ${P(bowTip, 50)}`,    // нос
+    `Q ${P(bowTip, 30)} ${P(bowBase, 10)}`,
     'Z',
   ].join(' ');
 

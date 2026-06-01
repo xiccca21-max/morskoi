@@ -169,11 +169,10 @@ export default function BattleScreen() {
   //    у обоих успевают переключиться экраны), затем открываем поле атаки.
   useEffect(() => {
     if (state?.gameStatus !== 'IN_PROGRESS') return;
-    if (!myTurn) {
-      setView('own');
-      return;
-    }
-    const t = setTimeout(() => setView('enemy'), 1000);
+    // Секундная пауза перед сменой поля в обе стороны: успеваем увидеть итог
+    // залпа и у обоих игроков плавно переключаются экраны.
+    const target = myTurn ? 'enemy' : 'own';
+    const t = setTimeout(() => setView(target), 1000);
     return () => clearTimeout(t);
   }, [myTurn, state?.gameStatus]);
   const fuse = Math.max(0, Math.min(100, (remaining / turnMaxRef.current) * 100));

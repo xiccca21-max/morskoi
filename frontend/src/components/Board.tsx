@@ -149,7 +149,6 @@ export function Board({
                       top: `${s.y * cellPct}%`,
                       width: `${w}%`,
                       height: `${h}%`,
-                      padding: '2.5%',
                       zIndex: 5,
                     }}
                   >
@@ -222,7 +221,6 @@ export function Board({
                     top: `${s.y * cellPct}%`,
                     width: `${w}%`,
                     height: `${h}%`,
-                    padding: '2%',
                     zIndex: 20,
                   }}
                 >
@@ -240,31 +238,15 @@ export function Board({
 
 function Marker({ hit }: { hit: boolean }) {
   if (!hit) {
-    // Промах: клетка плавно закрашивается целиком + короткий всплеск-кольцо.
+    // Промах: клетка плавно закрашивается целиком (без кругов/точек).
     return (
-      <span className="absolute inset-0 pointer-events-none flex items-center justify-center">
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-          className="absolute inset-0"
-          style={{ background: 'color-mix(in srgb, var(--c-muted) 34%, transparent)' }}
-        />
-        <motion.span
-          initial={{ scale: 0.25, opacity: 0.55 }}
-          animate={{ scale: 1.7, opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="absolute rounded-full border border-muted"
-          style={{ width: '46%', height: '46%' }}
-        />
-        <motion.span
-          initial={{ scale: 0.2, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.7 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="rounded-full bg-muted"
-          style={{ width: '20%', height: '20%' }}
-        />
-      </span>
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'color-mix(in srgb, var(--c-muted) 34%, transparent)' }}
+      />
     );
   }
   // Попадание: тлеющий очаг + «впечатывающийся» крест + ударное кольцо.
