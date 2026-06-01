@@ -6,7 +6,7 @@ export class HistoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForUser(userId: string, limit = 50) {
-    const matches = await this.prisma.match.findMany({
+    const matches = (await this.prisma.match.findMany({
       where: {
         status: { in: ['FINISHED', 'CANCELLED'] },
         OR: [{ player1Id: userId }, { player2Id: userId }],
@@ -17,8 +17,8 @@ export class HistoryService {
         player1: { select: { id: true, username: true, firstName: true, avatar: true } },
         player2: { select: { id: true, username: true, firstName: true, avatar: true } },
       },
-    });
-    return matches.map((m) => {
+    })) as any[];
+    return matches.map((m: any) => {
       const isP1 = m.player1Id === userId;
       const opp = isP1 ? m.player2 : m.player1;
       const won = m.winnerId === userId;
@@ -35,7 +35,7 @@ export class HistoryService {
         opponent: opp
           ? {
               id: opp.id,
-              name: opp.username ?? opp.firstName ?? `Player-${opp.id.slice(0, 4)}`,
+              name: (opp as any).nickname ?? opp.username ?? opp.firstName ?? `Player-${opp.id.slice(0, 4)}`,
               avatar: opp.avatar,
             }
           : null,

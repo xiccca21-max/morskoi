@@ -131,6 +131,7 @@ model Match {
   gameState     GameState?
 
   @@index([status])
+  @@index([status, endedAt])
   @@index([player1Id])
   @@index([player2Id])
   @@index([winnerId])
@@ -175,6 +176,7 @@ model Transaction {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([userId, type, status, createdAt])
   @@index([matchId])
   @@index([type])
 }
@@ -200,6 +202,7 @@ model WithdrawalRequest {
   user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([userId, status, createdAt])
   @@index([status])
 }
 
@@ -250,5 +253,6 @@ model Lobby {
 
   @@index([code])
   @@index([status])
+  @@index([hostId, status])
   @@index([isPublic, status])
 }

@@ -33,7 +33,6 @@ export class PaymentsService {
   async createDeposit(userId: string, amountRub: number) {
     if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
 
-    // Ответственная игра: самоисключённым пополнение недоступно.
     await assertCanPlay(this.prisma, userId);
 
     if (!this.cryptoPay.isEnabled) {
@@ -77,6 +76,8 @@ export class PaymentsService {
     const invoiceId = String(inv?.invoice_id);
     if (!userId || !invoiceId) return { ok: true, ignored: true };
 
+    await assertCanPlay(this.prisma, userId);
+
     const r = await this.wallet.completeDepositByInvoice(userId, invoiceId);
     if (r.credited && r.amountRub != null) {
       this.logger.log(`Deposit credited: user=${userId} invoice=${invoiceId} +${r.amountRub} ₽`);
@@ -99,19 +100,39 @@ export class PaymentsService {
       return res;
     }
 
-    if (this.cryptoPay.isEnabled && (wr.method === 'TON' || wr.method === 'CRYPTO' || wr.method.startsWith('USDT_'))) {
+    // USDT на внешний кошелёк — выплата вручную админом на wr.destination (не через Telegram transfer).
+    if (String(wr.method).startsWith('USDT_')) {
+      this.logger.warn(
+        `Manual USDT payout required: ${wr.net} ₽ → ${wr.destination} (${wr.method}) id=${id}`,
+      );
+      const res = await this.wallet.resolveWithdrawal(id, 'PAID');
+      this.audit.log(wr.userId, 'WITHDRAW_PAID', { id, net: wr.net, method: wr.method, manual: true });
+      this.bot.notifyWithdrawal?.(wr.userId, wr.net, 'paid').catch(() => {});
+      return res;
+    }
+
+    if (this.cryptoPay.isEnabled && (wr.method === 'TON' || wr.method === 'CRYPTO')) {
       const asset = wr.method === 'TON' ? 'TON' : 'USDT';
       const user = await this.prisma.user.findUnique({ where: { id: wr.userId } });
       if (!user) throw new NotFoundException('Пользователь не найден');
       const rubPerAsset = await this.cryptoPay.getRubPerAsset(asset);
       const amountAsset = wr.net / rubPerAsset;
-      await this.cryptoPay.transfer({
-        telegramUserId: user.telegramId,
-        asset,
-        amount: amountAsset,
-        spendId: `wd_${wr.id}`,
-        comment: 'Вывод · Морской Бой',
-      });
+      const res = await this.wallet.resolveWithdrawal(id, 'PAID');
+      try {
+        await this.cryptoPay.transfer({
+          telegramUserId: user.telegramId,
+          asset,
+          amount: amountAsset,
+          spendId: `wd_${wr.id}`,
+          comment: 'Вывод · Морской Бой',
+        });
+      } catch (e: any) {
+        this.logger.error(`Transfer failed after PAID mark ${id}: ${e?.message}`);
+        throw e;
+      }
+      this.audit.log(wr.userId, 'WITHDRAW_PAID', { id, net: wr.net, method: wr.method });
+      this.bot.notifyWithdrawal?.(wr.userId, wr.net, 'paid').catch(() => {});
+      return res;
     }
 
     const res = await this.wallet.resolveWithdrawal(id, 'PAID');

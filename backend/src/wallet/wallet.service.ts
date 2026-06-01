@@ -40,7 +40,7 @@ export class WalletService {
   async getWallet(userId: string): Promise<{ balance: number; withdrawable: number }> {
     const u = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!u) throw new NotFoundException('User not found');
-    return { balance: Number(u.balance), withdrawable: Number(u.balance) };
+    return { balance: Number(u.balance), withdrawable: Number((u as any).withdrawable ?? u.balance) };
   }
 
   /**
@@ -249,6 +249,20 @@ export class WalletService {
         const pending = pendingRows.find((t) => txMetaMatches(t.meta, 'invoiceId', invoiceId));
         if (!pending) return { credited: false as const };
         const amountRub = Number(pending.amount);
+
+        const uDep = await tx.user.findUnique({ where: { id: userId } });
+        const depLimit = Number((uDep as any)?.dailyDepositLimit ?? 0);
+        if (depLimit > 0) {
+          const since = new Date(Date.now() - 24 * 3600 * 1000);
+          const agg = await tx.transaction.aggregate({
+            where: { userId, type: TxType.DEPOSIT, status: TxStatus.COMPLETED, createdAt: { gt: since } },
+            _sum: { amount: true },
+          });
+          const usedToday = Number(agg._sum.amount ?? 0);
+          if (usedToday + amountRub > depLimit) {
+            throw new BadRequestException(`Превышен дневной лимит пополнения (${depLimit} ₽)`);
+          }
+        }
         await tx.transaction.update({ where: { id: pending.id }, data: { status: TxStatus.COMPLETED } });
         await tx.user.update({
           where: { id: userId },
@@ -275,8 +289,7 @@ export class WalletService {
    * Бонусов нет: withdrawable всегда равен балансу, параметр makeWithdrawable
    * оставлен для совместимости и игнорируется.
    */
-  async adminAdjust(userId: string, amount: number, reason: string, makeWithdrawable = false) {
-    void makeWithdrawable;
+  async adminAdjust(userId: string, amount: number, reason: string, makeWithdrawable = true) {
     if (!amount || amount === 0) throw new BadRequestException('Сумма не может быть нулевой');
     return this.redis.withLock(`wallet:${userId}`, 4000, async () => {
       return this.prisma.$transaction(async (tx) => {
@@ -285,7 +298,12 @@ export class WalletService {
         const newBalance = Number(u.balance) + amount;
         if (newBalance < 0) throw new BadRequestException('Недостаточно средств для списания');
 
-        const data: any = { balance: { increment: amount }, withdrawable: newBalance };
+        const data: any = { balance: { increment: amount } };
+        if (makeWithdrawable || amount < 0) {
+          data.withdrawable = amount > 0 ? { increment: amount } : newBalance;
+        } else {
+          data.withdrawable = Number((u as any).withdrawable ?? u.balance);
+        }
 
         const updated = await tx.user.update({ where: { id: userId }, data });
         await tx.transaction.create({
@@ -434,14 +452,13 @@ export class WalletService {
           }
 
           if (winnerId === null) {
-            // refund обоим
             await tx.user.update({
               where: { id: p1Id },
-              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 } } as any,
+              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 }, winStreak: 0 } as any,
             });
             await tx.user.update({
               where: { id: p2Id },
-              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 } } as any,
+              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 }, winStreak: 0 } as any,
             });
             await tx.transaction.createMany({
               data: [

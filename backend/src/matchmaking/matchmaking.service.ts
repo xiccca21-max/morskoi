@@ -143,6 +143,9 @@ export class MatchmakingService {
   }
 
   private async createMatchFromQueue(userId: string, opponentId: string, wagerAmount: number) {
+    await assertCanPlay(this.prisma, userId);
+    await assertCanPlay(this.prisma, opponentId);
+
     const [u1, u2] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.user.findUnique({ where: { id: opponentId } }),

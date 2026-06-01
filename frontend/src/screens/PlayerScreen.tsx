@@ -4,6 +4,7 @@ import { UsersAPI } from '../api/endpoints';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { Skeleton } from '../components/Skeleton';
+import { displayName } from '../lib/display-name';
 import { getRank } from '../lib/rank';
 import { useAuthStore } from '../stores/auth-store';
 
@@ -51,8 +52,8 @@ export default function PlayerScreen() {
         <Icon name="arrow-right" size={14} className="rotate-180" /> Назад
       </button>
       <section className="card p-6 text-center">
-        <Avatar name={player.username} src={player.avatar} size={72} className="mx-auto" />
-        <h2 className="font-display text-xl text-main mt-3">{player.username}</h2>
+        <Avatar name={displayName(player)} src={player.avatar} size={72} className="mx-auto" />
+        <h2 className="font-display text-xl text-main mt-3">{displayName(player)}</h2>
         <div className="flex items-center justify-center gap-1.5 text-muted mt-1">
           <Icon name={rank.icon} size={16} />
           <span className="title text-xs">{rank.title}</span>

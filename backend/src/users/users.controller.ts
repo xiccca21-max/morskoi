@@ -14,7 +14,8 @@ class LimitsDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
+  @Max(365)
   selfExcludeDays?: number;
 }
 

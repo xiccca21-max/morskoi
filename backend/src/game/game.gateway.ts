@@ -396,6 +396,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() body: { code: string; nonce?: string },
   ) {
     const s = this.requireAuth(client);
+    if (!this.checkSocketRate(s.data.userId, 'lobby:join', 15)) {
+      return { ok: false, error: 'Слишком много запросов' };
+    }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.lobbies.join(body.code.toUpperCase(), s.data.userId);
@@ -431,6 +434,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     },
   ) {
     const s = this.requireAuth(client);
+    if (!this.checkSocketRate(s.data.userId, 'game:placement', 20)) {
+      return { ok: false, error: 'Слишком много запросов' };
+    }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.game.submitPlacement(body.matchId, s.data.userId, body.ships);
@@ -468,7 +474,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
-      if (body.x < 0 || body.x > 9 || body.y < 0 || body.y > 9) {
+      if (body.x < 0 || body.x > 9 || body.y < 0 || body.y > 9 || !Number.isInteger(body.x) || !Number.isInteger(body.y)) {
         return { ok: false, error: 'Invalid coordinates' };
       }
       const r = await this.game.attack(body.matchId, s.data.userId, body.x, body.y);
@@ -529,14 +535,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() body: { matchId: string; nonce?: string },
   ) {
     const s = this.requireAuth(client);
+    if (!this.checkSocketRate(s.data.userId, 'game:surrender', 5, 60_000)) {
+      return { ok: false, error: 'Слишком много запросов' };
+    }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
       const r = await this.game.surrender(body.matchId, s.data.userId);
-      this.server.to(`match:${body.matchId}`).emit('match:finished', {
-        matchId: body.matchId,
-        winnerId: r.winnerId,
-        surrenderedBy: s.data.userId,
-      });
+      await this.emitMatchFinished(body.matchId, r.winnerId ?? null);
       await this.broadcastStateToBothPlayers(body.matchId);
       this.clearTurnTimer(body.matchId);
       this.afkCounters.delete(body.matchId);
@@ -555,6 +560,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() body: { matchId: string },
   ) {
     const s = this.requireAuth(client);
+    if (!this.checkSocketRate(s.data.userId, 'match:requestState', 30, 10_000)) {
+      return { ok: false, error: 'Слишком много запросов' };
+    }
     try {
       const state = await this.game.getStateForUser(body.matchId, s.data.userId);
       client.join(`match:${body.matchId}`);
@@ -576,6 +584,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
     if (!match || match.status !== 'FINISHED') return { ok: false, error: 'Match not finished' };
+    if (match.player1Id !== s.data.userId && match.player2Id !== s.data.userId) {
+      return { ok: false, error: 'Not your match' };
+    }
+    if (!this.checkSocketRate(s.data.userId, 'match:rematch', 10, 60_000)) {
+      return { ok: false, error: 'Слишком много запросов' };
+    }
 
     const meIsP1 = match.player1Id === s.data.userId;
     const opponentId = meIsP1 ? match.player2Id : match.player1Id;
@@ -617,6 +631,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           match.player2Id!,
           Number(match.wagerAmount),
         );
+        await this.bots.prepareBotMatch(newMatch.id);
         await this.redis.client.del(key);
         return newMatch.id;
       });

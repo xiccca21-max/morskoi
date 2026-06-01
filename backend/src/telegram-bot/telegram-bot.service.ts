@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import TelegramBot from 'node-telegram-bot-api';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import type { LobbyService } from '../matchmaking/lobby.service';
 
@@ -46,7 +46,9 @@ export class TelegramBotService implements OnModuleInit {
       this.logger.warn('webhook update rejected: secret not configured');
       return false;
     }
-    if (secret !== this.webhookSecret) {
+    const a = Buffer.from(String(secret ?? ''));
+    const b = Buffer.from(this.webhookSecret);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
       this.logger.warn('webhook update rejected: bad secret token');
       return false;
     }

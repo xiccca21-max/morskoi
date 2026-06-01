@@ -20,7 +20,10 @@ export default function HomeScreen() {
   // даже после перезапуска мини-аппа.
   useEffect(() => {
     GameAPI.active()
-      .then((m) => { if (m && m.matchId) setMatchState(m); })
+      .then((m) => {
+        if (m?.matchId) setMatchState(m);
+        else useMatchStore.getState().clear();
+      })
       .catch(() => {});
   }, [setMatchState]);
 

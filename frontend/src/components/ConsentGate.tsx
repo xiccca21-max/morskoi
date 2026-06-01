@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { AuthAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic } from '../lib/telegram';
+import { toast } from '../stores/toast-store';
+import { useGameConfigStore } from '../stores/game-config-store';
 import { Icon } from './Icon';
 
 /**
@@ -11,6 +13,8 @@ import { Icon } from './Icon';
  */
 export function ConsentGate() {
   const patchUser = useAuthStore((s) => s.patchUser);
+  const minWager = useGameConfigStore((s) => s.minWager);
+  const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -24,6 +28,7 @@ export function ConsentGate() {
       patchUser({ agreedToTerms: true });
     } catch {
       tgHaptic('error');
+      toast('Не удалось сохранить согласие', 'error');
       setBusy(false);
     }
   };
@@ -69,7 +74,7 @@ export function ConsentGate() {
             <p>• Каждый бой — ставка двух игроков. Победитель забирает банк за вычетом комиссии 5%.</p>
             <p>• Все ходы проверяются на сервере, поля соперников скрыты. Читы невозможны.</p>
             <p>• Выход из боя или бездействие засчитывается как поражение, ставка не возвращается.</p>
-            <p>• Минимальная ставка — 100 ₽. Вывод USDT — от 100 ₽, обработка до 24 часов.</p>
+            <p>• Минимальная ставка — {minWager} ₽. Вывод USDT — от {minWithdraw} ₽, обработка до 24 часов.</p>
             <p>• Играйте ответственно: лимиты и перерыв доступны в настройках.</p>
           </div>
         )}

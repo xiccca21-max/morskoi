@@ -109,15 +109,16 @@ export default function MatchmakingScreen() {
   useEffect(() => {
     const sock = getSocket();
     const onFound = (data: any) => {
+      if (!inQueue) return;
       setInQueue(false);
       setQueueSearching(false);
       tgHaptic('success');
       playSound('win');
-      navigate(`/placement/${data.matchId}`);
+      if (data?.matchId) navigate(`/placement/${data.matchId}`);
     };
     sock.on('match:found', onFound);
     return () => { sock.off('match:found', onFound); };
-  }, [navigate]);
+  }, [navigate, inQueue]);
 
   const startQueue = useCallback(() => {
     if (overBalance) { tgVibrate(60); setShowFundsModal(true); return; }

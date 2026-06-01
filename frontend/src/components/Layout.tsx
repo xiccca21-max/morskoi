@@ -42,7 +42,7 @@ export function Layout() {
     } else if (match.gameStatus === 'FINISHED' && !p.startsWith('/result') && !/^\/(home|wallet|settings|profile|leaderboard|history)/.test(p)) {
       navigate(`/result/${match.matchId}`);
     }
-  }, [match?.matchId, match?.gameStatus]); // eslint-disable-line
+  }, [match?.matchId, match?.gameStatus, loc.pathname, navigate]);
 
   const hideNav =
     loc.pathname.startsWith('/placement') ||

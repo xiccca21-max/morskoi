@@ -166,6 +166,15 @@ export class LobbyService {
       });
       if (claimed.count !== 1) throw new BadRequestException('Lobby is not open');
 
+      const host = await this.prisma.user.findUnique({ where: { id: lobby.hostId } });
+      if (!host || Number(host.balance) < Number(lobby.wagerAmount)) {
+        await this.prisma.lobby.updateMany({
+          where: { id: lobby.id, status: LobbyStatus.STARTED, matchId: null },
+          data: { status: LobbyStatus.CLOSED },
+        });
+        throw new BadRequestException('Insufficient balance');
+      }
+
       try {
         const match = await this.game.createMatch(lobby.hostId, joinerId, Number(lobby.wagerAmount));
         await this.prisma.lobby.update({

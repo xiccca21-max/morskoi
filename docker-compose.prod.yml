@@ -26,6 +26,7 @@ services:
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL}
       SUPPORT_URL: ${SUPPORT_URL:-https://t.me/kronlead}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       TELEGRAM_BOT_POLLING: ${TELEGRAM_BOT_POLLING:-false}
       # Прокси-релей для api.telegram.org (если провайдер его блокирует).
       TELEGRAM_API_ROOT: ${TELEGRAM_API_ROOT:-https://api.telegram.org}
@@ -85,7 +86,7 @@ services:
     restart: unless-stopped
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"

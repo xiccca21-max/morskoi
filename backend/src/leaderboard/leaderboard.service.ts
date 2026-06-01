@@ -7,8 +7,8 @@ export interface SeasonInfo {
   end: string;
 }
 
-/** Боты не участвуют в публичном рейтинге. */
-const NOT_BOT = { telegramId: { not: { startsWith: 'bot:' } } } as const;
+/** Боты и забаненные не участвуют в публичном рейтинге. */
+const PUBLIC_PLAYER = { telegramId: { not: { startsWith: 'bot:' } }, banned: false } as const;
 
 /** Тематические названия сезонов — ротация по месяцам. */
 const SEASON_THEMES = [
@@ -64,7 +64,7 @@ export class LeaderboardService {
 
   async topByWins(limit = 50) {
     const users = await this.prisma.user.findMany({
-      where: NOT_BOT,
+      where: PUBLIC_PLAYER,
       orderBy: [{ wins: 'desc' }, { totalWon: 'desc' }],
       take: limit,
       select: {
@@ -77,7 +77,7 @@ export class LeaderboardService {
 
   async topByEarnings(limit = 50) {
     const users = await this.prisma.user.findMany({
-      where: NOT_BOT,
+      where: PUBLIC_PLAYER,
       orderBy: [{ totalWon: 'desc' }],
       take: limit,
       select: {
@@ -102,12 +102,21 @@ export class LeaderboardService {
         winnerId: { not: null },
         endedAt: { gte: start, lt: end },
       },
-      select: { winnerId: true, prizePool: true, rakeAmount: true },
+      select: {
+        winnerId: true,
+        prizePool: true,
+        rakeAmount: true,
+        player1: { select: { telegramId: true } },
+        player2: { select: { telegramId: true } },
+      },
     });
 
     const stats = new Map<string, { wins: number; totalWon: number }>();
     for (const m of matches) {
       if (!m.winnerId) continue;
+      const p1Bot = m.player1?.telegramId?.startsWith('bot:');
+      const p2Bot = m.player2?.telegramId?.startsWith('bot:');
+      if (p1Bot || p2Bot) continue;
       const cur = stats.get(m.winnerId) ?? { wins: 0, totalWon: 0 };
       cur.wins++;
       cur.totalWon += Number(m.prizePool) - Number(m.rakeAmount);
@@ -121,7 +130,7 @@ export class LeaderboardService {
     if (!sorted.length) return [];
 
     const users = await this.prisma.user.findMany({
-      where: { id: { in: sorted.map(([id]) => id) }, ...NOT_BOT },
+      where: { id: { in: sorted.map(([id]) => id) }, ...PUBLIC_PLAYER },
       select: { id: true, username: true, firstName: true, avatar: true, losses: true },
     });
     const byId = new Map(users.map((u) => [u.id, u]));

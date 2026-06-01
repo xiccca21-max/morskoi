@@ -25,7 +25,7 @@ export class UsersService {
       nickname: u.nickname ?? null,
       avatar: u.avatar,
       balance: Number(u.balance),
-      withdrawable: Number(u.balance),
+      withdrawable: Number(u.withdrawable ?? u.balance),
       wins: u.wins,
       losses: u.losses,
       draws: u.draws,
@@ -96,6 +96,10 @@ export class UsersService {
     if (Number(u.balance) > 0) {
       throw new BadRequestException('Сначала выведите остаток баланса');
     }
+    const pendingWd = await (this.prisma as any).withdrawalRequest.findFirst({
+      where: { userId, status: 'PENDING' },
+    });
+    if (pendingWd) throw new BadRequestException('Дождитесь обработки заявки на вывод');
     const active = await this.prisma.match.findFirst({
       where: {
         status: { in: [MatchStatus.PLACEMENT, MatchStatus.IN_PROGRESS] },

@@ -123,7 +123,7 @@ export class AuthService {
       nickname: user.nickname ?? null,
       avatar: user.avatar,
       balance: Number(user.balance),
-      withdrawable: Number(user.balance),
+      withdrawable: Number(user.withdrawable ?? user.balance),
       wins: user.wins,
       losses: user.losses,
       draws: user.draws,
@@ -176,10 +176,13 @@ export class AuthService {
     const payload = await this.verifyToken(token);
     const u = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { banned: true },
-    });
+    }) as { banned?: boolean; selfExcludedUntil?: Date | null } | null;
     if (!u) throw new UnauthorizedException('User not found');
     if (u.banned) throw new ForbiddenException('Account banned');
+    const until = u.selfExcludedUntil ? new Date(u.selfExcludedUntil) : null;
+    if (until && until.getTime() > Date.now()) {
+      throw new ForbiddenException('Self-exclusion active');
+    }
     return payload;
   }
 }

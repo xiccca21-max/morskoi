@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GameService } from '../game/game.service';
 import { MatchEventsService } from '../common/match-events.service';
+import { assertCanPlay } from '../common/responsible-gaming';
 
 export type BotSkillLevel = 'strong' | 'weak';
 
@@ -282,7 +283,16 @@ export class BotsService implements OnModuleInit {
       await this.prisma.matchmakingQueue.deleteMany({ where: { userId } });
       return;
     }
-    if (Number(human.balance) < wager) return; // не по карману — ждём/выйдет сам
+    if (Number(human.balance) < wager) {
+      await this.prisma.matchmakingQueue.deleteMany({ where: { userId } });
+      return;
+    }
+    try {
+      await assertCanPlay(this.prisma, userId);
+    } catch {
+      await this.prisma.matchmakingQueue.deleteMany({ where: { userId } });
+      return;
+    }
 
     const bot = await this.pickBot(wager);
     if (!bot) return;

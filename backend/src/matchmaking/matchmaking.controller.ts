@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length, Max } from 'class-validator';
 import { MatchmakingService } from './matchmaking.service';
 import { LobbyService } from './lobby.service';
@@ -49,6 +50,7 @@ export class MatchmakingController {
   ) {}
 
   @Post('queue')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   enqueue(@CurrentUser() u: JwtPayload, @Body() dto: WagerDto) {
     return this.mm.enqueue(u.sub, dto.wagerAmount);
   }
@@ -64,6 +66,7 @@ export class MatchmakingController {
   }
 
   @Post('lobby')
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   createLobby(@CurrentUser() u: JwtPayload, @Body() dto: CreateLobbyDto) {
     return this.lobbies.create(u.sub, dto.wagerAmount, dto.isPublic ?? false);
   }

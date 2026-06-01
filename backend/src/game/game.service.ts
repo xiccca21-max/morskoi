@@ -185,6 +185,9 @@ export class GameService {
   // ===== Атака =====
 
   async attack(matchId: string, userId: string, x: number, y: number) {
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || x > 9 || y < 0 || y > 9) {
+      throw new BadRequestException('Invalid coordinates');
+    }
     return this.redis.withLock(`match:${matchId}`, 5000, async () => {
       const match = await this.prisma.match.findUnique({
         where: { id: matchId },

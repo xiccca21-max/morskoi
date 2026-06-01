@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { AuditService } from '../common/audit.service';
+import { parseTxMeta } from '../common/transaction-meta';
 
 @Injectable()
 export class AdminService {
@@ -19,7 +20,7 @@ export class AdminService {
       firstName: u.firstName,
       nickname: u.nickname ?? null,
       balance: Number(u.balance),
-      withdrawable: Number(u.balance),
+      withdrawable: Number(u.withdrawable ?? u.balance),
       wins: u.wins,
       losses: u.losses,
       banned: u.banned,
@@ -130,7 +131,7 @@ export class AdminService {
       id: l.id,
       userId: l.userId,
       action: l.action,
-      meta: l.meta ? JSON.parse(l.meta) : null,
+      meta: parseTxMeta(l.meta),
       createdAt: l.createdAt,
     }));
   }

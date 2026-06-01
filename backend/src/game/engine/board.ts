@@ -50,6 +50,9 @@ export function validateBoard(ships: ShipPlacement[]): { ok: true } | { ok: fals
     const s = ships[i];
     if (!['H', 'V'].includes(s.orientation)) return { ok: false, reason: 'bad orientation' };
     if (s.size < 1 || s.size > 4) return { ok: false, reason: 'bad size' };
+    if (!Number.isInteger(s.x) || !Number.isInteger(s.y)) return { ok: false, reason: 'bad coords' };
+    const fleetDef = SHIP_FLEET.find((f) => f.kind === s.kind);
+    if (!fleetDef || fleetDef.size !== s.size) return { ok: false, reason: 'bad kind/size' };
     const cells = shipCells(s);
     for (const [x, y] of cells) {
       if (!inBounds(x, y)) return { ok: false, reason: 'out of bounds' };
