@@ -61,6 +61,7 @@ export default function App() {
   const setLastAttack = useMatchStore((s) => s.setLastAttack);
   const clearMatch = useMatchStore((s) => s.clear);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authAttempt, setAuthAttempt] = useState(0);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
   const resumeHandled = useRef(false);
@@ -155,58 +156,79 @@ export default function App() {
   useEffect(() => {
     tgReady();
     let cancelled = false;
+    setReady(false);
+    setAuthError(null);
     (async () => {
-      // 1. пробуем существующий токен
-      const existing = loadToken();
-      const initData = await waitForInitData();
+      const initDataTimeout = authAttempt > 0 ? 15000 : 10000;
+
+      const applyLoginResult = (res: Awaited<ReturnType<typeof AuthAPI.login>>) => {
+        setAuthToken(res.token);
+        setUser({ ...res.user, balance: Number(res.user.balance) });
+        syncNotifyFromServer(res.user);
+        if (res.dailyBonus?.claimed) {
+          const prevStreak = Math.max(0, (res.dailyBonus.streak ?? 1) - 1);
+          const nextStreak = res.dailyBonus.streak ?? 1;
+          toast(`Стрик входа: ${nextStreak} дн. подряд`, 'success', 'anchor');
+          if (res.dailyBonus.reward) {
+            setTimeout(() => toast(res.dailyBonus!.reward as string, 'success', 'trophy'), 300);
+          }
+          playSound('win');
+          for (const a of newStreakAchievements(prevStreak, nextStreak)) {
+            setTimeout(() => toast(`Достижение: ${a.title}`, 'success', a.icon), 600);
+          }
+          patchUser({ loginStreak: nextStreak });
+        }
+      };
+
       try {
+        // 1. Сохранённый JWT — не ждём initData (Telegram WebView часто сбрасывает sessionStorage).
+        const existing = loadToken();
+        if (existing) {
+          try {
+            const me = await UsersAPI.me();
+            if (cancelled) return;
+            setUser({ ...me, balance: Number(me.balance) });
+            syncNotifyFromServer(me);
+            return;
+          } catch {
+            setAuthToken(null);
+          }
+        }
+
+        // 2. Свежий initData от Telegram.
+        const initData = await waitForInitData(initDataTimeout);
+        if (cancelled) return;
+
         if (initData) {
           const res = await AuthAPI.login(initData);
           if (cancelled) return;
-          setAuthToken(res.token);
-          setUser({ ...res.user, balance: Number(res.user.balance) });
-          syncNotifyFromServer(res.user);
-          if (res.dailyBonus?.claimed) {
-            const prevStreak = Math.max(0, (res.dailyBonus.streak ?? 1) - 1);
-            const nextStreak = res.dailyBonus.streak ?? 1;
-            toast(`Стрик входа: ${nextStreak} дн. подряд`, 'success', 'anchor');
-            if (res.dailyBonus.reward) {
-              setTimeout(() => toast(res.dailyBonus!.reward as string, 'success', 'trophy'), 300);
-            }
-            playSound('win');
-            for (const a of newStreakAchievements(prevStreak, nextStreak)) {
-              setTimeout(() => toast(`Достижение: ${a.title}`, 'success', a.icon), 600);
-            }
-            patchUser({ loginStreak: nextStreak });
-          }
-        } else if (existing) {
-          try {
-            const me = await UsersAPI.me();
-            setUser({ ...me, balance: Number(me.balance) });
-            syncNotifyFromServer(me);
-          } catch {
-            setAuthToken(null);
-            if (isTelegramWebView()) {
-              setAuthError('Сессия истекла. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
-            } else {
-              setAuthError('Откройте приложение через Telegram');
-            }
-          }
+          applyLoginResult(res);
         } else if (isTelegramWebView()) {
           setAuthError('Telegram не передал данные авторизации. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
         } else {
           setAuthError('Откройте приложение через Telegram');
         }
       } catch (e: any) {
-        setAuthError(e?.response?.data?.message ?? e?.message ?? 'Auth failed');
+        if (cancelled) return;
+        const status = e?.response?.status;
+        const msg = e?.response?.data?.message ?? e?.message;
+        if (!e?.response) {
+          setAuthError('Сервер недоступен. Проверьте интернет и нажмите «Повторить».');
+        } else if (status >= 500) {
+          setAuthError('Сервер временно недоступен. Попробуйте через минуту.');
+        } else if (status === 401 && isTelegramWebView()) {
+          setAuthError('Сессия истекла. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
+        } else {
+          setAuthError(typeof msg === 'string' ? msg : 'Не удалось авторизоваться');
+        }
       } finally {
-        setReady(true);
+        if (!cancelled) setReady(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [setReady, setUser, patchUser]);
+  }, [setReady, setUser, patchUser, authAttempt]);
 
   // Подключение к сокету после логина + глобальные обработчики (регистрируем один раз)
   const authenticated = useAuthStore((s) => s.authenticated);
@@ -360,7 +382,7 @@ export default function App() {
         message={authError ?? (isTelegramWebView()
           ? 'Не удалось авторизоваться через Telegram'
           : 'Игра доступна только в Telegram. Откройте через бота «⚔️ В бой».')}
-        onRetry={() => window.location.reload()}
+        onRetry={() => setAuthAttempt((a) => a + 1)}
       />
     );
   }

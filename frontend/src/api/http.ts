@@ -10,22 +10,38 @@ export const api = axios.create({
   timeout: 15000,
 });
 
+const TOKEN_KEY = 'naval_token';
 let _token: string | null = null;
+
+/** Telegram WebView часто сбрасывает sessionStorage между открытиями — JWT держим в localStorage. */
+function persistToken(token: string | null) {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 export function setAuthToken(token: string | null) {
   _token = token;
   if (token) {
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
-    try { sessionStorage.setItem('naval_token', token); } catch {}
+    persistToken(token);
   } else {
     delete api.defaults.headers.common.Authorization;
-    try { sessionStorage.removeItem('naval_token'); } catch {}
+    persistToken(null);
   }
 }
 
 export function loadToken(): string | null {
   try {
-    const t = sessionStorage.getItem('naval_token');
+    const t = sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
     if (t) {
       _token = t;
       api.defaults.headers.common.Authorization = `Bearer ${t}`;

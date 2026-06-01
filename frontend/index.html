@@ -21,11 +21,11 @@
           if (h && h.indexOf('tgWebAppData=') !== -1) {
             var p = new URLSearchParams(h);
             var d = p.get('tgWebAppData');
-            if (d) sessionStorage.setItem('tg_init_data', decodeURIComponent(d));
+            if (d) sessionStorage.setItem('tg_init_data', d);
           }
           var q = new URLSearchParams(location.search);
           var qd = q.get('tgWebAppData');
-          if (qd) sessionStorage.setItem('tg_init_data', decodeURIComponent(qd));
+          if (qd) sessionStorage.setItem('tg_init_data', qd);
         } catch (e) {}
       })();
     </script>

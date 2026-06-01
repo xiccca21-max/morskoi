@@ -2,19 +2,26 @@
 
 const TG_INIT_KEY = 'tg_init_data';
 
-/** Сохранить initData из hash/query до того, как роутер изменит URL (HashRouter ломает tgWebAppData). */
+function storeInitData(raw: string | null | undefined): void {
+  if (!raw) return;
+  try {
+    sessionStorage.setItem(TG_INIT_KEY, raw);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Сохранить initData из hash/query до того, как роутер изменит URL. */
 function captureInitDataFromUrl(): void {
   if (typeof window === 'undefined') return;
   try {
     const hash = window.location.hash.slice(1);
     if (hash.includes('tgWebAppData=')) {
       const p = new URLSearchParams(hash);
-      const d = p.get('tgWebAppData');
-      if (d) sessionStorage.setItem(TG_INIT_KEY, decodeURIComponent(d));
+      storeInitData(p.get('tgWebAppData'));
     }
     const q = new URLSearchParams(window.location.search);
-    const qd = q.get('tgWebAppData');
-    if (qd) sessionStorage.setItem(TG_INIT_KEY, decodeURIComponent(qd));
+    storeInitData(q.get('tgWebAppData'));
   } catch {
     /* ignore */
   }
@@ -136,13 +143,15 @@ export function getInitData(): string {
 }
 
 /** Ждём появления initData (SDK или ранний захват из URL). */
-export async function waitForInitData(maxMs = 4000): Promise<string> {
+export async function waitForInitData(maxMs = 10000): Promise<string> {
+  tgReady();
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     const d = getInitData();
     if (d) return d;
     captureInitDataFromUrl();
-    await new Promise((r) => setTimeout(r, 80));
+    tgReady();
+    await new Promise((r) => setTimeout(r, 100));
   }
   return getInitData();
 }
