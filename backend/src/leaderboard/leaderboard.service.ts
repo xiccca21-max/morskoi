@@ -10,6 +10,12 @@ export interface SeasonInfo {
 /** Боты и забаненные не участвуют в публичном рейтинге. */
 const PUBLIC_PLAYER = { telegramId: { not: { startsWith: 'bot:' } }, banned: false } as const;
 
+/** Юзернеймы, скрытые из топа (LEADERBOARD_HIDDEN_USERS=alice,bob). */
+function hiddenUsernames(): string[] {
+  const v = process.env.LEADERBOARD_HIDDEN_USERS ?? '';
+  return v.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 /** Тематические названия сезонов — ротация по месяцам. */
 const SEASON_THEMES = [
   'Сезон пиратов',
@@ -63,8 +69,9 @@ export class LeaderboardService {
   }
 
   async topByWins(limit = 50) {
+    const hidden = hiddenUsernames();
     const users = await this.prisma.user.findMany({
-      where: PUBLIC_PLAYER,
+      where: { ...PUBLIC_PLAYER, ...(hidden.length ? { username: { notIn: hidden } } : {}) },
       orderBy: [{ wins: 'desc' }, { totalWon: 'desc' }],
       take: limit,
       select: {
@@ -76,8 +83,9 @@ export class LeaderboardService {
   }
 
   async topByEarnings(limit = 50) {
+    const hidden = hiddenUsernames();
     const users = await this.prisma.user.findMany({
-      where: PUBLIC_PLAYER,
+      where: { ...PUBLIC_PLAYER, ...(hidden.length ? { username: { notIn: hidden } } : {}) },
       orderBy: [{ totalWon: 'desc' }],
       take: limit,
       select: {
@@ -129,14 +137,19 @@ export class LeaderboardService {
 
     if (!sorted.length) return [];
 
+    const hidden = hiddenUsernames();
     const users = await this.prisma.user.findMany({
-      where: { id: { in: sorted.map(([id]) => id) }, ...PUBLIC_PLAYER },
+      where: {
+        id: { in: sorted.map(([id]) => id) },
+        ...PUBLIC_PLAYER,
+        ...(hidden.length ? { username: { notIn: hidden } } : {}),
+      },
       select: { id: true, username: true, firstName: true, avatar: true, losses: true },
     });
     const byId = new Map(users.map((u) => [u.id, u]));
 
     return sorted
-      .filter(([id]) => byId.has(id)) // отсеиваем ботов
+      .filter(([id]) => byId.has(id)) // отсеиваем ботов и скрытых
       .map(([id, s], i) => {
       const u = byId.get(id);
       return {
