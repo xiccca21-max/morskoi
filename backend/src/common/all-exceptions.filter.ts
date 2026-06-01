@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Sentry, sentryEnabled } from '../instrument';
 
 /**
  * Глобальный фильтр исключений.
@@ -25,6 +26,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      // В Sentry шлём только серверные (5xx) ошибки — клиентские 4xx это
+      // ожидаемые бизнес-ошибки (нехватка баланса и т.п.), шум не нужен.
+      if (sentryEnabled && status >= 500) Sentry.captureException(exception);
       return res.status(status).json(exception.getResponse());
     }
 
@@ -32,6 +36,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `Unhandled error on ${req.method} ${req.url}`,
       exception instanceof Error ? exception.stack : String(exception),
     );
+    if (sentryEnabled) Sentry.captureException(exception);
 
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

@@ -9,6 +9,7 @@ services:
       args:
         VITE_TG_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
         VITE_SUPPORT_URL: ${SUPPORT_URL:-https://t.me/kronlead}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     restart: unless-stopped
     depends_on:
       redis:
@@ -58,6 +59,10 @@ services:
       BOT_MIN_DELAY_MS: ${BOT_MIN_DELAY_MS:-1000}
       BOT_MAX_DELAY_MS: ${BOT_MAX_DELAY_MS:-3000}
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      # Sentry (мониторинг ошибок, опционально)
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      APP_RELEASE: ${APP_RELEASE:-}
     volumes:
       - naval-data:/data
     expose:

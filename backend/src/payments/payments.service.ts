@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { AuditService } from '../common/audit.service';
 import { roundRub } from '../common/money';
+import { assertCanPlay } from '../common/responsible-gaming';
 
 @Injectable()
 export class PaymentsService {
@@ -31,6 +32,9 @@ export class PaymentsService {
   /** Пополнение через @CryptoBot: счёт в ₽, оплата криптой. Без демо-режима. */
   async createDeposit(userId: string, amountRub: number) {
     if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
+
+    // Ответственная игра: самоисключённым пополнение недоступно.
+    await assertCanPlay(this.prisma, userId);
 
     if (!this.cryptoPay.isEnabled) {
       throw new ServiceUnavailableException(

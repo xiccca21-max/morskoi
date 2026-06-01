@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GameService } from '../game/game.service';
 import { MatchEventsService } from '../common/match-events.service';
+import { assertCanPlay } from '../common/responsible-gaming';
 
 /**
  * Matchmaking — ищем второго игрока с той же (или близкой) ставкой.
@@ -24,6 +25,8 @@ export class MatchmakingService {
     if (wagerAmount < min || wagerAmount > max) {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);
     }
+
+    await assertCanPlay(this.prisma, userId);
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');

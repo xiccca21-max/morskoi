@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { Sentry, sentryEnabled } from '../sentry';
 
 interface Props { children: ReactNode }
 interface State { hasError: boolean; message?: string }
@@ -13,6 +14,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('UI crash:', error, info);
+    if (sentryEnabled) {
+      Sentry.withScope((scope) => {
+        scope.setExtra('componentStack', info.componentStack);
+        Sentry.captureException(error);
+      });
+    }
   }
 
   render() {

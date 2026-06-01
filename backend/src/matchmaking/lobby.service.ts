@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { LobbyStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { GameService } from '../game/game.service';
+import { assertCanPlay } from '../common/responsible-gaming';
 
 function genCode(len = 6) {
   const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -23,6 +24,8 @@ export class LobbyService {
     if (wagerAmount < min || wagerAmount > max) {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);
     }
+    await assertCanPlay(this.prisma, hostId);
+
     const host = await this.prisma.user.findUnique({ where: { id: hostId } });
     if (!host) throw new NotFoundException('User not found');
     if (Number(host.balance) < wagerAmount) {
@@ -116,6 +119,8 @@ export class LobbyService {
     if (lobby.status !== LobbyStatus.OPEN) throw new BadRequestException('Lobby is not open');
     if (lobby.hostId === joinerId) throw new BadRequestException('Cannot join own lobby');
     if (lobby.expiresAt < new Date()) throw new BadRequestException('Lobby expired');
+
+    await assertCanPlay(this.prisma, joinerId);
 
     const joiner = await this.prisma.user.findUnique({ where: { id: joinerId } });
     if (!joiner) throw new NotFoundException('User not found');
