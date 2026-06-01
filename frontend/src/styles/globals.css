@@ -15,7 +15,7 @@
   --c-success-rgb: 22 163 74;
   --c-warning-rgb: 200 120 0;
   --c-line-rgb: 0 0 0;
-  --c-water: rgba(0,0,0,0.05);
+  --c-water: rgba(56, 152, 220, 0.16);
   --radius-card: 0px;
   --radius-btn: 0px;
   --border-w: 3px;
@@ -57,7 +57,7 @@
   --c-success-rgb: 52 211 153;
   --c-warning-rgb: 251 191 36;
   --c-line-rgb: 140 180 222;
-  --c-water: rgba(255, 255, 255, 0.05);
+  --c-water: rgba(80, 200, 255, 0.10);
   --radius-card: 4px;
   --radius-btn: 4px;
   --border-w: 1px;
@@ -80,7 +80,7 @@
   --c-success-rgb: 52 211 153;
   --c-warning-rgb: 251 191 36;
   --c-line-rgb: 40 70 110;
-  --c-water: rgba(56, 189, 248, 0.06);
+  --c-water: rgba(56, 189, 248, 0.14);
   --radius-card: 12px;
   --radius-btn: 10px;
   --border-w: 1px;
@@ -229,12 +229,13 @@ button:disabled { cursor: not-allowed; }
 /* Живое море: слои бликов + рябь + виньетка-глубина + тонированная вода.
    Работает поверх любой темы, придаёт полю объём и движение. */
 .sea-bg {
+  background-color: rgba(42, 118, 178, 0.42);
   background-image:
-    radial-gradient(60% 45% at 28% 22%, rgba(255, 255, 255, 0.10), transparent 60%),
-    radial-gradient(55% 40% at 76% 74%, rgba(255, 255, 255, 0.06), transparent 60%),
-    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 12px),
-    radial-gradient(ellipse at 50% 36%, transparent 50%, rgba(0, 0, 0, 0.30) 100%),
-    linear-gradient(180deg, rgba(38, 92, 134, 0.22) 0%, rgba(11, 36, 62, 0.36) 100%);
+    radial-gradient(60% 45% at 28% 22%, rgba(186, 230, 255, 0.28), transparent 62%),
+    radial-gradient(55% 40% at 76% 74%, rgba(120, 200, 255, 0.16), transparent 60%),
+    repeating-linear-gradient(115deg, rgba(160, 220, 255, 0.10) 0 2px, transparent 2px 12px),
+    radial-gradient(ellipse at 50% 36%, transparent 48%, rgba(8, 48, 96, 0.38) 100%),
+    linear-gradient(180deg, rgba(72, 160, 230, 0.55) 0%, rgba(18, 72, 130, 0.72) 100%);
   background-size: 180% 180%, 170% 170%, 28px 28px, 100% 100%, 100% 100%;
   background-position: 0% 0%, 100% 100%, 0 0, 0 0, 0 0;
   animation: seaDrift 16s ease-in-out infinite;
@@ -245,7 +246,7 @@ button:disabled { cursor: not-allowed; }
 }
 /* Блик-сияние на поверхности воды (тонкая полоса сверху). */
 .sea-sheen {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 22%);
+  background: linear-gradient(180deg, rgba(210, 240, 255, 0.35) 0%, rgba(120, 200, 255, 0.08) 35%, transparent 55%);
   mix-blend-mode: screen;
 }
 @media (prefers-reduced-motion: reduce) {
