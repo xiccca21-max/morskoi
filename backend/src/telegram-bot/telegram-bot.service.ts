@@ -51,6 +51,12 @@ export class TelegramBotService implements OnModuleInit {
     }
     const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
     const pollingDisabled = process.env.TELEGRAM_BOT_POLLING === 'false';
+    if (webhookUrl && /ТВОЯ-ДОМЕН|YOUR-DOMAIN|example\.com/i.test(webhookUrl)) {
+      this.logger.error(
+        `TELEGRAM_WEBHOOK_URL содержит плейсхолдер (${webhookUrl}) — бот не получает апдейты! ` +
+          'Задай https://game.navalclash.ru/api/telegram/webhook',
+      );
+    }
     if (this.apiRoot !== 'https://api.telegram.org') {
       this.logger.log(`Telegram API root overridden → ${this.apiRoot}`);
     }
@@ -411,7 +417,7 @@ export class TelegramBotService implements OnModuleInit {
           disable_web_page_preview: true,
           reply_markup: {
             inline_keyboard: [
-              [{ text: '⚓ Вызвать друга на бой', switch_inline_query: 'duel' }],
+              [{ text: '📨 Отправить другу', url: this.shareUrl(challenge, this.challengeText(challenge)) }],
               [{ text: '⚔️ Ссылка-вызов', url: challenge }],
             ],
           },
@@ -516,9 +522,14 @@ export class TelegramBotService implements OnModuleInit {
     return `Я вызываю тебя на морской бой ⚓\nСыграй против меня: ${link}`;
   }
 
+  /** Шаринг без inline-режима — открывает «Выберите чат» в Telegram. */
+  private shareUrl(url: string, text: string): string {
+    return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+  }
+
   /**
-   * Отправляет в личку готовый текст вызова + inline-кнопку «Переслать вызов»
-   * (switch_inline_query — открывает выбор чата и вставляет результат бота).
+   * Отправляет в личку готовый текст вызова + кнопку «Отправить другу»
+   * (t.me/share — работает без inline-режима).
    */
   private async sendChallenge(chatId: number, tgId: string) {
     if (!this.bot) return;
@@ -528,17 +539,18 @@ export class TelegramBotService implements OnModuleInit {
       return;
     }
     const link = this.challengeLink(user.id);
+    const text = this.challengeText(link);
     await this.bot.sendMessage(
       chatId,
       '⚓ <b>Вызов на морской бой</b>\n\n' +
-        'Перешли это сообщение другу — или нажми «Переслать вызов» и выбери чат:\n\n' +
-        `<code>${this.escapeHtml(this.challengeText(link))}</code>`,
+        'Нажми «📨 Отправить другу» — выбери чат (Kron, группа и т.д.) и сообщение уйдёт само.\n\n' +
+        `Или скопируй текст:\n<code>${this.escapeHtml(text)}</code>`,
       {
         parse_mode: 'HTML',
         disable_web_page_preview: true,
         reply_markup: {
           inline_keyboard: [
-            [{ text: '📨 Переслать вызов в чат', switch_inline_query: 'duel' }],
+            [{ text: '📨 Отправить другу', url: this.shareUrl(link, text) }],
             [{ text: '⚔️ Принять вызов', url: link }],
           ],
         },
@@ -553,8 +565,8 @@ export class TelegramBotService implements OnModuleInit {
    */
   private registerInline() {
     if (!this.bot) return;
-    const bot = this.bot;
-    bot.on('inline_query', async (q: any) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+    this.bot.on('inline_query', async (q: any) => {
       try {
         this.logger.log(`inline_query from=${q.from?.id} query="${q.query ?? ''}"`);
         const tgId = String(q.from?.id ?? '');
@@ -563,7 +575,7 @@ export class TelegramBotService implements OnModuleInit {
           ? this.challengeLink(user.id)
           : `https://t.me/${this.botUsername}?start=play`;
         const text = this.challengeText(link);
-        const result: TelegramBot.InlineQueryResultArticle = {
+        const result = {
           type: 'article',
           id: `duel-${q.id}`,
           title: '⚓ Вызвать на морской бой',
@@ -571,12 +583,22 @@ export class TelegramBotService implements OnModuleInit {
           input_message_content: { message_text: text, disable_web_page_preview: false },
           reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять вызов', url: link }]] },
         };
-        await bot.answerInlineQuery(q.id, [result], { cache_time: 0, is_personal: true });
+        // Прямой вызов API через прокси (надёжнее, чем только node-telegram-bot-api).
+        const r = await fetch(`${this.apiRoot}/bot${token}/answerInlineQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inline_query_id: q.id,
+            results: [result],
+            cache_time: 0,
+            is_personal: true,
+          }),
+        }).then((res) => res.json());
+        if (!(r as any).ok) {
+          this.logger.warn(`answerInlineQuery failed: ${JSON.stringify(r)}`);
+        }
       } catch (e: any) {
         this.logger.warn(`inline_query err: ${e?.message}`);
-        try {
-          await bot.answerInlineQuery(q.id, [], { cache_time: 0, is_personal: true });
-        } catch { /* ignore */ }
       }
     });
   }
