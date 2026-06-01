@@ -88,6 +88,25 @@ export const MatchmakingAPI = {
   cancelOpen: () => api.delete('/matchmaking/open').then(r => r.data),
 };
 
+export interface CosmeticItem {
+  id: string;
+  type: 'title' | 'frame' | 'skin' | 'badge';
+  name: string;
+  desc: string;
+  unlocked: boolean;
+}
+export interface CosmeticsProfile {
+  stats: { referrals: number; bestWinStreak: number; wins: number };
+  equipped: { title: string; frame: string; skin: string };
+  items: CosmeticItem[];
+}
+
+export const CosmeticsAPI = {
+  profile: () => api.get<CosmeticsProfile>('/cosmetics').then(r => r.data),
+  equip: (type: 'title' | 'frame' | 'skin', id: string) =>
+    api.post<CosmeticsProfile>('/cosmetics/equip', { type, id }).then(r => r.data),
+};
+
 export const GameAPI = {
   active: () => api.get('/game/active').then(r => r.data),
   state:  (matchId: string) => api.get(`/game/state/${matchId}`).then(r => r.data),

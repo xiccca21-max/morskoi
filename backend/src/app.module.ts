@@ -14,6 +14,7 @@ import { AdminModule } from './admin/admin.module';
 import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { GameModule } from './game/game.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { HistoryModule } from './history/history.module';
 import { RatesModule } from './rates/rates.module';
 import { BackupModule } from './backup/backup.module';
@@ -40,6 +41,7 @@ import { AuditModule } from './common/audit.module';
     MatchmakingModule,
     GameModule,
     LeaderboardModule,
+    CosmeticsModule,
     HistoryModule,
     RatesModule,
     BackupModule,

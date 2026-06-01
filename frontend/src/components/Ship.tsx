@@ -1,11 +1,20 @@
 import type { ShipKind, Orientation } from '../lib/game-types';
 
+/** Цвет корпуса по скину (косметика). classic = цвет темы. */
+const SKIN_HULL: Record<string, string> = {
+  classic: 'var(--c-main)',
+  corsair: '#7c1f2b', // багровый корсар
+  steel: '#33536e',   // стальной флот
+};
+
 interface ShipProps {
   kind: ShipKind;
   size: number;
   orientation: Orientation;
   hits?: number;
   sunk?: boolean;
+  /** Скин корпуса (косметика): classic | corsair | steel. */
+  skin?: string;
   /** Маленькая иконка (для списков верфи) — рисуем всегда горизонтально. */
   icon?: boolean;
   className?: string;
@@ -15,7 +24,7 @@ interface ShipProps {
  * Брутальный силуэт корабля: сплошной корпус, толстая обводка, простые палубные блоки.
  * Длинная ось масштабируется под количество клеток (size). Цвета берутся из темы.
  */
-export function Ship({ kind, size, orientation, sunk = false, icon = false, className }: ShipProps) {
+export function Ship({ kind, size, orientation, sunk = false, skin = 'classic', icon = false, className }: ShipProps) {
   const L = size * 100;
   const horizontal = icon ? true : orientation === 'H';
 
@@ -26,7 +35,7 @@ export function Ship({ kind, size, orientation, sunk = false, icon = false, clas
 
   const viewBox = horizontal ? `0 0 ${L} 100` : `0 0 100 ${L}`;
 
-  const hull = sunk ? 'var(--c-danger)' : 'var(--c-main)';
+  const hull = sunk ? 'var(--c-danger)' : (SKIN_HULL[skin] ?? 'var(--c-main)');
   // палубные блоки — «вырезы» цветом фона, чтобы читались на корпусе в любой теме
   const deck = 'var(--c-base)';
 

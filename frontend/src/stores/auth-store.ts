@@ -15,6 +15,11 @@ export interface User {
   draws?: number;
   referralCount?: number;
   loginStreak?: number;
+  winStreak?: number;
+  bestWinStreak?: number;
+  equippedTitle?: string;
+  equippedFrame?: string;
+  equippedSkin?: string;
   agreedToTerms?: boolean;
   dailyDepositLimit?: number;
   selfExcludedUntil?: string | null;

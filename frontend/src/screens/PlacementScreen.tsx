@@ -14,6 +14,7 @@ import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVerticalSwipes, tgMainButton, tgBackButton, isTelegram } from '../lib/telegram';
 import { toast as showToast } from '../stores/toast-store';
 import { useMatchStore } from '../stores/match-store';
+import { useAuthStore } from '../stores/auth-store';
 import { Icon } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
@@ -53,6 +54,7 @@ export default function PlacementScreen() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const matchState = useMatchStore((s) => s.state);
+  const skin = useAuthStore((s) => s.user?.equippedSkin) ?? 'classic';
 
   const [fleet, setFleet] = useState<SlotShip[]>(initialFleet);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -331,6 +333,7 @@ export default function PlacementScreen() {
 
       <Board
         mode="placement"
+        skin={skin}
         ships={placedShips}
         ghostCells={ghost.cells}
         ghostShip={ghost.ship}

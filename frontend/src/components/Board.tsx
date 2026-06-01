@@ -18,6 +18,8 @@ interface BoardProps {
   disabled?: boolean;
   myTurn?: boolean;
   highlight?: { x: number; y: number } | null;
+  /** Скин кораблей (косметика) для своих/расставляемых судов. */
+  skin?: string;
 }
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
@@ -34,6 +36,7 @@ export function Board({
   disabled = false,
   myTurn = true,
   highlight = null,
+  skin = 'classic',
 }: BoardProps) {
   const attackMap = useMemo(() => {
     const m = new Map<string, AttackCell>();
@@ -173,7 +176,7 @@ export function Board({
                       zIndex: 5,
                     }}
                   >
-                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} />
+                    <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} skin={skin} />
                   </motion.div>
                 );
               })}
@@ -193,7 +196,7 @@ export function Board({
                   filter: ghostInvalid ? 'sepia(1) saturate(3) hue-rotate(-30deg)' : undefined,
                 }}
               >
-                <Ship kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} />
+                <Ship kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} skin={skin} />
               </motion.div>
             )}
 

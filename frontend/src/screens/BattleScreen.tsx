@@ -336,7 +336,7 @@ export default function BattleScreen() {
             />
           </>
         ) : (
-          <Board mode="own" ships={ownShips as any} attacks={ownAttacks} disabled />
+          <Board mode="own" ships={ownShips as any} attacks={ownAttacks} disabled skin={me?.equippedSkin ?? 'classic'} />
         )}
 
         <AnimatePresence>

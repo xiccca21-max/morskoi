@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
-import { AuthAPI, UsersAPI } from '../api/endpoints';
+import { AuthAPI, UsersAPI, CosmeticsAPI, type CosmeticsProfile } from '../api/endpoints';
 import { setAuthToken } from '../api/http';
 import { tgShare, tgPhotoUrl, tgHaptic, tgOpenLink } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
@@ -195,6 +195,8 @@ export default function ProfileScreen() {
 
       <Achievements user={user} />
 
+      <CosmeticsSection />
+
       <section className="card p-3 divide-y divide-line">
         <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
         <Row icon="trophy" label="Рейтинг капитанов" onClick={() => navigate('/leaderboard')} />
@@ -282,6 +284,102 @@ function Achievements({ user }: { user: { wins: number; losses: number; loginStr
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+const REFERRAL_TIERS = [
+  { n: 1, reward: 'Рамка «Флаг» + бейдж «Вербовщик»' },
+  { n: 3, reward: 'Редкий скин «Корсар»' },
+  { n: 5, reward: 'Доступ к закрытому турниру' },
+  { n: 10, reward: 'Титул «Адмирал»' },
+];
+
+const TYPE_LABEL: Record<string, string> = { title: 'Титулы', frame: 'Рамки', skin: 'Скины кораблей', badge: 'Бейджи' };
+
+function CosmeticsSection() {
+  const patchUser = useAuthStore((s) => s.patchUser);
+  const [profile, setProfile] = useState<CosmeticsProfile | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    CosmeticsAPI.profile().then(setProfile).catch(() => undefined);
+  }, []);
+
+  if (!profile) return null;
+
+  const equip = async (type: 'title' | 'frame' | 'skin', id: string) => {
+    setBusy(id);
+    try {
+      const next = await CosmeticsAPI.equip(type, id);
+      setProfile(next);
+      patchUser({ equippedTitle: next.equipped.title, equippedFrame: next.equipped.frame, equippedSkin: next.equipped.skin });
+      tgHaptic('success');
+      toast('Применено', 'success', 'check');
+    } catch (e: any) {
+      tgHaptic('error');
+      toast(e?.response?.data?.message ?? 'Не удалось применить', 'error');
+    } finally { setBusy(null); }
+  };
+
+  const refs = profile.stats.referrals;
+  const groups: Array<'title' | 'frame' | 'skin'> = ['title', 'frame', 'skin'];
+
+  return (
+    <section className="card p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="eyebrow">Косметика и награды</p>
+        <span className="text-muted text-[11px]">Не влияет на баланс</span>
+      </div>
+
+      {/* Прогресс наград за рефералов */}
+      <div className="space-y-1.5">
+        <p className="text-muted text-[11px]">Приглашено друзей: <span className="text-main font-display">{refs}</span></p>
+        {REFERRAL_TIERS.map((t) => {
+          const done = refs >= t.n;
+          return (
+            <div key={t.n} className="flex items-center gap-2 text-[12px]">
+              <Icon name={done ? 'check' : 'lock'} size={13} className={done ? 'text-danger' : 'text-muted'} />
+              <span className={done ? 'text-main' : 'text-muted'}>{t.n} {t.n === 1 ? 'друг' : 'друзей'} — {t.reward}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {groups.map((g) => {
+        const items = profile.items.filter((i) => i.type === g);
+        if (!items.length) return null;
+        return (
+          <div key={g} className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted">{TYPE_LABEL[g]}</p>
+            <div className="flex flex-wrap gap-2">
+              {items.map((it) => {
+                const equipped = profile.equipped[g] === it.id;
+                return (
+                  <button
+                    key={it.id}
+                    disabled={!it.unlocked || busy !== null}
+                    onClick={() => equip(g, it.id)}
+                    title={it.desc}
+                    className={[
+                      'px-3 py-2 rounded-lg text-xs font-display border transition text-left',
+                      equipped ? 'bg-danger text-white border-danger'
+                        : it.unlocked ? 'bg-panel text-main border-line hover:border-main'
+                        : 'bg-panel text-muted border-line opacity-60',
+                    ].join(' ')}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {!it.unlocked && <Icon name="lock" size={11} />}
+                      {it.name}
+                    </span>
+                    {!it.unlocked && <span className="block text-[9px] text-muted mt-0.5">{it.desc}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </section>
   );
 }
