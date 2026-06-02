@@ -5,8 +5,12 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 
+# GIT_SHA объявляем ДО COPY frontend/ — так Docker инвалидирует кэш
+# при каждом новом коммите и пересобирает фронтенд.
+ARG GIT_SHA=dev
+ENV VITE_BUILD_SHA=$GIT_SHA
+
 COPY frontend/ ./
-# Пустые URL = тот же домен (API и WebSocket через nginx/тот же порт)
 ENV VITE_API_URL=
 ENV VITE_SOCKET_URL=
 ARG VITE_TG_BOT_USERNAME=MyNavalClashBot
@@ -15,8 +19,6 @@ ARG VITE_SUPPORT_URL=https://t.me/Naval_pay_manager
 ENV VITE_SUPPORT_URL=$VITE_SUPPORT_URL
 ARG VITE_SENTRY_DSN=
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
-ARG GIT_SHA=dev
-ENV VITE_BUILD_SHA=$GIT_SHA
 RUN npm run build
 
 FROM node:20-alpine AS backend-builder
