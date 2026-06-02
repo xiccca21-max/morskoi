@@ -140,7 +140,11 @@ html, body, #root {
   text-size-adjust: 100%;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* Фон html = той же темы — страхует от белых «просветов» на iOS при оверскролле */
+  background-color: var(--c-base);
+}
 
 body {
   color: var(--c-main);
@@ -148,8 +152,9 @@ body {
   font-family: var(--font-body);
   background-image: var(--bg-pattern);
   background-size: 20px 20px;
-  background-attachment: fixed;
-  transition: background-color 0.2s, color 0.2s;
+  /* fixed ломается на мобильных — меняем на scroll */
+  background-attachment: scroll;
+  transition: background-color 0.3s, color 0.3s;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -288,7 +293,7 @@ button:disabled { cursor: not-allowed; }
   border-radius: 0;
 }
 
-/* === Стекломорфизм — только для тёмных тем === */
+/* === Карточки тёмных тем: используют CSS-переменные — переключение без артефактов === */
 [data-theme="navy"] .card,
 [data-theme="depth"] .card {
   background: linear-gradient(145deg,
@@ -300,10 +305,21 @@ button:disabled { cursor: not-allowed; }
     0 0 0 1px rgba(212,168,44,0.06),
     inset 0 1px 0 rgba(255,255,255,0.04);
 }
+/* radar / blueprint: явный фон через переменную, чтобы не было «просвета» */
+[data-theme="radar"] .card,
+[data-theme="blueprint"] .card {
+  background: rgb(var(--c-panel-rgb));
+  border-color: rgba(var(--c-line-rgb) / 0.7);
+}
 [data-theme="navy"] .plate,
 [data-theme="depth"] .plate {
-  background: rgba(5,10,20,0.75);
+  background: rgba(var(--c-panel-rgb) / 0.85);
   border-color: rgba(var(--c-line-rgb) / 0.8);
+}
+[data-theme="radar"] .plate,
+[data-theme="blueprint"] .plate {
+  background: rgba(var(--c-panel-rgb) / 0.9);
+  border-color: rgba(var(--c-line-rgb) / 0.7);
 }
 
 /* === Золотой акцент — заголовки в navy === */
@@ -316,6 +332,19 @@ button:disabled { cursor: not-allowed; }
 [data-theme="navy"] .eyebrow {
   color: rgba(212,168,44,0.7);
   letter-spacing: 0.26em;
+}
+/* radar / blueprint / depth: title и eyebrow через цветовые переменные темы */
+[data-theme="radar"] .title,
+[data-theme="blueprint"] .title,
+[data-theme="depth"] .title {
+  background: none;
+  -webkit-text-fill-color: unset;
+  color: var(--c-main);
+}
+[data-theme="radar"] .eyebrow,
+[data-theme="blueprint"] .eyebrow,
+[data-theme="depth"] .eyebrow {
+  color: rgba(var(--c-muted-rgb) / 0.9);
 }
 
 /* ===== Акценты ===== */
