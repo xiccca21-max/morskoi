@@ -32,7 +32,7 @@ export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppA
             className="absolute w-[140vmax] h-[140vmax] pointer-events-none opacity-[0.07]"
             style={{
               background:
-                'repeating-conic-gradient(from 0deg, rgba(240,75,65,0.9) 0deg 4deg, transparent 4deg 14deg)',
+                'repeating-conic-gradient(from 0deg, rgba(232,50,40,0.9) 0deg 4deg, transparent 4deg 14deg)',
             }}
             animate={{ rotate: 360 }}
             transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
@@ -70,9 +70,9 @@ export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppA
                     transition={{ duration: 0.9, repeat: Infinity, repeatDelay: 0.4 }}
                     className="w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'radial-gradient(circle at 50% 35%, rgba(240,75,65,0.3), rgba(240,75,65,0.08))',
+                      background: 'radial-gradient(circle at 50% 35%, rgba(232,50,40,0.3), rgba(232,50,40,0.08))',
                       border: '2px solid rgb(var(--c-danger-rgb))',
-                      boxShadow: '0 0 28px rgba(240,75,65,0.45)',
+                      boxShadow: '0 0 28px rgba(232,50,40,0.45)',
                     }}
                   >
                     <Icon name="swords" size={22} className="text-danger" />
@@ -100,9 +100,9 @@ export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppA
                   transition={{ duration: 0.9, repeat: Infinity, repeatDelay: 0.4 }}
                   className="relative w-24 h-24 rounded-full flex items-center justify-center"
                   style={{
-                    background: 'radial-gradient(circle at 50% 35%, rgba(240,75,65,0.28), rgba(240,75,65,0.08))',
+                    background: 'radial-gradient(circle at 50% 35%, rgba(232,50,40,0.28), rgba(232,50,40,0.08))',
                     border: '4px solid rgb(var(--c-danger-rgb))',
-                    boxShadow: '0 0 40px rgba(240,75,65,0.4), inset 0 0 24px rgba(240,75,65,0.2)',
+                    boxShadow: '0 0 40px rgba(232,50,40,0.4), inset 0 0 24px rgba(232,50,40,0.2)',
                   }}
                 >
                   <Icon name="swords" size={44} className="text-danger" />

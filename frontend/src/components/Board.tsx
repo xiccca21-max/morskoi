@@ -141,12 +141,12 @@ export function Board({
               <>
                 <div
                   className="absolute inset-0 pointer-events-none animate-compassSpin opacity-50"
-                  style={{ background: 'conic-gradient(from 0deg, transparent 72%, rgba(225,87,75,0.12) 92%, transparent 100%)', animationDuration: '4s' }}
+                  style={{ background: 'conic-gradient(from 0deg, transparent 72%, rgba(232,50,40,0.12) 92%, transparent 100%)', animationDuration: '4s' }}
                 />
                 {/* мягкое сонарное «дыхание» */}
                 <motion.div
                   className="absolute inset-0 pointer-events-none"
-                  style={{ boxShadow: 'inset 0 0 40px rgba(225,87,75,0.08)' }}
+                  style={{ boxShadow: 'inset 0 0 40px rgba(232,50,40,0.08)' }}
                   animate={{ opacity: [0.2, 0.45, 0.2] }}
                   transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                 />
@@ -362,7 +362,7 @@ function Marker({ hit }: { hit: boolean }) {
         animate={{ scale: 2.8, opacity: 0 }}
         transition={{ duration: 0.55, ease: 'easeOut' }}
         className="absolute inset-[8%] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(255,200,80,0.8), rgba(240,75,65,0.4) 60%, transparent 80%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(255,200,80,0.8), rgba(232,50,40,0.4) 60%, transparent 80%)' }}
       />
       {/* Красный крест с белым текстом */}
       <motion.span
@@ -371,7 +371,7 @@ function Marker({ hit }: { hit: boolean }) {
         transition={{ type: 'spring', stiffness: 380, damping: 18, delay: 0.08 }}
         className="absolute inset-[12%] rounded-[3px] flex items-center justify-center"
         style={{
-          background: 'linear-gradient(145deg, #e83228, #c42018)',
+          background: 'linear-gradient(145deg, #e83228, #c42820)',
           boxShadow: '0 2px 8px rgba(240,60,50,0.6), inset 0 1px 0 rgba(255,255,255,0.2)',
         }}
       >
@@ -383,7 +383,7 @@ function Marker({ hit }: { hit: boolean }) {
         animate={{ scale: 2.4, opacity: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut', delay: 0.05 }}
         className="absolute inset-[10%] rounded-full"
-        style={{ border: '2px solid rgba(240,75,65,0.9)' }}
+        style={{ border: '2px solid rgba(232,50,40,0.9)' }}
       />
     </span>
   );

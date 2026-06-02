@@ -137,7 +137,7 @@ export default function HomeScreen() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(130deg, #c01c14 0%, #e02820 38%, #f03830 60%, #c42018 100%)',
+            background: 'linear-gradient(145deg, #e83228 0%, #ff5548 50%, #c42820 100%)',
           }}
         />
         {/* Диагональная штриховка (текстура) */}
@@ -227,7 +227,7 @@ function StatCard({
 }) {
   const colorMap = {
     success: { bg: 'rgba(46,196,96,0.10)', border: 'rgba(46,196,96,0.20)', icon: 'text-success' },
-    danger:  { bg: 'rgba(240,75,65,0.10)', border: 'rgba(240,75,65,0.20)', icon: 'text-danger' },
+    danger:  { bg: 'rgba(232,50,40,0.10)', border: 'rgba(232,50,40,0.20)', icon: 'text-danger' },
     accent:  { bg: 'rgba(212,168,44,0.10)', border: 'rgba(212,168,44,0.20)', icon: 'text-warning' },
   }[color];
 

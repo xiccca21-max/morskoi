@@ -191,7 +191,7 @@ export default function ResultScreen() {
               ? 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(46,196,96,0.20), transparent 65%)'
               : draw
               ? 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(120,150,190,0.12), transparent 65%)'
-              : 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(240,75,65,0.16), transparent 65%)',
+              : 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(232,50,40,0.16), transparent 65%)',
           }}
         />
         {won && <VictoryBurst />}
@@ -205,7 +205,7 @@ export default function ResultScreen() {
               style={{
                 boxShadow: won
                   ? '0 0 40px rgba(46,196,96,0.5)'
-                  : '0 0 40px rgba(240,75,65,0.45)',
+                  : '0 0 40px rgba(232,50,40,0.45)',
               }}
               animate={{ opacity: [0.45, 0.9, 0.45], scale: [1, 1.08, 1] }}
               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
@@ -242,7 +242,7 @@ export default function ResultScreen() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 16, delay: 0.25 }}
             className={['font-display text-4xl mt-1 tnum', won ? 'text-success' : 'text-danger'].join(' ')}
-            style={{ textShadow: won ? '0 0 24px rgba(46,196,96,0.4)' : '0 0 24px rgba(240,75,65,0.35)' }}
+            style={{ textShadow: won ? '0 0 24px rgba(46,196,96,0.4)' : '0 0 24px rgba(232,50,40,0.35)' }}
           >
             {won ? '+' : '−'}
             <AnimatedNumber

@@ -135,11 +135,11 @@ function BalanceTab({ balance }: { balance: number }) {
                 height: 60,
                 borderRadius: '50%',
                 background: isActive
-                  ? 'linear-gradient(145deg, #e83228, #ff4438, #c02018)'
-                  : 'linear-gradient(145deg, #d42020, #e83228, #b01818)',
+                  ? 'linear-gradient(145deg, #e83228, #ff5548, #c42820)'
+                  : 'linear-gradient(145deg, #e83228, #ff5548, #c42820)',
                 boxShadow: isActive
-                  ? '0 6px 24px rgba(240,75,65,0.65), 0 0 0 2px rgba(240,75,65,0.3)'
-                  : '0 5px 18px rgba(225,87,75,0.50)',
+                  ? '0 6px 24px rgba(232,50,40,0.65), 0 0 0 2px rgba(232,50,40,0.3)'
+                  : '0 5px 18px rgba(232,50,40,0.50)',
               }}
             >
               <Icon name="coins" size={17} />
@@ -189,7 +189,7 @@ function Tab({ to, icon, label }: { to: string; icon: IconName; label: string })
                 <motion.span
                   layoutId="navIndicator"
                   className="block h-full w-full bg-danger"
-                  style={{ boxShadow: '0 0 6px rgba(240,75,65,0.8)' }}
+                  style={{ boxShadow: '0 0 6px rgba(232,50,40,0.8)' }}
                   transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                 />
               )}
