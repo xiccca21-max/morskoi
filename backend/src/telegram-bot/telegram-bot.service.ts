@@ -4,7 +4,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from '../common/presence.service';
-import { WalletService } from '../wallet/wallet.service';
+import type { WalletService } from '../wallet/wallet.service';
 import type { AdminAlertService } from '../common/admin-alert.service';
 import type { LobbyService } from '../matchmaking/lobby.service';
 
@@ -31,8 +31,14 @@ export class TelegramBotService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly moduleRef: ModuleRef,
     private readonly presence: PresenceService,
-    private readonly wallet: WalletService,
   ) {}
+
+  /** Лениво — без circular import bot ↔ wallet. */
+  private get walletSvc(): WalletService {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { WalletService: Svc } = require('../wallet/wallet.service') as typeof import('../wallet/wallet.service');
+    return this.moduleRef.get(Svc, { strict: false });
+  }
 
   /** Лениво — без circular import bot ↔ admin-alerts. */
   private get adminAlerts(): AdminAlertService {
@@ -192,7 +198,7 @@ export class TelegramBotService implements OnModuleInit {
       if (!userId) return;
 
       try {
-        const result = await this.wallet.completeDepositByInvoice(userId, payload);
+        const result = await this.walletSvc.completeDepositByInvoice(userId, payload);
         if (result.credited && result.amountRub != null) {
           this.logger.log(`Stars deposit credited: user=${userId} +${result.amountRub}₽ payload=${payload}`);
           this.notifyDeposit?.(userId, result.amountRub).catch(() => {});
