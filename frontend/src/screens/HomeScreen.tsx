@@ -42,7 +42,6 @@ export default function HomeScreen() {
 
   const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
   const [trainingBusy, setTrainingBusy] = useState(false);
-  const [botTestBusy, setBotTestBusy] = useState(false);
 
   const startTrainingLobby = async () => {
     if (activeMatch) {
@@ -58,23 +57,6 @@ export default function HomeScreen() {
       toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось создать тренировку', 'error');
     } finally {
       setTrainingBusy(false);
-    }
-  };
-
-  const startBotTest = async () => {
-    if (activeMatch) {
-      navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`);
-      return;
-    }
-    setBotTestBusy(true);
-    try {
-      tgHaptic('light');
-      const { matchId } = await GameAPI.startBotTest();
-      navigate(`/placement/${matchId}`);
-    } catch (e: any) {
-      toast(e?.response?.data?.message ?? e?.message ?? 'Тест с ботом недоступен', 'error');
-    } finally {
-      setBotTestBusy(false);
     }
   };
 
@@ -233,14 +215,6 @@ export default function HomeScreen() {
         <Tile index={3} icon="scroll"  title="Правила"          sub="Флот, ходы, штрафы"      onClick={() => navigate('/rules')} />
       </div>
 
-      {/* Скрытая кнопка теста */}
-      <button
-        onClick={startBotTest}
-        disabled={botTestBusy}
-        className="w-full text-left px-1 py-1 text-[11px] text-muted hover:text-main transition disabled:opacity-50"
-      >
-        {botTestBusy ? 'Запуск теста с ботом…' : 'Тест с ботом (для проверки)'}
-      </button>
     </div>
   );
 }
