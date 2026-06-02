@@ -66,7 +66,15 @@ export default function App() {
   const deepLinkHandled = useRef(false);
   const resumeHandled = useRef(false);
   const applyGameConfig = useGameConfigStore((s) => s.apply);
-  const [matchFound, setMatchFound] = useState<{ open: boolean; wager?: number; matchId?: string }>({
+  const [matchFound, setMatchFound] = useState<{
+    open: boolean;
+    wager?: number;
+    matchId?: string;
+    oppName?: string;
+    oppAvatar?: string | null;
+    meName?: string;
+    meAvatar?: string | null;
+  }>({
     open: false,
   });
 
@@ -308,7 +316,15 @@ export default function App() {
       setMatchFound((prev) =>
         prev.open && prev.matchId === e.matchId
           ? prev
-          : { open: true, wager: e.wagerAmount, matchId: e.matchId },
+          : {
+              open: true,
+              wager: e.wagerAmount,
+              matchId: e.matchId,
+              oppName: e.opponentName,
+              oppAvatar: e.opponentAvatar,
+              meName: e.meName,
+              meAvatar: e.meAvatar,
+            },
       );
     };
     sock.on('match:found', onMatchFound);
@@ -393,7 +409,14 @@ export default function App() {
 
   return (
     <>
-    <MatchFoundOverlay open={matchFound.open} wager={matchFound.wager} />
+    <MatchFoundOverlay
+      open={matchFound.open}
+      wager={matchFound.wager}
+      oppName={matchFound.oppName}
+      oppAvatar={matchFound.oppAvatar}
+      meName={matchFound.meName}
+      meAvatar={matchFound.meAvatar}
+    />
     <Routes>
       <Route path="/" element={<SplashScreen />} />
       <Route element={<Protected><Layout /></Protected>}>

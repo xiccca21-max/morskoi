@@ -373,16 +373,31 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       ? new Date(match.startedAt.getTime() + placementSec * 1000).toISOString()
       : null;
     const players = [match.player1Id, match.player2Id].filter(Boolean) as string[];
+    // Подтягиваем краткие профили обоих игроков, чтобы показать VS-аватары в оверлее.
+    const profiles = await this.prisma.user.findMany({
+      where: { id: { in: players } },
+      select: { id: true, username: true, firstName: true, avatar: true },
+    });
+    const profileById = new Map(profiles.map((p) => [p.id, p]));
+    const displayName = (p?: { username: string | null; firstName: string | null }) =>
+      (p?.username || p?.firstName || 'Капитан') as string;
     for (const uid of players) {
       const sId = this.userSockets.get(uid);
       if (sId) {
         const sock = this.server.sockets.sockets.get(sId);
         sock?.join(`match:${matchId}`);
       }
+      const oppId = uid === match.player1Id ? match.player2Id : match.player1Id;
+      const me = profileById.get(uid);
+      const opp = oppId ? profileById.get(oppId) : undefined;
       this.server.to(`user:${uid}`).emit('match:found', {
         matchId,
         wagerAmount: Number(match.wagerAmount),
-        opponentId: uid === match.player1Id ? match.player2Id : match.player1Id,
+        opponentId: oppId,
+        opponentName: displayName(opp),
+        opponentAvatar: opp?.avatar ?? null,
+        meName: displayName(me),
+        meAvatar: me?.avatar ?? null,
         placementDeadline,
       });
     }

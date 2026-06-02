@@ -10,6 +10,7 @@ import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgShare, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Skeleton } from '../components/Skeleton';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { playSound } from '../lib/audio';
 import { formatMoney } from '../lib/format';
 import { toast } from '../stores/toast-store';
@@ -179,25 +180,55 @@ export default function ResultScreen() {
         animate={{ scale: 1, opacity: 1 }}
         className="card p-8 text-center relative overflow-hidden"
       >
+        {/* Тематическое свечение фона: золото победы / багровый сумрак поражения */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: won
+              ? 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(46,196,96,0.20), transparent 65%)'
+              : draw
+              ? 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(120,150,190,0.12), transparent 65%)'
+              : 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(240,75,65,0.16), transparent 65%)',
+          }}
+        />
         {won && <VictoryBurst />}
 
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.05 }}
-          className={[
-            'mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 border-4',
-            won
-              ? 'bg-success/10 text-success border-success'
-              : draw
-              ? 'bg-panel text-muted border-line'
-              : 'bg-danger/10 text-danger border-danger',
-          ].join(' ')}
-        >
-          <Icon name={(draw ? 'handshake' : won ? 'trophy' : 'skull') as IconName} size={36} />
-        </motion.div>
+        <div className="relative">
+        {/* Пульсирующая аура вокруг иконки результата */}
+        <div className="relative mx-auto w-20 h-20 mb-4">
+          {!draw && (
+            <motion.span
+              className="absolute inset-0 rounded-full"
+              style={{
+                boxShadow: won
+                  ? '0 0 40px rgba(46,196,96,0.5)'
+                  : '0 0 40px rgba(240,75,65,0.45)',
+              }}
+              animate={{ opacity: [0.45, 0.9, 0.45], scale: [1, 1.08, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.05 }}
+            className={[
+              'relative w-20 h-20 rounded-full flex items-center justify-center border-4',
+              won
+                ? 'bg-success/10 text-success border-success'
+                : draw
+                ? 'bg-panel text-muted border-line'
+                : 'bg-danger/10 text-danger border-danger',
+            ].join(' ')}
+          >
+            <Icon name={(draw ? 'handshake' : won ? 'trophy' : 'skull') as IconName} size={36} />
+          </motion.div>
+        </div>
 
-        <p className={['font-display text-2xl tracking-wide', won ? 'text-success' : draw ? 'text-muted' : 'text-danger'].join(' ')}>
+        <p className={['font-display text-2xl tracking-[0.16em] uppercase', won ? 'text-success' : draw ? 'text-muted' : 'text-danger'].join(' ')}>
           {draw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}
         </p>
 
@@ -206,9 +237,19 @@ export default function ResultScreen() {
         )}
 
         {!draw && !isTraining && (
-          <p className={['font-display text-4xl mt-1 tabular-nums', won ? 'text-success' : 'text-danger'].join(' ')}>
-            {won ? `+${formatMoney(payout)}` : `−${formatMoney(matchState?.wagerAmount ?? 0)}`}
-          </p>
+          <motion.p
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 16, delay: 0.25 }}
+            className={['font-display text-4xl mt-1 tnum', won ? 'text-success' : 'text-danger'].join(' ')}
+            style={{ textShadow: won ? '0 0 24px rgba(46,196,96,0.4)' : '0 0 24px rgba(240,75,65,0.35)' }}
+          >
+            {won ? '+' : '−'}
+            <AnimatedNumber
+              value={won ? payout : (matchState?.wagerAmount ?? 0)}
+              formatter={formatMoney}
+            />
+          </motion.p>
         )}
 
         {rankedUp && newRank && (
@@ -261,6 +302,7 @@ export default function ResultScreen() {
             Игра #{matchId.slice(-8).toUpperCase()}
           </p>
         )}
+        </div>
       </motion.section>
 
       <div className="space-y-2">
