@@ -127,7 +127,7 @@ export default function HomeScreen() {
       <motion.button
         onClick={() => { tgHaptic('medium'); navigate('/matchmaking'); }}
         className="w-full text-left relative overflow-hidden"
-        style={{ borderRadius: 'var(--radius-card)', minHeight: 88 }}
+        style={{ borderRadius: 'var(--radius-card)', minHeight: 88, border: 'var(--border-w) solid var(--c-line)', boxShadow: 'var(--shadow-card)' }}
         whileTap={{ scale: 0.975 }}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
