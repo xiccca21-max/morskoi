@@ -15,7 +15,7 @@ import { SkeletonList } from '../components/Skeleton';
 import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
-import { formatMoney } from '../lib/format';
+import { formatMoney, useMoney, currencySymbol } from '../lib/format';
 import { playSound } from '../lib/audio';
 import { useGameConfigStore } from '../stores/game-config-store';
 
@@ -53,6 +53,8 @@ function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose:
 const PRESETS = [100, 250, 500, 1000, 5000];
 
 export default function MatchmakingScreen() {
+  const fmt = useMoney();
+  const sym = currencySymbol();
   const minWager = useGameConfigStore((s) => s.minWager);
   const maxWager = useGameConfigStore((s) => s.maxWager);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -301,7 +303,7 @@ export default function MatchmakingScreen() {
           className="w-full card card-press p-3 flex items-center gap-3 border-warning text-left"
         >
           <Icon name="coins" size={18} className="text-warning shrink-0" />
-          <span className="flex-1 text-main text-sm">Баланс {balance.toFixed(0)} ₽ — для боя нужно минимум {minWager} ₽</span>
+          <span className="flex-1 text-main text-sm">Баланс {fmt(balance)} — для боя нужно минимум {fmt(minWager)}</span>
           <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
       )}
@@ -366,7 +368,7 @@ export default function MatchmakingScreen() {
                 }}
                 className={['w-28 text-center bg-transparent outline-none font-display text-4xl tabular-nums', overBalance ? 'text-danger' : 'text-main'].join(' ')}
               />
-              <span className={['text-sm shrink-0', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
+              <span className={['text-sm shrink-0', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>{sym}</span>
             </div>
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
@@ -392,8 +394,8 @@ export default function MatchmakingScreen() {
             onChange={(e) => setWager(Number(e.target.value))}
             className="w-full accent-danger" />
           <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums mb-4">
-            <span>{minWager} ₽</span>
-            <span>Баланс: {balance.toFixed(0)} ₽</span>
+            <span>{fmt(minWager)}</span>
+            <span>Баланс: {fmt(balance)}</span>
           </div>
 
           <PrizeBreakdown wager={wager} />
@@ -404,7 +406,7 @@ export default function MatchmakingScreen() {
               onClick={attemptCreate}
             >
               <Icon name="swords" size={18} className="shrink-0" />
-              <span>Создать за {wager} ₽</span>
+              <span>Создать за {fmt(wager)}</span>
             </button>
             <button className="btn-ghost w-full" onClick={() => setShowCreateModal(false)}>Отмена</button>
           </div>
@@ -416,7 +418,7 @@ export default function MatchmakingScreen() {
         open={bigWagerConfirm}
         title="Крупная ставка"
         icon="coins"
-        message={<>Ставка <strong>{wager} ₽</strong> — это больше половины вашего баланса ({balance.toFixed(0)} ₽). Создать бой?</>}
+        message={<>Ставка <strong>{fmt(wager)}</strong> — это больше половины вашего баланса ({fmt(balance)}). Создать бой?</>}
         confirmLabel="Создать"
         onCancel={() => { setBigWagerConfirm(false); setShowCreateModal(true); }}
         onConfirm={() => { setBigWagerConfirm(false); doCreate(); }}
@@ -431,7 +433,7 @@ export default function MatchmakingScreen() {
           pendingMatch ? (
             <>
               Бой против <strong>{pendingMatch.host.firstName || pendingMatch.host.username || 'соперника'}</strong>.
-              Ставка <strong>{pendingMatch.wagerAmount} ₽</strong> спишется при старте боя
+              Ставка <strong>{fmt(pendingMatch.wagerAmount)}</strong> спишется при старте боя
               (когда оба расставят флот).
               <span className="block mt-2 text-warning">
                 ⚠️ Нужен стабильный интернет: при потере связи и пропуске ходов
@@ -453,7 +455,7 @@ export default function MatchmakingScreen() {
       {/* Модалька «Недостаточно средств» */}
       <Modal open={showFundsModal} onClose={() => setShowFundsModal(false)} title="Недостаточно средств" icon="coins">
         <p className="text-main text-sm mb-5">
-          Ставка <strong>{wager} ₽</strong> превышает ваш баланс ({balance.toFixed(0)} ₽).
+          Ставка <strong>{fmt(wager)}</strong> превышает ваш баланс ({fmt(balance)}).
           Пополните счёт, чтобы создать этот бой.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -682,14 +684,15 @@ function matchesPlural(n: number): string {
 }
 
 function PrizeBreakdown({ wager }: { wager: number }) {
+  const fmt = useMoney();
   const pool = wager * 2;
   const rake = +(pool * 0.05).toFixed(2);
   const win = +(pool - rake).toFixed(2);
   return (
     <div className="mt-4 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
-      <Cell label="Банк" value={`${pool.toFixed(0)} ₽`} />
-      <Cell label="Комиссия" value={`−${rake.toFixed(0)} ₽`} accent />
-      <Cell label="Победителю" value={`${win.toFixed(0)} ₽`} />
+      <Cell label="Банк" value={fmt(pool)} />
+      <Cell label="Комиссия" value={`−${fmt(rake)}`} accent />
+      <Cell label="Победителю" value={fmt(win)} />
     </div>
   );
 }
