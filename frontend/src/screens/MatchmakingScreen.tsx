@@ -629,22 +629,28 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
       exit={{ opacity: 0, scale: 0.97 }}
       className="card p-3 flex items-center gap-3"
     >
-      <Avatar name={name} src={m.host.avatar} size={40} rounded="lg" />
+      <Avatar name={name} src={m.host.avatar} size={44} rounded="lg" />
+
+      {/* Имя + звание */}
       <div className="flex-1 min-w-0">
-        <p className="text-main text-sm font-display truncate">{name}</p>
-        <button onClick={onShowRank} className="flex items-center gap-1 text-muted text-xs hover:text-main transition">
-          <Icon name={rank.icon} size={12} />
-          <span>{rank.title} · {m.host.wins}W</span>
-          <span className="text-danger text-[10px] font-display underline ml-0.5 shrink-0">подробнее</span>
-        </button>
+        <p className="text-main text-sm font-display truncate leading-tight">{name}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <Icon name={rank.icon} size={12} className="text-muted shrink-0" />
+          <span className="text-muted text-xs truncate">{rank.title} · {m.host.wins}W</span>
+          <button onClick={onShowRank} className="text-danger text-[10px] font-display underline shrink-0 leading-none">
+            ещё
+          </button>
+        </div>
       </div>
-      <div className="text-right shrink-0">
-        <div className="font-display text-main tabular-nums leading-none">{formatMoney(m.wagerAmount)}</div>
+
+      {/* Ставка + действие */}
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <span className="font-display text-main tabular-nums text-sm leading-none">{formatMoney(m.wagerAmount)}</span>
         {m.isMine ? (
-          <button className="mt-1 text-xs text-muted underline" onClick={onCancel}>снять</button>
+          <button className="text-[11px] text-muted underline" onClick={onCancel}>снять</button>
         ) : (
-          <button className="btn-primary mt-1 px-3 py-1.5 text-xs inline-flex items-center gap-1.5" onClick={onAccept} disabled={busy}>
-            {busy ? <Spinner size={12} /> : 'Присоединиться'}
+          <button className="btn-primary px-3 py-1.5 text-xs inline-flex items-center gap-1" onClick={onAccept} disabled={busy}>
+            {busy ? <Spinner size={11} /> : 'Вступить'}
           </button>
         )}
       </div>
