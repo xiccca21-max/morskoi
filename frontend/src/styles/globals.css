@@ -471,3 +471,108 @@ input:focus, textarea:focus, select:focus { border-color: var(--c-danger) !impor
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   ПРЕМИУМ-ПОЛИРОВКА: зерно, материал, типографика, пружины
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Плёночное зерно + виньетка поверх всего фона (тёмные темы) ──
+   Едва заметный шум 2-3% убирает «цифровую плоскость» и делает картинку дороже. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+[data-theme="navy"] body::after,
+[data-theme="depth"] body::after,
+[data-theme="radar"] body::after { opacity: 0.05; }
+
+/* мягкая виньетка к краям экрана — фокусирует взгляд на центре */
+[data-theme="navy"] #root::before,
+[data-theme="depth"] #root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 120% 80% at 50% 30%, transparent 55%, rgba(0,0,0,0.45) 100%);
+}
+
+/* ── Моноширинные «банковские» цифры для денег и статистики ──
+   Суммы не «прыгают» при анимации счётчиков. */
+.tnum,
+.font-display {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* ── Слоистые тени с бликовой кромкой (ambient + key + rim light) ──
+   Карточки выглядят «выдавленными» из поверхности, а не наклеенными. */
+[data-theme="navy"] .card {
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.40),
+    0 6px 16px rgba(0,0,0,0.34),
+    0 18px 48px rgba(0,0,0,0.30),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 0 0 1px rgba(212,168,44,0.07);
+}
+[data-theme="depth"] .card {
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.40),
+    0 6px 16px rgba(0,0,0,0.30),
+    0 18px 48px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* верхний бликовый волосок у карточек тёмных тем */
+[data-theme="navy"] .card::before,
+[data-theme="depth"] .card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18) 50%, transparent);
+  pointer-events: none;
+}
+
+/* ── Пружинистое нажатие для всех кнопок и кликабельных карточек ── */
+.btn {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, box-shadow 0.2s ease;
+}
+.btn:active { transform: scale(0.95); }
+
+/* ── Шиммер-скелетоны вместо «голых» серых блоков ── */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: rgba(var(--c-line-rgb) / 0.35);
+  border-radius: var(--radius-btn);
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10) 50%, transparent);
+  animation: shimmerSweep 1.4s infinite;
+}
+@keyframes shimmerSweep {
+  100% { transform: translateX(100%); }
+}
+
+/* ── Морская координатная засечка для рамки поля (декор) ── */
+@keyframes sonarPing {
+  0% { transform: scale(0.2); opacity: 0.8; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.sonar-ping {
+  animation: sonarPing 2.2s ease-out infinite;
+}

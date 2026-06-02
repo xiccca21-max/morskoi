@@ -29,5 +29,5 @@ export function AnimatedNumber({ value, formatter = (v) => v.toFixed(0) }: { val
     };
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <span>{formatter(displayValue)}</span>;
+  return <span className="tnum">{formatter(displayValue)}</span>;
 }

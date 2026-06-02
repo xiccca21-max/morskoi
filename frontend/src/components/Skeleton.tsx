@@ -1,5 +1,5 @@
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-line/30 ${className}`} />;
+  return <div className={`shimmer rounded ${className}`} />;
 }
 
 /** Заглушка строки списка (история / рейтинг). */
