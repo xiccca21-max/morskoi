@@ -65,7 +65,7 @@ export function Layout() {
         }}
       >
         <NavLink to="/home" className="flex items-center text-main" aria-label="На палубу">
-          <span className="font-display text-[17px] uppercase tracking-[0.2em] text-main">Морской&nbsp;Бой</span>
+          <span className="font-display text-[18px] font-bold uppercase tracking-[0.2em] text-main">Морской&nbsp;Бой</span>
         </NavLink>
 
         <NavLink
@@ -78,7 +78,7 @@ export function Layout() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           }}
         >
-          <Icon name="coins" size={14} className="text-warning" />
+          <Icon name="coins" size={14} className="text-danger" />
           <span className="font-display text-sm tabular-nums">
             <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
           </span>

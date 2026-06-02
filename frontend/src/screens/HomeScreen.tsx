@@ -221,23 +221,19 @@ export default function HomeScreen() {
 
 /* ─── Stat карточка ──────────────────────────────────────────────────────── */
 function StatCard({
-  icon, label, value, color,
+  label, value,
 }: {
   icon: IconName; label: string; value: any; color: 'success' | 'danger' | 'accent';
 }) {
-  const colorMap = {
-    success: { bg: 'rgba(46,196,96,0.10)', border: 'rgba(46,196,96,0.20)', icon: 'text-success' },
-    danger:  { bg: 'rgba(232,50,40,0.10)', border: 'rgba(232,50,40,0.20)', icon: 'text-danger' },
-    accent:  { bg: 'rgba(212,168,44,0.10)', border: 'rgba(212,168,44,0.20)', icon: 'text-warning' },
-  }[color];
-
   return (
     <div
-      className="rounded-xl py-3 px-2 flex flex-col items-center gap-1.5 text-center"
-      style={{ background: colorMap.bg, border: `1px solid ${colorMap.border}` }}
+      className="rounded-xl py-3 px-2 flex flex-col items-center gap-1 text-center"
+      style={{
+        background: 'rgba(var(--c-panel-rgb) / 0.7)',
+        border: '1px solid rgba(var(--c-line-rgb) / 0.5)',
+      }}
     >
-      <Icon name={icon} size={15} className={colorMap.icon} />
-      <div className="font-display text-xl tabular-nums leading-none text-main">{value}</div>
+      <div className="font-display text-2xl tabular-nums leading-none text-main">{value}</div>
       <div className="eyebrow text-[9px]">{label}</div>
     </div>
   );
