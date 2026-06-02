@@ -178,7 +178,7 @@ export default function ResultScreen() {
       <motion.section
         initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="card p-8 text-center relative overflow-hidden"
+        className="card p-8 text-center relative"
       >
         {/* Тематическое свечение фона: золото победы / багровый сумрак поражения */}
         <motion.div
@@ -273,7 +273,7 @@ export default function ResultScreen() {
         )}
 
         {!won && !draw && (
-          <div className="mx-auto w-28 mt-3 overflow-hidden" style={{ height: '40px' }}>
+          <div className="mx-auto mt-3 flex justify-center">
             <div className="animate-sink">
               <Ship kind="cruiser" size={3} orientation="H" sunk />
             </div>
