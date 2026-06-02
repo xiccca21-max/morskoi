@@ -8,7 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsNumber, IsOptional, IsPositive, IsString, Max, MaxLength, IsEnum } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsPositive, IsString, Max, MaxLength } from 'class-validator';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
@@ -23,16 +23,6 @@ class DepositDto {
   @IsPositive()
   @Max(1_000_000)
   amount!: number;
-}
-
-class DepositCryptoDto {
-  @IsNumber()
-  @IsPositive()
-  @Max(1_000_000)
-  amount!: number;
-
-  @IsEnum(['USDT', 'TON'])
-  asset!: 'USDT' | 'TON';
 }
 
 class ProcessDto {
@@ -56,22 +46,6 @@ export class PaymentsController {
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   deposit(@CurrentUser() u: JwtPayload, @Body() dto: DepositDto) {
     return this.payments.createDeposit(u.sub, dto.amount);
-  }
-
-  /** Создать депозит через Telegram Stars (⭐). */
-  @Post('deposit/stars')
-  @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  depositStars(@CurrentUser() u: JwtPayload, @Body() dto: DepositDto) {
-    return this.payments.createDepositStars(u.sub, dto.amount);
-  }
-
-  /** Создать депозит криптой (USDT / TON) через @CryptoBot. */
-  @Post('deposit/crypto')
-  @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  depositCrypto(@CurrentUser() u: JwtPayload, @Body() dto: DepositCryptoDto) {
-    return this.payments.createDepositCrypto(u.sub, dto.asset, dto.amount);
   }
 
   /** Вебхук Crypto Pay об оплате инвойса (подпись проверяется по сырому телу). */

@@ -4,7 +4,6 @@ import TelegramBot from 'node-telegram-bot-api';
 import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from '../common/presence.service';
-import type { WalletService } from '../wallet/wallet.service';
 import type { AdminAlertService } from '../common/admin-alert.service';
 import type { LobbyService } from '../matchmaking/lobby.service';
 
@@ -32,13 +31,6 @@ export class TelegramBotService implements OnModuleInit {
     private readonly moduleRef: ModuleRef,
     private readonly presence: PresenceService,
   ) {}
-
-  /** Лениво — без circular import bot ↔ wallet. */
-  private get walletSvc(): WalletService {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { WalletService: Svc } = require('../wallet/wallet.service') as typeof import('../wallet/wallet.service');
-    return this.moduleRef.get(Svc, { strict: false });
-  }
 
   /** Лениво — без circular import bot ↔ admin-alerts. */
   private get adminAlerts(): AdminAlertService {
@@ -109,7 +101,7 @@ export class TelegramBotService implements OnModuleInit {
         body: JSON.stringify({
           url: webhookUrl,
           secret_token: this.webhookSecret,
-          allowed_updates: ['message', 'callback_query', 'inline_query', 'chosen_inline_result', 'pre_checkout_query'],
+          allowed_updates: ['message', 'callback_query', 'inline_query', 'chosen_inline_result'],
           drop_pending_updates: false,
         }),
       })
@@ -175,38 +167,6 @@ export class TelegramBotService implements OnModuleInit {
         })
         .catch((e) => this.logger.warn(`setChatMenuButton error: ${e.message}`));
     }
-
-    // --- Telegram Stars: подтверждение pre_checkout_query (обязательно) ---
-    this.bot.on('pre_checkout_query', async (query: any) => {
-      try {
-        await this.bot!.answerPreCheckoutQuery(query.id, true);
-      } catch (e: any) {
-        this.logger.warn(`answerPreCheckoutQuery error: ${e?.message}`);
-      }
-    });
-
-    // --- Telegram Stars: зачислить баланс после успешной оплаты ---
-    this.bot.on('message', async (msg: any) => {
-      const sp = msg?.successful_payment;
-      if (!sp) return;
-      const payload: string = sp.invoice_payload ?? '';
-      if (!payload.startsWith('stars:')) return;
-
-      // payload формат: "stars:{userId}:{timestamp}"
-      const parts = payload.split(':');
-      const userId = parts[1];
-      if (!userId) return;
-
-      try {
-        const result = await this.walletSvc.completeDepositByInvoice(userId, payload);
-        if (result.credited && result.amountRub != null) {
-          this.logger.log(`Stars deposit credited: user=${userId} +${result.amountRub}₽ payload=${payload}`);
-          this.notifyDeposit?.(userId, result.amountRub).catch(() => {});
-        }
-      } catch (e: any) {
-        this.logger.error(`Stars payment completion failed user=${userId}: ${e?.message}`);
-      }
-    });
 
     this.bot.onText(/\/start(.*)/, async (msg, match) => {
       const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';

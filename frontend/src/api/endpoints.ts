@@ -47,8 +47,6 @@ export const WalletAPI = {
   txs:     () => api.get('/wallet/transactions').then(r => r.data),
   withdrawals: () => api.get<Withdrawal[]>('/wallet/withdrawals').then(r => r.data),
   deposit: (amount: number) => api.post<DepositResult>('/payments/deposit', { amount }).then(r => r.data),
-  depositStars: (amount: number) => api.post<{ invoiceLink: string; stars: number; rubEquiv: number; rate: number }>('/payments/deposit/stars', { amount }).then(r => r.data),
-  depositCrypto: (amount: number, asset: 'USDT' | 'TON') => api.post<DepositResult & { asset: string; assetAmount: number }>('/payments/deposit/crypto', { amount, asset }).then(r => r.data),
   withdraw: (amount: number, network: string, address: string) =>
     api.post('/wallet/withdraw', { amount, network, address }).then(r => r.data),
   withdrawNetworks: () =>

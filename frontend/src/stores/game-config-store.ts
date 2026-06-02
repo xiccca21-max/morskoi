@@ -8,8 +8,6 @@ export interface GameConfig {
   turnTimeoutSec: number;
   mmFlexWaitSec: number;
   mmFlexPct: number;
-  starsRate: number;
-  cryptoPayEnabled: boolean;
 }
 
 const DEFAULTS: GameConfig = {
@@ -20,8 +18,6 @@ const DEFAULTS: GameConfig = {
   turnTimeoutSec: 20,
   mmFlexWaitSec: 30,
   mmFlexPct: 0.1,
-  starsRate: 2,
-  cryptoPayEnabled: false,
 };
 
 interface GameConfigState extends GameConfig {
@@ -45,7 +41,5 @@ export function getGameConfig(): GameConfig {
     turnTimeoutSec: s.turnTimeoutSec,
     mmFlexWaitSec: s.mmFlexWaitSec,
     mmFlexPct: s.mmFlexPct,
-    starsRate: s.starsRate,
-    cryptoPayEnabled: s.cryptoPayEnabled,
   };
 }
