@@ -60,6 +60,7 @@ export default function WalletScreen() {
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState(100);
   const [txs, setTxs] = useState<any[]>([]);
+  const [visibleCount, setVisibleCount] = useState(5);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +185,8 @@ export default function WalletScreen() {
     const plus = ['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type);
     return filter === 'in' ? plus : !plus;
   });
+  const visibleTxs = filteredTxs.slice(0, visibleCount);
+  const hasMore = filteredTxs.length > visibleCount;
 
   return (
     <div className="max-w-md mx-auto space-y-4">
@@ -401,7 +404,7 @@ export default function WalletScreen() {
             {(['all', 'in', 'out'] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => { setFilter(f); setVisibleCount(5); }}
                 className={['text-[10px] uppercase tracking-wide px-2 py-1 rounded transition', filter === f ? 'bg-danger text-white' : 'text-muted'].join(' ')}
               >
                 {f === 'all' ? 'Все' : f === 'in' ? 'Приход' : 'Расход'}
@@ -416,7 +419,7 @@ export default function WalletScreen() {
           </div>
         )}
         <ul className="divide-y divide-line">
-          {filteredTxs.map((t) => {
+          {visibleTxs.map((t) => {
             const plus = ['PAYOUT', 'DEPOSIT', 'WAGER_REFUND'].includes(t.type);
             const isGame = GAME_TYPES.has(t.type);
             const idLabel = isGame && t.matchId ? `#${shortId(t.matchId)}` : `#${payId(t.id)}`;
@@ -443,6 +446,14 @@ export default function WalletScreen() {
             );
           })}
         </ul>
+        {hasMore && (
+          <button
+            className="w-full mt-3 text-sm text-danger font-display tracking-wide py-2 rounded-xl border border-danger/30 hover:bg-danger/5 transition"
+            onClick={() => setVisibleCount(c => c + 5)}
+          >
+            Показать ещё
+          </button>
+        )}
       </section>
     </div>
   );
