@@ -95,6 +95,7 @@ export default function MatchmakingScreen() {
   // Браузер открытых боёв; null = ещё не загружен (не показываем ни скелетон, ни фильтры)
   const [matches, setMatches] = useState<OpenMatch[] | null>(null);
   const [loadingList, setLoadingList] = useState(false);
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
   const [filterMin, setFilterMin] = useState('');
@@ -177,7 +178,10 @@ export default function MatchmakingScreen() {
   }, [inQueue]);
 
   const fetchList = useCallback(async (showSpinner = false) => {
-    if (showSpinner) setLoadingList(true);
+    // Показываем скелетон только если данных ещё нет И загрузка заняла > 200ms
+    if (showSpinner) {
+      loadingTimerRef.current = setTimeout(() => setLoadingList(true), 200);
+    }
     try {
       const list = await MatchmakingAPI.listOpen({
         q: debouncedQuery || undefined,
@@ -190,6 +194,10 @@ export default function MatchmakingScreen() {
     } catch {
       /* список не критичен */
     } finally {
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
       setLoadingList(false);
     }
   }, [debouncedQuery, debouncedMin, debouncedMax]);
