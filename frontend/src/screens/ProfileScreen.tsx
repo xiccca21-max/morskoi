@@ -184,6 +184,15 @@ export default function ProfileScreen() {
         </div>
       </section>
 
+      <section className="card p-3 divide-y divide-line">
+        <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
+        <Row icon="trophy" label="Рейтинг капитанов" onClick={() => navigate('/leaderboard')} />
+        <Row icon="scroll" label="Журнал боёв" onClick={() => navigate('/history')} />
+        <Row icon="compass" label="Как это работает" onClick={() => navigate('/how-it-works')} />
+        <Row icon="gear" label="Настройки" onClick={() => navigate('/settings')} />
+        <Row icon="shield" label="Поддержка" onClick={() => tgOpenLink(supportUrl)} />
+      </section>
+
       <ReferralCard userId={user.id} displayName={displayName} referralCount={user.referralCount} />
       <WeeklyStats />
 
@@ -229,15 +238,6 @@ export default function ProfileScreen() {
       <Achievements user={user} />
 
       <CosmeticsSection />
-
-      <section className="card p-3 divide-y divide-line">
-        <Row icon="coins" label="Казна" onClick={() => navigate('/wallet')} />
-        <Row icon="trophy" label="Рейтинг капитанов" onClick={() => navigate('/leaderboard')} />
-        <Row icon="scroll" label="Журнал боёв" onClick={() => navigate('/history')} />
-        <Row icon="compass" label="Как это работает" onClick={() => navigate('/how-it-works')} />
-        <Row icon="gear" label="Настройки" onClick={() => navigate('/settings')} />
-        <Row icon="shield" label="Поддержка" onClick={() => tgOpenLink(supportUrl)} />
-      </section>
 
       <section className="card p-3">
         <button onClick={() => setConfirmDelete(true)} className="w-full flex items-center gap-3 py-3 px-1 text-danger transition">
