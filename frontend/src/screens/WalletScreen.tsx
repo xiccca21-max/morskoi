@@ -106,7 +106,7 @@ export default function WalletScreen() {
   }, [awaitingPayment, updateWallet]);
 
   const balance = user?.balance ?? 0;
-  const withdrawable = user?.withdrawable ?? balance;
+  const withdrawable = balance;
 
   const validDeposit = Number.isFinite(amount) && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
   const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;
@@ -210,17 +210,6 @@ export default function WalletScreen() {
             </p>
           </div>
           <Icon name="coins" size={32} className="text-muted" />
-        </div>
-        <div className="mt-4">
-          <div className="bg-panel rounded-lg px-3 py-2 flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-wide text-muted">Можно вывести</p>
-            <p className="font-display text-main tabular-nums text-lg">
-              <AnimatedNumber value={withdrawable} formatter={formatMoney} />
-            </p>
-          </div>
-          <p className="text-[11px] text-muted mt-2 leading-relaxed">
-            Весь баланс — ваши реальные средства (депозиты и выигрыши) и полностью доступен к выводу.
-          </p>
         </div>
       </section>
 
