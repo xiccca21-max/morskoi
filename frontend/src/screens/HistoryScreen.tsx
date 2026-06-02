@@ -8,7 +8,6 @@ import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
-import { usePullToRefresh } from '../lib/usePullToRefresh';
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
@@ -46,7 +45,6 @@ export default function HistoryScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  const { refreshing } = usePullToRefresh(load);
 
   const wins = items.filter((m) => m.result === 'win').length;
   const losses = items.filter((m) => m.result === 'loss').length;
@@ -60,7 +58,6 @@ export default function HistoryScreen() {
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="title text-main text-lg">Журнал боёв</h2>
-        {refreshing && <Spinner size={16} />}
       </div>
       {!loading && items.length > 0 && (
         <div className="card p-3 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
@@ -80,7 +77,7 @@ export default function HistoryScreen() {
           </div>
         </div>
       )}
-      {loading && !refreshing && <SkeletonList rows={5} />}
+      {loading && <SkeletonList rows={5} />}
       {!loading && items.length === 0 && (
         <EmptyState icon="scroll" title="Журнал пуст" subtitle="Сыграйте первый бой — он появится здесь" />
       )}
@@ -132,7 +129,6 @@ export default function HistoryScreen() {
           );
         })}
       </ul>
-      <p className="text-center text-muted text-[10px] pt-1">Потяните вниз для обновления</p>
     </div>
   );
 }

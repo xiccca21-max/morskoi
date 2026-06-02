@@ -9,7 +9,6 @@ import { SkeletonList } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { formatMoney } from '../lib/format';
-import { usePullToRefresh } from '../lib/usePullToRefresh';
 
 type Tab = 'weekly' | 'wins' | 'earnings' | 'season';
 
@@ -55,7 +54,6 @@ export default function LeaderboardScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const { refreshing } = usePullToRefresh(load);
 
   const seasonLeft = seasonEnd
     ? Math.max(0, Math.ceil((new Date(seasonEnd).getTime() - Date.now()) / 86400000))
@@ -65,7 +63,6 @@ export default function LeaderboardScreen() {
     <div className="max-w-md mx-auto space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="title text-main text-lg">Рейтинг капитанов</h2>
-        {refreshing && <Spinner size={16} />}
       </div>
       {seasonName && tab === 'season' && (
         <p className="text-muted text-xs -mt-1">
@@ -85,7 +82,7 @@ export default function LeaderboardScreen() {
         <Tab active={tab === 'season'} onClick={() => setTab('season')}>Сезон</Tab>
         <Tab active={tab === 'earnings'} onClick={() => setTab('earnings')}>Выигрыш</Tab>
       </div>
-      {loading && !refreshing && <SkeletonList rows={6} />}
+      {loading && <SkeletonList rows={6} />}
       <ul className="space-y-1.5">
         {!loading && items.length === 0 && (
           <li>
@@ -126,7 +123,6 @@ export default function LeaderboardScreen() {
           );
         })}
       </ul>
-      <p className="text-center text-muted text-[10px] pt-1">Потяните вниз для обновления</p>
     </div>
   );
 }
