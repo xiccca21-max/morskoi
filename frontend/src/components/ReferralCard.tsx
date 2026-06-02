@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icon } from './Icon';
 import { toast } from '../stores/toast-store';
 import { tgShare, tgHaptic } from '../lib/telegram';
@@ -13,11 +14,13 @@ export function ReferralCard({
   referralCount?: number;
 }) {
   const link = referralBotLink(userId);
+  const [copied, setCopied] = useState(false);
 
   const copy = () => {
     navigator.clipboard.writeText(link).catch(() => {});
     tgHaptic('success');
-    toast('Ссылка скопирована', 'success', 'check');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const share = () => {
@@ -26,23 +29,39 @@ export function ReferralCard({
   };
 
   return (
-    <section className="card p-4 space-y-3">
-      <div className="flex items-center justify-between">
+    <section className="card overflow-hidden">
+      {/* Заголовок */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-line">
         <p className="eyebrow">Пригласи друга</p>
-        <span className="text-muted text-[11px] tabular-nums">Приглашено: {referralCount}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-display text-danger text-sm tabular-nums">{referralCount}</span>
+          <span className="text-muted text-[11px]">приглашено</span>
+        </div>
       </div>
-      <p className="text-muted text-xs leading-relaxed">
-        Друг регистрируется по твоей ссылке — растёт счётчик приглашений и открываются достижения «Рекрутёр», «Командир», «Флагман».
-      </p>
-      <div className="bg-panel rounded-lg px-3 py-2 font-mono text-[10px] text-muted break-all border border-line">
-        {link}
+
+      {/* Описание */}
+      <div className="px-4 py-3 border-b border-line">
+        <p className="text-muted text-[12px] leading-relaxed">
+          За каждого приглашённого друга открываются достижения и косметика.
+        </p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <button className="btn-secondary w-full text-sm py-2.5" onClick={copy}>
-          <Icon name="check" size={14} /> Копировать
+
+      {/* Кнопки действий */}
+      <div className="grid grid-cols-2 divide-x divide-line">
+        <button
+          onClick={copy}
+          className="flex items-center justify-center gap-2 py-3.5 text-sm font-display uppercase tracking-wide transition"
+          style={{ color: copied ? 'var(--c-danger)' : 'var(--c-main)' }}
+        >
+          <Icon name={copied ? 'check' : 'copy'} size={15} />
+          {copied ? 'Скопировано' : 'Копировать'}
         </button>
-        <button className="btn-primary w-full text-sm py-2.5" onClick={share}>
-          <Icon name="share" size={14} /> Поделиться
+        <button
+          onClick={share}
+          className="flex items-center justify-center gap-2 py-3.5 text-sm font-display uppercase tracking-wide text-danger transition hover:opacity-80"
+        >
+          <Icon name="share" size={15} />
+          Поделиться
         </button>
       </div>
     </section>

@@ -294,29 +294,29 @@ function Achievements({ user }: { user: { wins: number; losses: number; loginStr
   const badges = ACHIEVEMENTS.map((a) => ({ ...a, earned: a.earned(stats), pct: Math.round(a.progress(stats)) }));
   const earnedCount = badges.filter((b) => b.earned).length;
   return (
-    <section className="card p-4">
-      <div className="flex items-center justify-between mb-3">
+    <section className="card overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-line">
         <p className="eyebrow">Достижения</p>
-        <span className="text-muted text-[11px] tabular-nums">Открыто {earnedCount}/{badges.length}</span>
+        <span className="text-[11px] tabular-nums font-display text-danger">{earnedCount}<span className="text-muted">/{badges.length}</span></span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <ul className="divide-y divide-line">
         {badges.map((b) => (
-          <div
-            key={b.id}
-            className={['rounded-lg p-3 flex flex-col items-center text-center gap-1 border transition relative overflow-hidden', b.earned ? 'bg-danger/10 border-danger/40' : 'bg-panel border-line'].join(' ')}
-            title={b.desc}
-          >
-            {!b.earned && b.pct > 0 && (
-              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-line">
-                <div className="h-full bg-danger/60" style={{ width: `${b.pct}%` }} />
-              </div>
-            )}
-            <Icon name={b.earned ? b.icon : 'lock'} size={20} className={b.earned ? 'text-danger' : 'text-muted'} />
-            <span className={['text-[11px] font-display leading-tight', b.earned ? 'text-main' : 'text-muted'].join(' ')}>{b.title}</span>
-            <span className="text-[9px] text-muted leading-tight">{b.earned ? b.desc : `${b.pct}%`}</span>
-          </div>
+          <li key={b.id} className="flex items-center gap-3 px-4 py-3">
+            <div className={['w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border', b.earned ? 'border-danger/40 bg-danger/8' : 'border-line bg-panel'].join(' ')}>
+              <Icon name={b.earned ? b.icon : 'lock'} size={16} className={b.earned ? 'text-danger' : 'text-muted'} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={['text-sm font-display', b.earned ? 'text-main' : 'text-muted'].join(' ')}>{b.title}</p>
+              <p className="text-[11px] text-muted leading-snug">{b.desc}</p>
+            </div>
+            {b.earned ? (
+              <Icon name="check" size={14} className="text-danger shrink-0" />
+            ) : b.pct > 0 ? (
+              <span className="text-[11px] tabular-nums text-muted shrink-0">{b.pct}%</span>
+            ) : null}
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -359,57 +359,52 @@ function CosmeticsSection() {
   const groups: Array<'title' | 'frame' | 'skin'> = ['title', 'frame', 'skin'];
 
   return (
-    <section className="card p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="eyebrow">Косметика и награды</p>
+    <section className="card overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+        <p className="eyebrow">Косметика</p>
         <span className="text-muted text-[11px]">Не влияет на баланс</span>
       </div>
 
-      {/* Прогресс наград за рефералов */}
-      <div className="space-y-1.5">
-        <p className="text-muted text-[11px]">Приглашено друзей: <span className="text-main font-display">{refs}</span></p>
-        {REFERRAL_TIERS.map((t) => {
-          const done = refs >= t.n;
-          return (
-            <div key={t.n} className="flex items-center gap-2 text-[12px]">
-              <Icon name={done ? 'check' : 'lock'} size={13} className={done ? 'text-danger' : 'text-muted'} />
-              <span className={done ? 'text-main' : 'text-muted'}>{t.n} {t.n === 1 ? 'друг' : 'друзей'} — {t.reward}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {groups.map((g) => {
+      {groups.map((g, gi) => {
         const items = profile.items.filter((i) => i.type === g);
         if (!items.length) return null;
         return (
-          <div key={g} className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted">{TYPE_LABEL[g]}</p>
-            <div className="flex flex-wrap gap-2">
+          <div key={g} className={gi > 0 ? 'border-t border-line' : ''}>
+            {/* Подзаголовок группы */}
+            <div className="px-4 pt-3 pb-1">
+              <p className="eyebrow">{TYPE_LABEL[g]}</p>
+            </div>
+            {/* Строки элементов */}
+            <ul className="divide-y divide-line">
               {items.map((it) => {
                 const equipped = profile.equipped[g] === it.id;
                 return (
-                  <button
-                    key={it.id}
-                    disabled={!it.unlocked || busy !== null}
-                    onClick={() => equip(g, it.id)}
-                    title={it.desc}
-                    className={[
-                      'px-3 py-2 rounded-lg text-xs font-display border transition text-left',
-                      equipped ? 'bg-danger text-white border-danger'
-                        : it.unlocked ? 'bg-panel text-main border-line hover:border-main'
-                        : 'bg-panel text-muted border-line opacity-60',
-                    ].join(' ')}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      {!it.unlocked && <Icon name="lock" size={11} />}
-                      {it.name}
-                    </span>
-                    {!it.unlocked && <span className="block text-[9px] text-muted mt-0.5">{it.desc}</span>}
-                  </button>
+                  <li key={it.id}>
+                    <button
+                      disabled={!it.unlocked || busy !== null}
+                      onClick={() => equip(g, it.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 transition active:opacity-70"
+                    >
+                      <div className={[
+                        'w-7 h-7 rounded-md flex items-center justify-center shrink-0 border',
+                        equipped ? 'bg-danger border-danger' : 'bg-panel border-line',
+                      ].join(' ')}>
+                        {equipped
+                          ? <Icon name="check" size={13} className="text-white" />
+                          : <Icon name={it.unlocked ? 'check' : 'lock'} size={13} className="text-muted" />}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className={['text-sm', equipped ? 'text-main font-display' : it.unlocked ? 'text-main' : 'text-muted'].join(' ')}>
+                          {it.name}
+                        </p>
+                        {!it.unlocked && <p className="text-[11px] text-muted">{it.desc}</p>}
+                      </div>
+                      {equipped && <span className="text-[10px] text-danger font-display uppercase tracking-wide">Активно</span>}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         );
       })}
