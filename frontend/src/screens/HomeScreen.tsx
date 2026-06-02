@@ -252,21 +252,20 @@ function Tile({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: 0.1 + index * 0.05 }}
       whileTap={{ scale: 0.97 }}
-      className="card card-press p-4 text-left"
+      className="card card-press p-4 text-left relative"
     >
-      {/* Иконка в красном круге с свечением */}
+      {/* Иконка в правом верхнем углу */}
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5"
+        className="absolute top-3 right-3 w-10 h-10 rounded-xl flex items-center justify-center"
         style={{
           background: 'linear-gradient(135deg, rgba(var(--c-danger-rgb)/0.18), rgba(var(--c-danger-rgb)/0.07))',
           border: '1px solid rgba(var(--c-danger-rgb)/0.22)',
-          boxShadow: '0 2px 10px rgba(var(--c-danger-rgb)/0.12)',
         }}
       >
         <Icon name={icon} size={19} className="text-danger" />
       </div>
-      <div className="font-display text-main text-[14px] leading-tight uppercase tracking-wide">{title}</div>
-      <div className="text-[11px] text-muted mt-0.5 leading-snug">{sub}</div>
+      <div className="font-display text-main text-[14px] leading-tight uppercase tracking-wide mt-1 pr-12">{title}</div>
+      <div className="text-[11px] text-muted mt-1 leading-snug pr-12">{sub}</div>
     </motion.button>
   );
 }
