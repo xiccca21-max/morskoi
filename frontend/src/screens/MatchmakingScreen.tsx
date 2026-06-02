@@ -636,7 +636,7 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
           <button className="mt-1 text-xs text-muted underline" onClick={onCancel}>снять</button>
         ) : (
           <button className="btn-primary mt-1 px-3 py-1.5 text-xs inline-flex items-center gap-1.5" onClick={onAccept} disabled={busy}>
-            {busy ? <Spinner size={12} /> : 'Принять'}
+            {busy ? <Spinner size={12} /> : 'Присоединиться'}
           </button>
         )}
       </div>
