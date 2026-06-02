@@ -27,6 +27,7 @@ export default function ProfileScreen() {
   const [savingNick, setSavingNick] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [idCopied, setIdCopied] = useState(false);
   if (!user) return null;
 
   const total = user.wins + user.losses;
@@ -43,7 +44,9 @@ export default function ProfileScreen() {
 
   const copyId = () => {
     navigator.clipboard.writeText(user.telegramId).catch(() => {});
-    toast('ID скопирован', 'success', 'check');
+    tgHaptic('success');
+    setIdCopied(true);
+    setTimeout(() => setIdCopied(false), 1200);
   };
 
   const shareProfile = () => {
@@ -85,8 +88,9 @@ export default function ProfileScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <section className="card p-6">
-        <div className="flex items-center gap-4">
+      <section className="card overflow-hidden">
+        {/* Аватар + имя */}
+        <div className="flex items-center gap-4 p-5">
           <div className="relative shrink-0 grid place-items-center" style={{ width: 64, height: 64 }}>
             <svg width="64" height="64" className="absolute inset-0 -rotate-90" aria-hidden>
               <circle cx="32" cy="32" r="29" fill="none" stroke="var(--c-line)" strokeWidth="3" />
@@ -107,48 +111,77 @@ export default function ProfileScreen() {
                 <Icon name="pencil" size={14} />
               </button>
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5 text-muted">
-              <Icon name={rank.icon} size={16} />
-              <span className="title text-xs">{rank.title}</span>
+            {/* Звание — отдельная строка */}
+            <div className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full bg-panel border border-line">
+              <Icon name={rank.icon} size={12} className="text-danger" />
+              <span className="font-display text-[11px] uppercase tracking-wide text-main">{rank.title}</span>
             </div>
-            <button
-              onClick={copyId}
-              className="flex items-center gap-1 mt-0.5 text-muted text-[11px] hover:text-main"
-              aria-label="Скопировать игровой ID"
-            >
-              ID: <span className="tabular-nums font-medium">{user.telegramId}</span>
-              <Icon name="check" size={11} />
-            </button>
-            {memberSince && <p className="text-muted text-[11px] mt-0.5">В игре с {memberSince}</p>}
           </div>
           <button
             onClick={shareProfile}
             aria-label="Поделиться профилем"
-            className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl text-muted hover:text-main transition"
+            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl text-muted hover:text-main transition"
           >
-            <Icon name="share" size={22} />
+            <Icon name="share" size={20} />
           </button>
         </div>
-        <div className="flex items-center justify-between eyebrow mt-4 mb-1.5">
-          <span className="flex items-center gap-1.5 text-muted">
-            {next ? <><Icon name={next.icon} size={13} /> до звания «{next.title}»</> : 'Высшее звание'}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-muted tabular-nums">{next ? `${user.wins}/${rank.next}` : '∞'}</span>
+
+        {/* Разделитель */}
+        <div className="border-t border-line" />
+
+        {/* Мета-строки */}
+        <div className="px-5 py-3 space-y-2">
+          {/* ID с копированием */}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-wide text-muted">ID</span>
             <button
-              onClick={() => setShowRanks(true)}
-              className="text-[10px] text-danger font-display uppercase tracking-wide hover:underline"
+              onClick={copyId}
+              className="flex items-center gap-1.5 text-main text-[13px] font-medium tabular-nums hover:text-danger transition"
+              aria-label="Скопировать ID"
             >
-              Подробнее
+              {user.telegramId}
+              <span
+                style={{ transition: 'color 0.2s' }}
+                className={idCopied ? 'text-danger' : 'text-muted'}
+              >
+                <Icon name={idCopied ? 'check' : 'copy'} size={14} />
+              </span>
             </button>
           </div>
+          {memberSince && (
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] uppercase tracking-wide text-muted">В игре с</span>
+              <span className="text-main text-[13px]">{memberSince}</span>
+            </div>
+          )}
         </div>
-        <div className="h-1 rounded-full bg-panel overflow-hidden">
-          <div className="h-full bg-main transition-all" style={{ width: `${progress}%` }} />
+
+        {/* Разделитель */}
+        <div className="border-t border-line" />
+
+        {/* Прогресс до следующего звания */}
+        <div className="px-5 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
+              {next ? <><Icon name={next.icon} size={12} /> до «{next.title}»</> : 'Высшее звание'}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-muted text-xs tabular-nums">{next ? `${user.wins} / ${rank.next}` : '∞'}</span>
+              <button
+                onClick={() => setShowRanks(true)}
+                className="text-[10px] text-danger font-display uppercase tracking-wide hover:underline"
+              >
+                Подробнее
+              </button>
+            </div>
+          </div>
+          <div className="h-1.5 rounded-full bg-panel overflow-hidden">
+            <div className="h-full bg-danger rounded-full transition-all" style={{ width: `${progress}%` }} />
+          </div>
+          {next && (
+            <p className="text-muted text-[11px] mt-1.5">Ещё {toNext} {plural(toNext)} до следующего звания</p>
+          )}
         </div>
-        {next && (
-          <p className="text-muted text-xs mt-2">Ещё {toNext} {plural(toNext)} до следующего звания</p>
-        )}
       </section>
 
       <ReferralCard userId={user.id} displayName={displayName} referralCount={user.referralCount} />
