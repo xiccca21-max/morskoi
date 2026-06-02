@@ -8,7 +8,7 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
-import { formatMoney } from '../lib/format';
+import { formatMoney, useMoney } from '../lib/format';
 import { playSound } from '../lib/audio';
 import { useGameConfigStore } from '../stores/game-config-store';
 import {
@@ -49,15 +49,28 @@ const WD_STATUS: Record<string, { label: string; cls: string }> = {
   REJECTED: { label: 'Отклонено', cls: 'text-danger border-danger/40' },
 };
 
+type PayMethod = 'cryptobot' | 'stars' | 'usdt' | 'ton';
+
+const PAY_METHODS: { id: PayMethod; label: string; sub: string; emoji: string }[] = [
+  { id: 'cryptobot', label: 'CryptoBot',       sub: 'Криптой · ₽ на баланс', emoji: '🤖' },
+  { id: 'stars',     label: 'Telegram Stars',  sub: '⭐ нативная оплата',    emoji: '⭐' },
+  { id: 'usdt',      label: 'USDT',            sub: 'TRC20 / ERC20 / TON',  emoji: '💵' },
+  { id: 'ton',       label: 'TON',             sub: 'через @CryptoBot',      emoji: '💎' },
+];
+
 export default function WalletScreen() {
   const user = useAuthStore((s) => s.user);
   const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
+  const starsRate = useGameConfigStore((s) => s.starsRate);
+  const cryptoPayEnabled = useGameConfigStore((s) => s.cryptoPayEnabled);
   const updateWallet = useAuthStore((s) => s.updateWallet);
+  const fmt = useMoney();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
 
   const [tab, setTab] = useState<Tab>('deposit');
+  const [payMethod, setPayMethod] = useState<PayMethod>('cryptobot');
   const [amount, setAmount] = useState(100);
   const [txs, setTxs] = useState<any[]>([]);
   const [visibleCount, setVisibleCount] = useState(5);
@@ -80,7 +93,19 @@ export default function WalletScreen() {
   };
   useEffect(() => { refresh(); }, []);
 
-  // После выставления крипто-счёта опрашиваем баланс ~3 минуты, ждём вебхук об оплате
+  // Stars estimate
+  const starsEstimate = Math.max(1, Math.ceil(amount / starsRate));
+
+  const onPaymentSuccess = () => {
+    toast('Оплата получена — баланс пополнен', 'success', 'plus');
+    tgHaptic('success');
+    playSound('win');
+    setCelebrate(true);
+    setTimeout(() => setCelebrate(false), 2200);
+    refresh();
+  };
+
+  // После выставления счёта опрашиваем баланс ~3 мин, ждём зачисления
   useEffect(() => {
     if (!awaitingPayment) return;
     const startBalance = useAuthStore.getState().user?.balance ?? 0;
@@ -91,19 +116,15 @@ export default function WalletScreen() {
         const w = await WalletAPI.balance();
         updateWallet(w);
         if (w.balance > startBalance) {
-          toast('Оплата получена — баланс пополнен', 'success', 'plus');
-          tgHaptic('success');
-          playSound('win');
-          setCelebrate(true);
-          setTimeout(() => setCelebrate(false), 2200);
+          onPaymentSuccess();
           WalletAPI.txs().then(setTxs).catch(() => {});
           setAwaitingPayment(false);
         }
       } catch { /* ignore */ }
-      if (ticks >= 36) setAwaitingPayment(false); // ~3 мин (5с * 36)
+      if (ticks >= 36) setAwaitingPayment(false);
     }, 5000);
     return () => clearInterval(t);
-  }, [awaitingPayment, updateWallet]);
+  }, [awaitingPayment, updateWallet]); // eslint-disable-line
 
   const balance = user?.balance ?? 0;
   const withdrawable = balance;
@@ -116,20 +137,39 @@ export default function WalletScreen() {
     if (!validDeposit) { setError(`Сумма от ${MIN_DEPOSIT} до ${MAX_DEPOSIT} ₽`); return; }
     setError(null); setBusy(true);
     try {
-      const r = await WalletAPI.deposit(amount);
-      const payUrl = r.miniAppInvoiceUrl ?? r.invoiceUrl ?? r.botInvoiceUrl ?? r.payUrl;
-      if (!payUrl) throw new Error('Нет ссылки на оплату');
-      tgHaptic('success');
-      tgOpenPayment(payUrl, (status) => {
-        if (status === 'paid') {
-          toast('Оплата получена — баланс пополнен', 'success', 'plus');
-          refresh();
-        } else if (status === 'failed') {
-          toast('Оплата не прошла', 'error');
-        }
-      });
-      toast(`Счёт на ${amount} ₽ — оплатите в @CryptoBot`, 'info', 'coins');
-      setAwaitingPayment(true);
+      if (payMethod === 'stars') {
+        const r = await WalletAPI.depositStars(amount);
+        tgHaptic('success');
+        tgOpenPayment(r.invoiceLink, (status) => {
+          if (status === 'paid') { onPaymentSuccess(); refresh(); }
+          else if (status === 'failed') toast('Оплата не прошла', 'error');
+        });
+        toast(`Счёт на ${r.stars} ⭐ открыт`, 'info', 'coins');
+        setAwaitingPayment(true);
+      } else if (payMethod === 'usdt' || payMethod === 'ton') {
+        const asset = payMethod === 'usdt' ? 'USDT' : 'TON';
+        const r = await WalletAPI.depositCrypto(amount, asset);
+        const payUrl = r.miniAppInvoiceUrl ?? r.invoiceUrl ?? r.botInvoiceUrl ?? r.payUrl;
+        if (!payUrl) throw new Error('Нет ссылки на оплату');
+        tgHaptic('success');
+        tgOpenPayment(payUrl, (status) => {
+          if (status === 'paid') { onPaymentSuccess(); refresh(); }
+          else if (status === 'failed') toast('Оплата не прошла', 'error');
+        });
+        toast(`Счёт на ≈${r.assetAmount?.toFixed(2)} ${asset} открыт`, 'info', 'coins');
+        setAwaitingPayment(true);
+      } else {
+        const r = await WalletAPI.deposit(amount);
+        const payUrl = r.miniAppInvoiceUrl ?? r.invoiceUrl ?? r.botInvoiceUrl ?? r.payUrl;
+        if (!payUrl) throw new Error('Нет ссылки на оплату');
+        tgHaptic('success');
+        tgOpenPayment(payUrl, (status) => {
+          if (status === 'paid') { onPaymentSuccess(); refresh(); }
+          else if (status === 'failed') toast('Оплата не прошла', 'error');
+        });
+        toast(`Счёт на ${amount} ₽ — оплатите в @CryptoBot`, 'info', 'coins');
+        setAwaitingPayment(true);
+      }
     } catch (e: any) {
       tgHaptic('error'); setError(e?.response?.data?.message ?? e?.message ?? 'Не удалось пополнить');
     } finally { setBusy(false); }
@@ -226,37 +266,113 @@ export default function WalletScreen() {
       </section>
 
       {tab === 'deposit' ? (
-        <section className="card p-5 space-y-3">
-          <p className="eyebrow">Сумма пополнения (₽ на баланс)</p>
-          <p className="text-muted text-xs leading-relaxed">
-            Оплата через @CryptoBot — сумма в ₽, платите криптой.
-          </p>
-          <input
-            type="number" min={MIN_DEPOSIT} max={MAX_DEPOSIT} value={Number.isFinite(amount) ? amount : ''}
-            onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
-            className="w-full px-4 py-3 rounded-lg bg-panel border border-line text-main outline-none tabular-nums"
-          />
-          <div className="flex gap-2">
-            {[100, 500, 1000, 5000].map((v) => (
-              <button
-                key={v}
-                className={['flex-1 py-2.5 rounded-lg text-sm font-display tabular-nums transition border', amount === v ? 'bg-danger text-white border-danger' : 'bg-panel text-main border-line'].join(' ')}
-                onClick={() => { setError(null); setAmount(v); }}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-          {error && <p className="text-danger text-sm">{error}</p>}
-          <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit || awaitingPayment}>
-            <Icon name="plus" size={16} /> Пополнить {Number.isFinite(amount) ? amount : 0} ₽
-          </button>
-          {awaitingPayment && (
-            <div className="flex items-center justify-center gap-2 text-muted text-xs">
-              <span className="w-3 h-3 rounded-full border-2 border-transparent border-t-danger animate-spin" />
-              Ждём подтверждения оплаты…
+        <section className="card overflow-hidden">
+          {/* Метод оплаты */}
+          <div className="px-4 pt-4 pb-3 border-b border-line">
+            <p className="eyebrow mb-3">Способ оплаты</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PAY_METHODS.filter((m) => m.id === 'stars' || cryptoPayEnabled || m.id === 'cryptobot').map((m) => {
+                const active = payMethod === m.id;
+                const unavailable = (m.id === 'cryptobot' || m.id === 'usdt' || m.id === 'ton') && !cryptoPayEnabled;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => { if (!unavailable) { setPayMethod(m.id); setError(null); } }}
+                    disabled={unavailable}
+                    className={[
+                      'relative flex items-center gap-2.5 p-3 rounded-xl border text-left transition',
+                      active ? 'border-danger bg-danger/10' : 'border-line bg-panel hover:border-danger/40',
+                      unavailable ? 'opacity-40 cursor-not-allowed' : '',
+                    ].join(' ')}
+                  >
+                    <span className="text-xl leading-none">{m.emoji}</span>
+                    <div className="min-w-0">
+                      <p className={['font-display text-xs leading-tight', active ? 'text-danger' : 'text-main'].join(' ')}>{m.label}</p>
+                      <p className="text-[10px] text-muted leading-tight mt-0.5 truncate">{unavailable ? 'Недоступно' : m.sub}</p>
+                    </div>
+                    {active && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-danger" />}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+
+          {/* Сумма */}
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="eyebrow">Сумма (₽)</p>
+              {payMethod === 'stars' && (
+                <span className="text-xs text-muted tabular-nums">≈ {starsEstimate} ⭐</span>
+              )}
+            </div>
+            <input
+              type="number" min={MIN_DEPOSIT} max={MAX_DEPOSIT}
+              value={Number.isFinite(amount) ? amount : ''}
+              onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
+              className="w-full px-4 py-3 rounded-xl bg-panel border border-line text-main outline-none tabular-nums text-lg font-display"
+            />
+            <div className="grid grid-cols-4 gap-1.5">
+              {[100, 500, 1000, 5000].map((v) => (
+                <button
+                  key={v}
+                  className={['py-2 rounded-lg text-sm font-display tabular-nums transition border', amount === v ? 'bg-danger text-white border-danger' : 'bg-panel text-main border-line'].join(' ')}
+                  onClick={() => { setError(null); setAmount(v); }}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+
+            {/* Пояснение по методу */}
+            {payMethod === 'stars' && (
+              <div className="flex items-start gap-2 rounded-lg bg-warning/10 border border-warning/20 p-2.5">
+                <span className="text-base leading-none mt-0.5">⭐</span>
+                <p className="text-[11px] text-main leading-relaxed">
+                  {starsEstimate} Stars ({amount} ₽ по курсу {starsRate} ₽/⭐) — нативная оплата Telegram. Stars зачислятся на игровой баланс в ₽.
+                </p>
+              </div>
+            )}
+            {(payMethod === 'usdt' || payMethod === 'ton') && (
+              <div className="flex items-start gap-2 rounded-lg bg-panel border border-line p-2.5">
+                <span className="text-base leading-none mt-0.5">{payMethod === 'usdt' ? '💵' : '💎'}</span>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Сумма в {payMethod.toUpperCase()} рассчитается по актуальному курсу при создании счёта.
+                </p>
+              </div>
+            )}
+            {payMethod === 'cryptobot' && (
+              <div className="flex items-start gap-2 rounded-lg bg-panel border border-line p-2.5">
+                <span className="text-base leading-none mt-0.5">🤖</span>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Счёт в ₽ — платите любой криптой через @CryptoBot. Курс фиксируется при открытии счёта.
+                </p>
+              </div>
+            )}
+
+            {error && <p className="text-danger text-sm">{error}</p>}
+
+            <button
+              className="btn-primary w-full"
+              onClick={deposit}
+              disabled={busy || !validDeposit || awaitingPayment}
+            >
+              {busy ? (
+                <span className="w-4 h-4 rounded-full border-2 border-transparent border-t-white animate-spin" />
+              ) : (
+                <Icon name="plus" size={16} />
+              )}
+              {payMethod === 'stars'
+                ? `Оплатить ${starsEstimate} ⭐`
+                : `Пополнить ${fmt(amount)}`}
+            </button>
+
+            {awaitingPayment && (
+              <div className="flex items-center justify-center gap-2 text-muted text-xs">
+                <span className="w-3 h-3 rounded-full border-2 border-transparent border-t-danger animate-spin" />
+                Ждём подтверждения оплаты…
+              </div>
+            )}
+          </div>
         </section>
       ) : (
         <section className="card p-5 space-y-3">

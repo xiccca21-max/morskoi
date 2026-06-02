@@ -71,6 +71,49 @@ export class CryptoPayService {
     };
   }
 
+  /** Крипто-инвойс в конкретной монете (USDT / TON). Пользователь видит сумму в крипте. */
+  async createCryptoAssetInvoice(params: {
+    asset: 'USDT' | 'TON';
+    amountRub: number;
+    payload: string;
+    returnUrl?: string;
+  }): Promise<{
+    invoiceId: string;
+    miniAppInvoiceUrl?: string;
+    botInvoiceUrl?: string;
+    payUrl: string;
+    assetAmount: number;
+  }> {
+    const rate = await this.getRubPerAsset(params.asset);
+    const assetAmount = params.amountRub / rate;
+    const decimals = params.asset === 'USDT' ? 2 : 6;
+
+    const result = await this.call<any>('createInvoice', {
+      currency_type: 'crypto',
+      asset: params.asset,
+      amount: assetAmount.toFixed(decimals),
+      payload: params.payload,
+      description: `Пополнение ${params.amountRub} ₽ · Морской Бой`,
+      paid_btn_name: params.returnUrl ? 'callback' : undefined,
+      paid_btn_url: params.returnUrl,
+      allow_comments: false,
+      expires_in: 3600,
+    });
+
+    const miniAppInvoiceUrl = result.mini_app_invoice_url as string | undefined;
+    const botInvoiceUrl = result.bot_invoice_url as string | undefined;
+    const payUrl = miniAppInvoiceUrl ?? botInvoiceUrl ?? result.web_app_invoice_url ?? result.pay_url;
+    if (!payUrl) throw new Error('Crypto Pay: no invoice URL');
+
+    return {
+      invoiceId: String(result.invoice_id),
+      miniAppInvoiceUrl,
+      botInvoiceUrl,
+      payUrl,
+      assetAmount,
+    };
+  }
+
   async getRubPerAsset(asset: string): Promise<number> {
     const rates = await this.call<any[]>('getExchangeRates');
     const r = rates.find((x) => x.source === asset && x.target === 'RUB');

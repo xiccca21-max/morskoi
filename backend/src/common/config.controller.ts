@@ -14,6 +14,8 @@ export class ConfigController {
       mmFlexWaitSec: Number(process.env.MM_FLEX_WAIT_SEC ?? 30),
       mmFlexPct: Number(process.env.MM_FLEX_PCT ?? 0.1),
       build: process.env.APP_RELEASE || process.env.GIT_SHA || null,
+      starsRate: Number(process.env.STARS_RUB_RATE ?? 2),
+      cryptoPayEnabled: Boolean(process.env.CRYPTO_PAY_TOKEN),
     };
   }
 }

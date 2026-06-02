@@ -61,6 +61,81 @@ export class PaymentsService {
     };
   }
 
+  /** Пополнение через Telegram Stars (⭐). Создаёт инвойс через Bot API. */
+  async createDepositStars(userId: string, amountRub: number) {
+    if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
+    await assertCanPlay(this.prisma, userId);
+
+    const rate = Number(process.env.STARS_RUB_RATE ?? 2);
+    const stars = Math.max(1, Math.ceil(amountRub / rate));
+    const rubEquiv = roundRub(stars * rate);
+
+    const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+    if (!token) throw new ServiceUnavailableException('Бот не настроен');
+    const apiRoot = (process.env.TELEGRAM_API_ROOT || 'https://api.telegram.org').replace(/\/+$/, '');
+
+    // Уникальный ключ инвойса (используется как invoiceId в pending-транзакции).
+    const invoiceId = `stars:${userId}:${Date.now()}`;
+
+    const resp = await fetch(`${apiRoot}/bot${token}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Пополнение баланса',
+        description: `${stars} ⭐ → ${rubEquiv} ₽ · Морской Бой`,
+        payload: invoiceId,
+        currency: 'XTR',
+        prices: [{ label: 'Пополнение', amount: stars }],
+      }),
+    });
+    const json: any = await resp.json();
+    if (!json.ok) {
+      this.logger.warn(`createInvoiceLink failed: ${JSON.stringify(json)}`);
+      throw new ServiceUnavailableException('Не удалось создать Stars-счёт');
+    }
+
+    await this.wallet.createPendingDeposit(userId, rubEquiv, invoiceId, 'stars');
+    this.logger.log(`Stars invoice created for user ${userId}: ${stars}⭐ → ${rubEquiv}₽ id=${invoiceId}`);
+
+    return {
+      mode: 'stars' as const,
+      invoiceLink: json.result as string,
+      stars,
+      rubEquiv,
+      rate,
+    };
+  }
+
+  /** Пополнение криптой (USDT / TON) напрямую через @CryptoBot. */
+  async createDepositCrypto(userId: string, asset: 'USDT' | 'TON', amountRub: number) {
+    if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
+    await assertCanPlay(this.prisma, userId);
+
+    if (!this.cryptoPay.isEnabled) {
+      throw new ServiceUnavailableException('CryptoBot не настроен на сервере');
+    }
+
+    const amount = roundRub(amountRub);
+    const returnUrl = process.env.TELEGRAM_WEBAPP_URL;
+    const { invoiceId, payUrl, miniAppInvoiceUrl, botInvoiceUrl, assetAmount } =
+      await this.cryptoPay.createCryptoAssetInvoice({ asset, amountRub: amount, payload: userId, returnUrl });
+
+    await this.wallet.createPendingDeposit(userId, amount, invoiceId, `cryptobot_${asset.toLowerCase()}`);
+    this.logger.log(`${asset} invoice ${invoiceId} for user ${userId} (${amount}₽ ≈ ${assetAmount.toFixed(4)} ${asset})`);
+
+    return {
+      mode: 'crypto' as const,
+      asset,
+      payUrl,
+      invoiceUrl: miniAppInvoiceUrl ?? botInvoiceUrl ?? payUrl,
+      miniAppInvoiceUrl,
+      botInvoiceUrl,
+      invoiceId,
+      amountRub: amount,
+      assetAmount,
+    };
+  }
+
   async handleCryptoWebhook(rawBody: string, signature?: string) {
     if (!this.cryptoPay.verifyWebhook(rawBody, signature)) {
       throw new BadRequestException('Invalid signature');
