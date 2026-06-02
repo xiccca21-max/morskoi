@@ -1,47 +1,58 @@
-/** Геральдический герб «Морского Боя»: щит, якорь, золотая рамка.
- *  Вынесен в отдельный компонент, чтобы переиспользовать в шапке и на splash. */
-export function NavalEmblem({ size = 32 }: { size?: number }) {
-  const h = (size / 32) * 36;
+import { useId } from 'react';
+
+/** Премиальный знак бренда: медальон с компасной звездой (морская навигация).
+ *  Тонкий золотой ободок, чёткая роза ветров, красный сердечник.
+ *  Используется в шапке и на splash — единый фирменный стиль. */
+export function NavalEmblem({ size = 34 }: { size?: number }) {
+  const uid = useId().replace(/:/g, '');
+  const gold = `gold-${uid}`;
+  const red = `red-${uid}`;
   return (
-    <svg width={size} height={h} viewBox="0 0 32 36" fill="none" aria-hidden>
-      {/* Щит */}
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden>
+      {/* Внешний золотой ободок */}
+      <circle cx="20" cy="20" r="18.5" stroke={`url(#${gold})`} strokeWidth="1.3" fill="none" />
+      {/* Внутренний тонкий ободок */}
+      <circle cx="20" cy="20" r="15.2" stroke={`url(#${gold})`} strokeWidth="0.7" strokeOpacity="0.35" fill="none" />
+
+      {/* Диагональные (тонкие) лучи розы ветров */}
       <path
-        d="M16 1 L31 6.5 L31 20.5 C31 28.5 23.5 33 16 35.5 C8.5 33 1 28.5 1 20.5 L1 6.5 Z"
-        fill="url(#emblemRed)"
+        d="M20 20 L26 14 L20 20 L26 26 L20 20 L14 26 L20 20 L14 14 Z"
+        fill={`url(#${gold})`}
+        fillOpacity="0.45"
       />
-      {/* Золотая рамка */}
+      {/* Главные (острые) лучи — N/S/E/W */}
       <path
-        d="M16 1 L31 6.5 L31 20.5 C31 28.5 23.5 33 16 35.5 C8.5 33 1 28.5 1 20.5 L1 6.5 Z"
-        fill="none"
-        stroke="rgba(212,168,44,0.80)"
-        strokeWidth="1.4"
+        d="M20 4.5 L22.4 18 L20 20 L17.6 18 Z"
+        fill={`url(#${gold})`}
       />
-      {/* Внутренняя рамка */}
       <path
-        d="M16 3.5 L28.5 8 L28.5 20.5 C28.5 27 22.5 31 16 33 C9.5 31 3.5 27 3.5 20.5 L3.5 8 Z"
-        fill="none"
-        stroke="rgba(212,168,44,0.22)"
-        strokeWidth="0.8"
+        d="M20 35.5 L22.4 22 L20 20 L17.6 22 Z"
+        fill={`url(#${gold})`}
       />
-      {/* Якорь — кольцо */}
-      <circle cx="16" cy="10.5" r="2.2" fill="none" stroke="white" strokeWidth="1.5" />
-      {/* Якорь — поперечина */}
-      <line x1="11" y1="13.5" x2="21" y2="13.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      {/* Якорь — шток */}
-      <line x1="16" y1="13.5" x2="16" y2="27.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      {/* Якорь — левая лапа */}
-      <path d="M16 27.5 Q12 27.5 11 23.5" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      {/* Якорь — правая лапа */}
-      <path d="M16 27.5 Q20 27.5 21 23.5" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      {/* Звёздочки по бокам якоря */}
-      <circle cx="10" cy="20" r="0.9" fill="rgba(212,168,44,0.7)" />
-      <circle cx="22" cy="20" r="0.9" fill="rgba(212,168,44,0.7)" />
+      <path
+        d="M35.5 20 L22 22.4 L20 20 L22 17.6 Z"
+        fill={`url(#${gold})`}
+      />
+      <path
+        d="M4.5 20 L18 22.4 L20 20 L18 17.6 Z"
+        fill={`url(#${gold})`}
+      />
+
+      {/* Красный сердечник */}
+      <circle cx="20" cy="20" r="2.6" fill={`url(#${red})`} />
+      <circle cx="20" cy="20" r="2.6" stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" fill="none" />
+
       <defs>
-        <linearGradient id="emblemRed" x1="1" y1="1" x2="31" y2="36" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#d82020" />
-          <stop offset="55%" stopColor="#b01616" />
-          <stop offset="100%" stopColor="#880e0e" />
+        <linearGradient id={gold} x1="6" y1="6" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#f6dd8e" />
+          <stop offset="48%" stopColor="#e3b94a" />
+          <stop offset="100%" stopColor="#b8860f" />
         </linearGradient>
+        <radialGradient id={red} cx="0.4" cy="0.35" r="0.8">
+          <stop offset="0%" stopColor="#ff6a5c" />
+          <stop offset="60%" stopColor="#e02b1f" />
+          <stop offset="100%" stopColor="#a01510" />
+        </radialGradient>
       </defs>
     </svg>
   );

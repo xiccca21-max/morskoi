@@ -66,10 +66,15 @@ export function Layout() {
         }}
       >
         <NavLink to="/home" className="flex items-center gap-2.5 text-main" aria-label="На палубу">
-          <NavalEmblem />
-          <div className="flex flex-col leading-none gap-[1px]">
-            <span className="font-display text-[10px] tracking-[0.32em] uppercase text-danger">Морской</span>
-            <span className="font-display text-[15px] tracking-[0.18em] uppercase text-main">Бой</span>
+          <NavalEmblem size={30} />
+          <div className="flex flex-col leading-none gap-[2px]">
+            <span
+              className="font-display text-[8px] uppercase"
+              style={{ letterSpacing: '0.46em', color: 'rgba(212,168,44,0.85)' }}
+            >
+              Морской
+            </span>
+            <span className="title text-[16px]" style={{ letterSpacing: '0.24em' }}>Бой</span>
           </div>
         </NavLink>
 
