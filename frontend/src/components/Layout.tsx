@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { Icon, IconName } from './Icon';
-import { NavalEmblem } from './NavalEmblem';
 import { AnimatedNumber } from './AnimatedNumber';
 import { Toaster } from './Toaster';
 import { OfflineBanner } from './OfflineBanner';
@@ -65,17 +64,8 @@ export function Layout() {
           background: 'rgba(var(--c-panel-rgb) / 0.82)',
         }}
       >
-        <NavLink to="/home" className="flex items-center gap-2.5 text-main" aria-label="На палубу">
-          <NavalEmblem size={30} />
-          <div className="flex flex-col leading-none gap-[2px]">
-            <span
-              className="font-display text-[8px] uppercase"
-              style={{ letterSpacing: '0.46em', color: 'rgba(212,168,44,0.85)' }}
-            >
-              Морской
-            </span>
-            <span className="title text-[16px]" style={{ letterSpacing: '0.24em' }}>Бой</span>
-          </div>
+        <NavLink to="/home" className="flex items-center text-main" aria-label="На палубу">
+          <span className="font-display text-[17px] uppercase tracking-[0.2em] text-main">Морской&nbsp;Бой</span>
         </NavLink>
 
         <NavLink
