@@ -282,7 +282,8 @@ export default function PlacementScreen() {
   // ставим корабли автоматически и отправляем, чтобы не потерять матч.
   const autoSubmittedRef = useRef(false);
   const phaseOk =
-    matchState?.matchId === matchId &&
+    !!matchState &&
+    matchState.matchId === matchId &&
     matchState.gameStatus === 'PLACEMENT' &&
     matchState.status !== 'FINISHED' &&
     matchState.status !== 'CANCELLED';
