@@ -105,9 +105,7 @@ export default function LeaderboardScreen() {
               className={['card p-3 flex items-center gap-3', isMe ? 'border-danger' : ''].join(' ')}
             >
               <div className="w-8 flex items-center justify-center">
-                {top
-                  ? <Icon name="medal" size={20} className={u.rank === 1 ? 'text-main' : u.rank === 2 ? 'text-muted' : 'text-danger'} />
-                  : <span className="font-display text-muted tabular-nums">{u.rank}</span>}
+                <RankBadge rank={u.rank} highlight={top} />
               </div>
               <Avatar name={u.name} src={u.avatar} size={32} />
               <div className="flex-1 text-sm text-main flex items-center gap-2 min-w-0">
@@ -125,6 +123,19 @@ export default function LeaderboardScreen() {
       </ul>
     </div>
   );
+}
+
+const RANK_TOP_CLASS: Record<number, string> = {
+  1: 'text-main',
+  2: 'text-muted',
+  3: 'text-danger',
+};
+
+function RankBadge({ rank, highlight }: { rank: number; highlight: boolean }) {
+  const cls = highlight
+    ? `font-display text-xl font-bold tabular-nums ${RANK_TOP_CLASS[rank] ?? 'text-muted'}`
+    : 'font-display text-muted tabular-nums';
+  return <span className={cls}>{rank}</span>;
 }
 
 function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
