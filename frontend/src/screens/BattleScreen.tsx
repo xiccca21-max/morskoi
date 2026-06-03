@@ -9,7 +9,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { UsersAPI, GameAPI } from '../api/endpoints';
 import { Avatar } from '../components/Avatar';
 import { tgHaptic, tgNotify, tgVibrate, tgBackButton, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
-import { SHIP_FLEET, ShipKind } from '../lib/game-types';
+import { FULL_FLEET_SLOTS, fleetTrackerSlots } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
@@ -18,11 +18,6 @@ import { formatMoney } from '../lib/format';
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const coord = (x: number, y: number) => `${LETTERS[x] ?? '?'}${y + 1}`;
-
-// Полный флот (для трекера): по размеру, от большого к малому
-const FULL_FLEET: { kind: ShipKind; size: number }[] = SHIP_FLEET.flatMap((f) =>
-  Array.from({ length: f.count }, () => ({ kind: f.kind, size: f.size })),
-).sort((a, b) => b.size - a.size);
 
 export default function BattleScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -122,8 +117,29 @@ export default function BattleScreen() {
   }, [lastAttack?.ts]); // eslint-disable-line
 
   useEffect(() => {
-    if (state?.gameStatus === 'FINISHED' && matchId) navigate(`/result/${matchId}`);
-  }, [state?.gameStatus, matchId, navigate]);
+    if (state?.gameStatus === 'FINISHED' && matchId) {
+      navigate(`/result/${matchId}`, { replace: true });
+    }
+  }, [state?.gameStatus, state?.winnerId, matchId, navigate]);
+
+  useEffect(() => {
+    const sock = getSocket();
+    const onFinished = (e: { matchId?: string; winnerId?: string | null }) => {
+      if (!matchId || e?.matchId !== matchId) return;
+      const cur = useMatchStore.getState().state;
+      if (cur?.matchId === matchId) {
+        setMatchState({
+          ...cur,
+          status: 'FINISHED',
+          gameStatus: 'FINISHED',
+          winnerId: e.winnerId ?? cur.winnerId ?? null,
+        });
+      }
+      navigate(`/result/${matchId}`, { replace: true });
+    };
+    sock.on('match:finished', onFinished);
+    return () => { sock.off('match:finished', onFinished); };
+  }, [matchId, navigate, setMatchState]);
 
   // Глобальный слушатель реакций
   useEffect(() => {
@@ -237,6 +253,11 @@ export default function BattleScreen() {
       };
     });
   }, [enemySunkRaw]);
+
+  const enemyFleetSlots = useMemo(
+    () => fleetTrackerSlots(FULL_FLEET_SLOTS, enemySunkRaw),
+    [enemySunkRaw],
+  );
 
   // Лог последних выстрелов (мои по enemyAttacks)
   const myLog = useMemo(() => enemyAttacks.slice(-5).reverse(), [enemyAttacks]);
@@ -385,19 +406,16 @@ export default function BattleScreen() {
           <span className="text-xs font-display text-danger tabular-nums">{enemySunk}/10 потоплено</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {FULL_FLEET.map((s, i) => {
-            const dead = i < enemySunk;
-            return (
-              <div
-                key={i}
-                className={['h-4 rounded-sm transition', dead ? 'opacity-30' : ''].join(' ')}
-                style={{ width: s.size * 11 }}
-                title={`${s.size} кл.`}
-              >
-                <Ship kind={s.kind} size={s.size} orientation="H" sunk={dead} icon />
-              </div>
-            );
-          })}
+          {enemyFleetSlots.map((s, i) => (
+            <div
+              key={i}
+              className={['h-4 rounded-sm transition', s.sunk ? 'opacity-30' : ''].join(' ')}
+              style={{ width: s.size * 11 }}
+              title={`${s.size} кл.`}
+            >
+              <Ship kind={s.kind} size={s.size} orientation="H" sunk={s.sunk} icon />
+            </div>
+          ))}
         </div>
       </div>
 

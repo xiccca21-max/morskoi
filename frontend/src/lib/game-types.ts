@@ -31,6 +31,33 @@ export const SHIP_FLEET = [
   { kind: 'submarine'  as ShipKind, size: 1, count: 4, label: 'Подлодка' },
 ];
 
+/** Слоты флота для трекера (10 кораблей, от большого к малому). */
+export const FULL_FLEET_SLOTS: { kind: ShipKind; size: number }[] = SHIP_FLEET.flatMap((f) =>
+  Array.from({ length: f.count }, () => ({ kind: f.kind, size: f.size })),
+).sort((a, b) => b.size - a.size);
+
+/**
+ * Помечает слоты трекера по реально потопленным кораблям (по kind),
+ * а не «первые N по размеру».
+ */
+export function fleetTrackerSlots(
+  slots: { kind: ShipKind; size: number }[],
+  sunkShips: Array<{ kind: ShipKind }>,
+): Array<{ kind: ShipKind; size: number; sunk: boolean }> {
+  const remaining = new Map<ShipKind, number>();
+  for (const s of sunkShips) {
+    remaining.set(s.kind, (remaining.get(s.kind) ?? 0) + 1);
+  }
+  return slots.map((slot) => {
+    const left = remaining.get(slot.kind) ?? 0;
+    if (left > 0) {
+      remaining.set(slot.kind, left - 1);
+      return { ...slot, sunk: true };
+    }
+    return { ...slot, sunk: false };
+  });
+}
+
 export interface MatchState {
   matchId: string;
   status: 'PENDING' | 'PLACEMENT' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';

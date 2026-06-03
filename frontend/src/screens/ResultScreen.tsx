@@ -35,9 +35,21 @@ export default function ResultScreen() {
 
   useEffect(() => {
     if (!matchId) return;
-    GameAPI.state(matchId).then(setMatchState).catch(() => {});
+    let cancelled = false;
+    GameAPI.state(matchId)
+      .then((s) => {
+        if (cancelled) return;
+        setMatchState(s);
+        if (s.gameStatus !== 'FINISHED' && s.status !== 'FINISHED') {
+          if (s.gameStatus === 'IN_PROGRESS') navigate(`/battle/${matchId}`, { replace: true });
+          else if (s.gameStatus === 'PLACEMENT') navigate(`/placement/${matchId}`, { replace: true });
+          else navigate('/home', { replace: true });
+        }
+      })
+      .catch(() => navigate('/home', { replace: true }));
     WalletAPI.balance().then((r) => updateBalance(r.balance)).catch(() => {});
-  }, [matchId, setMatchState, updateBalance]);
+    return () => { cancelled = true; };
+  }, [matchId, setMatchState, updateBalance, navigate]);
 
   useEffect(() => {
     const sock = getSocket();
@@ -62,12 +74,18 @@ export default function ResultScreen() {
   const resultApplied = useRef(false);
   const achievementsShown = useRef(false);
   useEffect(() => {
-    if (!matchState?.winnerId || !me?.id || matchState.matchId !== matchId || matchState.isTraining) return;
+    if (!matchState?.winnerId || !me?.id || matchState.matchId !== matchId) return;
     const storageKey = `naval_result_${matchId}`;
     if (sessionStorage.getItem(storageKey)) return;
     sessionStorage.setItem(storageKey, '1');
 
     const before = statsFromUser(me);
+    const isWin = matchState.winnerId === me.id;
+    tgHaptic(isWin ? 'success' : 'error');
+    playSound(isWin ? 'win' : 'lose');
+
+    if (matchState.isTraining) return;
+
     UsersAPI.me()
       .then((fresh) => {
         patchUser(fresh);
@@ -83,11 +101,7 @@ export default function ResultScreen() {
         }
       })
       .catch(() => undefined);
-
-    const isWin = matchState.winnerId === me.id;
-    tgHaptic(isWin ? 'success' : 'error');
-    playSound(isWin ? 'win' : 'lose');
-  }, [matchState?.winnerId, me?.id, matchState?.matchId, matchId, patchUser]); // eslint-disable-line
+  }, [matchState?.winnerId, me?.id, matchState?.matchId, matchId, matchState?.isTraining, patchUser]); // eslint-disable-line
 
   const won = matchState?.winnerId === me?.id;
   const draw = !matchState?.winnerId;

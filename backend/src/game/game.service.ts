@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { GameStatus, MatchStatus } from '../common/enums';
+import { GameStatus, LobbyStatus, MatchStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -394,6 +394,10 @@ export class GameService {
       where: { id: matchId },
       data: { status: MatchStatus.FINISHED, winnerId, endedAt: new Date() },
     });
+    await this.prisma.lobby.updateMany({
+      where: { matchId },
+      data: { status: LobbyStatus.CLOSED },
+    });
     this.audit.log(winnerId, 'MATCH_FINISHED', { matchId, winnerId, isTraining: true });
   }
 
@@ -435,15 +439,18 @@ export class GameService {
     );
 
     const placementSec = Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60);
+    const matchOver =
+      match.status === MatchStatus.FINISHED || match.status === MatchStatus.CANCELLED;
+    const gameStatus = matchOver ? GameStatus.FINISHED : match.gameState.gameStatus;
     const placementDeadline =
-      match.status === MatchStatus.PLACEMENT && match.startedAt
+      !matchOver && match.status === MatchStatus.PLACEMENT && match.startedAt
         ? new Date(match.startedAt.getTime() + placementSec * 1000)
         : null;
 
     return {
       matchId: match.id,
       status: match.status,
-      gameStatus: match.gameState.gameStatus,
+      gameStatus,
       wagerAmount: Number(match.wagerAmount),
       prizePool: Number(match.prizePool),
       rakeAmount: Number(match.rakeAmount),

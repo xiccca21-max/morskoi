@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MatchmakingAPI } from '../api/endpoints';
+import { GameAPI, MatchmakingAPI } from '../api/endpoints';
 import { tgShare, tgHaptic } from '../lib/telegram';
 import { getSocket, newNonce } from '../api/socket';
 import { useAuthStore } from '../stores/auth-store';
@@ -34,9 +34,18 @@ export default function LobbyScreen() {
   useEffect(load, [code]);
 
   useEffect(() => {
-    if (lobby?.status === 'STARTED' && lobby?.matchId) {
-      navigate(`/placement/${lobby.matchId}`);
-    }
+    const mid = lobby?.matchId;
+    if (lobby?.status !== 'STARTED' || !mid) return;
+    let cancelled = false;
+    GameAPI.state(mid)
+      .then((s) => {
+        if (cancelled) return;
+        if (s.gameStatus === 'FINISHED' || s.status === 'FINISHED') navigate(`/result/${mid}`, { replace: true });
+        else if (s.gameStatus === 'IN_PROGRESS') navigate(`/battle/${mid}`);
+        else navigate(`/placement/${mid}`);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [lobby?.status, lobby?.matchId, navigate]);
 
 

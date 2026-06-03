@@ -33,14 +33,18 @@ export function Layout() {
   useEffect(() => {
     if (!match) return;
     const p = loc.pathname;
-    if (match.gameStatus === 'PLACEMENT' && !p.startsWith('/placement')) {
-      navigate(`/placement/${match.matchId}`);
-    } else if (match.gameStatus === 'IN_PROGRESS' && !p.startsWith('/battle')) {
+    const finished = match.status === 'FINISHED' || match.gameStatus === 'FINISHED';
+    const inProgress = match.gameStatus === 'IN_PROGRESS' || match.status === 'IN_PROGRESS';
+    const placing = !finished && !inProgress && match.gameStatus === 'PLACEMENT';
+
+    if (finished && !p.startsWith('/result') && !/^\/(home|wallet|settings|profile|leaderboard|history)/.test(p)) {
+      navigate(`/result/${match.matchId}`, { replace: true });
+    } else if (inProgress && !p.startsWith('/battle')) {
       navigate(`/battle/${match.matchId}`);
-    } else if (match.gameStatus === 'FINISHED' && !p.startsWith('/result') && !/^\/(home|wallet|settings|profile|leaderboard|history)/.test(p)) {
-      navigate(`/result/${match.matchId}`);
+    } else if (placing && !p.startsWith('/placement')) {
+      navigate(`/placement/${match.matchId}`);
     }
-  }, [match?.matchId, match?.gameStatus, loc.pathname, navigate]);
+  }, [match?.matchId, match?.gameStatus, match?.status, loc.pathname, navigate]);
 
   const hideNav =
     loc.pathname.startsWith('/placement') ||

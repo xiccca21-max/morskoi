@@ -87,7 +87,9 @@ export default function App() {
     const t = setTimeout(() => {
       setMatchFound({ open: false });
       const path = window.location.pathname;
-      if (!path.includes('/placement/') && !path.includes('/battle/')) {
+      const cur = useMatchStore.getState().state;
+      if (cur?.matchId === id && (cur.gameStatus === 'FINISHED' || cur.status === 'FINISHED')) return;
+      if (!path.includes('/placement/') && !path.includes('/battle/') && !path.includes('/result/')) {
         navigate(`/placement/${id}`);
       }
     }, 1800);
@@ -271,9 +273,48 @@ export default function App() {
       if (reason !== 'io client disconnect') showOnce('Соединение потеряно. Переподключаемся…', 'error', undefined, 'disconnected');
     };
     const onAuthError = () => { setAuthToken(null); window.location.reload(); };
-    const onState = (state: any) => setMatchState(state); // eslint-disable-line @typescript-eslint/no-explicit-any
-    const onAttack = (a: any) => setLastAttack({ ...a, ts: Date.now() }); // eslint-disable-line @typescript-eslint/no-explicit-any
+    const patchFinished = (matchId: string, winnerId?: string | null) => {
+      const cur = useMatchStore.getState().state;
+      if (!cur || cur.matchId !== matchId) return;
+      setMatchState({
+        ...cur,
+        status: 'FINISHED',
+        gameStatus: 'FINISHED',
+        winnerId: winnerId ?? cur.winnerId ?? null,
+      });
+    };
+    const goResultIfInMatch = (matchId: string) => {
+      const path = window.location.pathname;
+      if (
+        path.includes(`/battle/${matchId}`) ||
+        path.includes(`/placement/${matchId}`) ||
+        (path.startsWith('/battle/') && useMatchStore.getState().state?.matchId === matchId) ||
+        (path.startsWith('/placement/') && useMatchStore.getState().state?.matchId === matchId)
+      ) {
+        navigate(`/result/${matchId}`, { replace: true });
+      }
+    };
+    const onState = (state: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setMatchState(state);
+      if (state?.gameStatus === 'FINISHED' && state?.matchId) {
+        goResultIfInMatch(state.matchId);
+      }
+    };
+    const onAttack = (a: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setLastAttack({ ...a, ts: Date.now() });
+      if (a?.gameStatus === 'FINISHED') {
+        const mid = useMatchStore.getState().state?.matchId;
+        if (mid) {
+          patchFinished(mid, a.winnerId);
+          goResultIfInMatch(mid);
+        }
+      }
+    };
     const onFinished = (e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (e?.matchId) {
+        patchFinished(e.matchId, e.winnerId);
+        goResultIfInMatch(e.matchId);
+      }
       if (e?.reason === 'afk') {
         const myId = useAuthStore.getState().user?.id;
         if (e.forfeitedBy === myId) toast('Поражение: слишком много пропущенных ходов', 'error', 'skull');
@@ -315,6 +356,10 @@ export default function App() {
     sock.on('wallet:update', onWalletUpdate);
     const onMatchFound = (e: any) => { // eslint-disable-line
       if (!e?.matchId) return;
+      const path = window.location.pathname;
+      const cur = useMatchStore.getState().state;
+      if (path.includes('/result/') || path.includes('/battle/')) return;
+      if (cur && (cur.gameStatus === 'FINISHED' || cur.status === 'FINISHED')) return;
       playSound('win');
       // Только показываем оверлей. Авто-закрытие и переход к расстановке
       // живут в отдельном эффекте (ниже), чтобы их таймер не сбрасывался

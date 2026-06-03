@@ -9,6 +9,7 @@ import {
   SHIP_FLEET,
   validatePlacement,
 } from '../lib/game-types';
+import { GameAPI } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
 import { tgHaptic, tgVerticalSwipes, tgMainButton, tgBackButton, isTelegram } from '../lib/telegram';
 import { toast as showToast } from '../stores/toast-store';
@@ -55,6 +56,7 @@ export default function PlacementScreen() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const matchState = useMatchStore((s) => s.state);
+  const setMatchState = useMatchStore((s) => s.setState);
   const clearMatch = useMatchStore((s) => s.clear);
   const skin = useAuthStore((s) => s.user?.equippedSkin) ?? 'classic';
 
@@ -99,12 +101,53 @@ export default function PlacementScreen() {
   }, []);
 
   useEffect(() => {
-    if (matchId) getSocket().emit('match:requestState', { matchId });
-  }, [matchId]);
+    if (!matchId) return;
+    let cancelled = false;
+    getSocket().emit('match:requestState', { matchId });
+    GameAPI.state(matchId)
+      .then((s) => {
+        if (cancelled) return;
+        setMatchState(s);
+        if (s.status === 'CANCELLED') {
+          navigate('/home', { replace: true });
+          return;
+        }
+        if (s.gameStatus === 'FINISHED' || s.status === 'FINISHED') {
+          navigate(`/result/${matchId}`, { replace: true });
+          return;
+        }
+        if (s.gameStatus === 'IN_PROGRESS') {
+          navigate(`/battle/${matchId}`, { replace: true });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [matchId, navigate, setMatchState]);
 
   useEffect(() => {
-    if (matchState?.gameStatus === 'IN_PROGRESS' && matchId) navigate(`/battle/${matchId}`);
-  }, [matchState?.gameStatus, matchId, navigate]);
+    if (!matchId || !matchState || matchState.matchId !== matchId) return;
+    if (matchState.status === 'CANCELLED') {
+      navigate('/home', { replace: true });
+      return;
+    }
+    if (matchState.gameStatus === 'FINISHED' || matchState.status === 'FINISHED') {
+      navigate(`/result/${matchId}`, { replace: true });
+      return;
+    }
+    if (matchState.gameStatus === 'IN_PROGRESS') {
+      navigate(`/battle/${matchId}`, { replace: true });
+    }
+  }, [matchState?.gameStatus, matchState?.status, matchState?.matchId, matchId, navigate]);
+
+  useEffect(() => {
+    if (!matchId) return;
+    const sock = getSocket();
+    const onFinished = (e: { matchId?: string }) => {
+      if (e?.matchId === matchId) navigate(`/result/${matchId}`, { replace: true });
+    };
+    sock.on('match:finished', onFinished);
+    return () => { sock.off('match:finished', onFinished); };
+  }, [matchId, navigate]);
 
   // Выход во время расстановки разрешён (бой ещё не начался, ставка не списана).
   useEffect(() => tgBackButton(true, () => setShowExit(true)), []);
@@ -238,8 +281,20 @@ export default function PlacementScreen() {
   // Автостановка: если время вышло и игрок не отправил флот —
   // ставим корабли автоматически и отправляем, чтобы не потерять матч.
   const autoSubmittedRef = useRef(false);
+  const phaseOk =
+    matchState?.matchId === matchId &&
+    matchState.gameStatus === 'PLACEMENT' &&
+    matchState.status !== 'FINISHED' &&
+    matchState.status !== 'CANCELLED';
+
   useEffect(() => {
-    if (remaining > 0 || sent || submitting || autoSubmittedRef.current || !matchId) return;
+    autoSubmittedRef.current = false;
+    setSent(false);
+    setSubmitting(false);
+  }, [matchId]);
+
+  useEffect(() => {
+    if (!phaseOk || remaining > 0 || sent || submitting || autoSubmittedRef.current || !matchId) return;
     autoSubmittedRef.current = true;
     const ships = autoPlaceLocal().map((sp, idx) => {
       const slot = fleet[idx];
@@ -252,7 +307,7 @@ export default function PlacementScreen() {
       setSubmitting(false);
       if (ack?.ok) setSent(true);
     });
-  }, [remaining, sent, submitting, matchId, fleet]);
+  }, [remaining, sent, submitting, matchId, fleet, phaseOk]);
 
   // Нативная нижняя кнопка Telegram дублирует CTA «К бою»
   const useNative = isTelegram();

@@ -604,6 +604,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     try {
       const state = await this.game.getStateForUser(body.matchId, s.data.userId);
       client.join(`match:${body.matchId}`);
+      this.server.to(`user:${s.data.userId}`).emit('match:state', state);
       return { ok: true, state };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'state error' };

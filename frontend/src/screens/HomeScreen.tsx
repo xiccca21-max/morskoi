@@ -40,7 +40,11 @@ export default function HomeScreen() {
     return 'Добрый вечер';
   })();
 
-  const activeMatch = match && (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
+  const activeMatch =
+    match &&
+    match.status !== 'FINISHED' &&
+    match.status !== 'CANCELLED' &&
+    (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
   const [trainingBusy, setTrainingBusy] = useState(false);
 
   const startTrainingLobby = async () => {
