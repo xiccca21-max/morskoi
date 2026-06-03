@@ -10,10 +10,19 @@ export interface SeasonInfo {
 /** Боты и забаненные не участвуют в публичном рейтинге. */
 const PUBLIC_PLAYER = { telegramId: { not: { startsWith: 'bot:' } }, banned: false } as const;
 
+/** Всегда скрыты из публичного топа (служебные / тестовые аккаунты). */
+const LEADERBOARD_HIDDEN_DEFAULT = ['tugovainessa'];
+
 /** Юзернеймы, скрытые из топа (LEADERBOARD_HIDDEN_USERS=alice,bob). */
 function hiddenUsernames(): string[] {
   const v = process.env.LEADERBOARD_HIDDEN_USERS ?? '';
-  return v.split(',').map((s) => s.trim()).filter(Boolean);
+  const fromEnv = v.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return [...new Set([...LEADERBOARD_HIDDEN_DEFAULT.map((s) => s.toLowerCase()), ...fromEnv])];
+}
+
+function isHiddenUser(username: string | null | undefined): boolean {
+  if (!username) return false;
+  return hiddenUsernames().includes(username.toLowerCase());
 }
 
 /** Тематические названия сезонов — ротация по месяцам. */
@@ -79,7 +88,7 @@ export class LeaderboardService {
         wins: true, losses: true, totalWon: true,
       },
     });
-    return users.map((u, i) => this.mapUser(u, i + 1));
+    return users.filter((u) => !isHiddenUser(u.username)).map((u, i) => this.mapUser(u, i + 1));
   }
 
   async topByEarnings(limit = 50) {
@@ -93,7 +102,7 @@ export class LeaderboardService {
         wins: true, losses: true, totalWon: true,
       },
     });
-    return users.map((u, i) => this.mapUser(u, i + 1));
+    return users.filter((u) => !isHiddenUser(u.username)).map((u, i) => this.mapUser(u, i + 1));
   }
 
   /** Сезонный рейтинг: победы за текущий сезон (по finished matches). */
@@ -149,7 +158,10 @@ export class LeaderboardService {
     const byId = new Map(users.map((u) => [u.id, u]));
 
     return sorted
-      .filter(([id]) => byId.has(id)) // отсеиваем ботов и скрытых
+      .filter(([id]) => {
+        const u = byId.get(id);
+        return u && !isHiddenUser(u.username);
+      })
       .map(([id, s], i) => {
       const u = byId.get(id);
       return {

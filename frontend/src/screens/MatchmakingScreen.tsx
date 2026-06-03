@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
-import { MatchmakingAPI, OpenMatch } from '../api/endpoints';
+import { GameAPI, MatchmakingAPI, OpenMatch } from '../api/endpoints';
+import { useMatchStore } from '../stores/match-store';
 import { getSocket, newNonce } from '../api/socket';
 import { joinLobbyAction } from '../api/lobby-join';
 import { tgHaptic, tgVibrate } from '../lib/telegram';
@@ -64,6 +65,8 @@ export default function MatchmakingScreen() {
   const lastWager = useSettingsStore((s) => s.lastWager);
   const setLastWager = useSettingsStore((s) => s.setLastWager);
   const navigate = useNavigate();
+  const match = useMatchStore((s) => s.state);
+  const setMatchState = useMatchStore((s) => s.setState);
   // rawInput: то, что юзер видит в поле ввода (строка, может быть пустой при наборе)
   const [rawInput, setRawInput] = useState(String(Math.max(minWager, lastWager)));
   const wager = Math.max(minWager, Math.min(maxWager, Number(rawInput) || minWager));
@@ -161,6 +164,18 @@ export default function MatchmakingScreen() {
   }, []);
 
   useEffect(() => {
+    GameAPI.active()
+      .then((m) => { if (m?.matchId) setMatchState(m); })
+      .catch(() => undefined);
+  }, [setMatchState]);
+
+  const activeMatch =
+    match &&
+    match.status !== 'FINISHED' &&
+    match.status !== 'CANCELLED' &&
+    (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
+
+  useEffect(() => {
     MatchmakingAPI.status()
       .then((s: any) => {
         if (s.inQueue) {
@@ -185,8 +200,10 @@ export default function MatchmakingScreen() {
   const listFingerprint = (list: OpenMatch[]) =>
     list.map((m) => `${m.id}:${m.wagerAmount}`).join('|');
 
-  const fetchList = useCallback(async (showSpinner = false) => {
-    if (showSpinner) {
+  const listLoadedOnce = useRef(false);
+
+  const fetchList = useCallback(async () => {
+    if (!listLoadedOnce.current) {
       loadingTimerRef.current = setTimeout(() => setLoadingList(true), 200);
     }
     try {
@@ -195,6 +212,7 @@ export default function MatchmakingScreen() {
         min: debouncedMin !== '' ? Number(debouncedMin) : undefined,
         max: debouncedMax !== '' ? Number(debouncedMax) : undefined,
       });
+      listLoadedOnce.current = true;
       setMatches((prev) => (prev && listFingerprint(prev) === listFingerprint(list) ? prev : list));
       const mine = list.find((m) => m.isMine);
       setMyOpen(mine ? { code: mine.code, wager: mine.wagerAmount } : null);
@@ -217,21 +235,11 @@ export default function MatchmakingScreen() {
     }
   }, [debouncedQuery, debouncedMin, debouncedMax]);
 
-  const fetchListRef = useRef(fetchList);
-  fetchListRef.current = fetchList;
-
-  // Перезагрузка при смене фильтров (без сброса интервала опроса)
+  // Список: только при открытии вкладки или смене фильтров (без фонового опроса)
   useEffect(() => {
     if (tab !== 'browse') return;
-    fetchListRef.current(true);
-  }, [tab, debouncedQuery, debouncedMin, debouncedMax]);
-
-  // Фоновое обновление раз в 5 с — зависит только от вкладки
-  useEffect(() => {
-    if (tab !== 'browse') return;
-    const t = setInterval(() => fetchListRef.current(false), 5000);
-    return () => clearInterval(t);
-  }, [tab]);
+    void fetchList();
+  }, [tab, debouncedQuery, debouncedMin, debouncedMax, fetchList]);
 
   // Открываем выбор ставки (browse)
   const openCreateModal = () => { setShowCreateModal(true); tgHaptic('light'); };
@@ -289,7 +297,7 @@ export default function MatchmakingScreen() {
       navigate(`/placement/${matchId}`);
     } catch (e: any) {
       setError(mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось войти в бой'));
-      fetchListRef.current(false);
+      void fetchList();
     } finally {
       setJoiningLobby(false);
       setBusyId(null);
@@ -315,13 +323,25 @@ export default function MatchmakingScreen() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="title text-main text-lg">Поиск боя</h2>
-        {tab === 'browse' && matches && matches.length > 0 && (
-          <span className="text-xs font-display text-muted tabular-nums">
-            {matches.length} {matchesPlural(matches.length)} в эфире
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {tab === 'browse' && (
+            <button
+              type="button"
+              className="text-muted hover:text-main p-1"
+              aria-label="Обновить список"
+              onClick={() => { tgHaptic('light'); void fetchList(); }}
+            >
+              <Icon name="wave" size={18} />
+            </button>
+          )}
+          {tab === 'browse' && matches && matches.length > 0 && (
+            <span className="text-xs font-display text-muted tabular-nums">
+              {matches.length} {matchesPlural(matches.length)} в эфире
+            </span>
+          )}
+        </div>
       </div>
 
       {balance < minWager && (
@@ -339,6 +359,21 @@ export default function MatchmakingScreen() {
         <TabBtn active={tab === 'browse'} onClick={() => { setError(null); setTab('browse'); }} icon="swords">Лобби</TabBtn>
         <TabBtn active={tab === 'private'} onClick={() => { setError(null); setTab('private'); }} icon="lock">С другом</TabBtn>
       </div>
+
+      {activeMatch && (
+        <button
+          type="button"
+          className="w-full card card-press p-4 flex items-center gap-3 border-warning text-left"
+          onClick={() => navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`)}
+        >
+          <Icon name="swords" size={20} className="text-warning shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-main text-sm font-display">У вас незавершённый бой</p>
+            <p className="text-muted text-xs mt-0.5">Сначала вернитесь в него — иначе новый бой не начнётся</p>
+          </div>
+          <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
+        </button>
+      )}
 
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
 
@@ -524,12 +559,7 @@ export default function MatchmakingScreen() {
           {matches === null ? (
             <SkeletonList rows={4} />
           ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-3"
-            >
+            <div className="space-y-3">
               {/* Фильтры */}
               <div className="card p-3 space-y-2">
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-panel border border-line">
@@ -618,7 +648,7 @@ export default function MatchmakingScreen() {
                   </AnimatePresence>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
         </div>
       ) : (

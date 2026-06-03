@@ -37,11 +37,12 @@ export function Layout() {
     const inProgress = match.gameStatus === 'IN_PROGRESS' || match.status === 'IN_PROGRESS';
     const placing = !finished && !inProgress && match.gameStatus === 'PLACEMENT';
 
-    if (finished && !p.startsWith('/result') && !/^\/(home|wallet|settings|profile|leaderboard|history)/.test(p)) {
+    const softRoutes = /^\/(home|wallet|settings|profile|leaderboard|history|matchmaking)/;
+    if (finished && !p.startsWith('/result') && !softRoutes.test(p)) {
       navigate(`/result/${match.matchId}`, { replace: true });
     } else if (inProgress && !p.startsWith('/battle')) {
       navigate(`/battle/${match.matchId}`);
-    } else if (placing && !p.startsWith('/placement')) {
+    } else if (placing && !p.startsWith('/placement') && !softRoutes.test(p)) {
       navigate(`/placement/${match.matchId}`);
     }
   }, [match?.matchId, match?.gameStatus, match?.status, loc.pathname, navigate]);

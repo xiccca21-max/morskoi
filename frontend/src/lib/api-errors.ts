@@ -20,7 +20,9 @@ export function mapApiError(message: unknown, fallback = 'Что-то пошло
   };
 
   if (table[m]) return table[m];
-  if (m.includes('Завершите текущий бой')) return m;
+  if (m.includes('Завершите текущий бой')) {
+    return 'Сначала завершите текущий бой (кнопка выше) — потом можно вступать в новый';
+  }
   if (m.includes('Хост уже в другом бою')) return m;
   return m;
 }
