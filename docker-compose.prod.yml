@@ -10,6 +10,7 @@ services:
         VITE_TG_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
         VITE_SUPPORT_URL: ${SUPPORT_URL:-https://t.me/Naval_pay_manager}
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_ASSET_ORIGIN: ${VITE_ASSET_ORIGIN:-}
         GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     depends_on:
@@ -95,7 +96,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.sslip-assets.conf:/etc/nginx/sslip-assets.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
+      - ./certbot-www:/var/www/certbot:ro
 
 volumes:
   naval-data:

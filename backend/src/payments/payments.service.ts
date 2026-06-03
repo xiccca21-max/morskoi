@@ -119,19 +119,14 @@ export class PaymentsService {
       if (!user) throw new NotFoundException('Пользователь не найден');
       const rubPerAsset = await this.cryptoPay.getRubPerAsset(asset);
       const amountAsset = wr.net / rubPerAsset;
+      await this.cryptoPay.transfer({
+        telegramUserId: user.telegramId,
+        asset,
+        amount: amountAsset,
+        spendId: `wd_${wr.id}`,
+        comment: 'Вывод · Морской Бой',
+      });
       const res = await this.wallet.resolveWithdrawal(id, 'PAID');
-      try {
-        await this.cryptoPay.transfer({
-          telegramUserId: user.telegramId,
-          asset,
-          amount: amountAsset,
-          spendId: `wd_${wr.id}`,
-          comment: 'Вывод · Морской Бой',
-        });
-      } catch (e: any) {
-        this.logger.error(`Transfer failed after PAID mark ${id}: ${e?.message}`);
-        throw e;
-      }
       this.audit.log(wr.userId, 'WITHDRAW_PAID', { id, net: wr.net, method: wr.method });
       this.bot.notifyWithdrawal?.(wr.userId, wr.net, 'paid').catch(() => {});
       return res;

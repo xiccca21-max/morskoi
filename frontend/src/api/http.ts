@@ -56,17 +56,14 @@ export function getToken() {
   return _token;
 }
 
-// Автоматический выход только при истёкшем/невалидном токене (401).
-// 403 (доступ запрещён к конкретному ресурсу) НЕ должен разлогинивать —
-// иначе бизнес-ошибки выкидывают пользователя из приложения.
-let _reloadingAuth = false;
+// При 401 сбрасываем токен. Без window.location.reload(): в Telegram Mini App
+// reload часто не отдаёт initData повторно → бесконечный «Загрузка».
+// Стартовая проверка /users/me обрабатывается в App.tsx (catch → fresh login).
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err?.response?.status === 401 && !_reloadingAuth) {
-      _reloadingAuth = true;
+    if (err?.response?.status === 401) {
       setAuthToken(null);
-      window.location.reload();
     }
     return Promise.reject(err);
   },

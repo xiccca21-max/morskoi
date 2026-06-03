@@ -147,7 +147,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   }
 
   private async ensureNonce(userId: string, nonce?: string) {
-    if (!nonce) return; // nonce необязателен, но рекомендуется
+    if (!nonce) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Missing action nonce');
+      }
+      return;
+    }
     const ok = await this.redis.consumeNonce(userId, nonce);
     if (!ok) throw new Error('Duplicate or replayed action');
   }

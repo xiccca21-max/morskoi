@@ -27,32 +27,80 @@
           var qd = q.get('tgWebAppData');
           if (qd) sessionStorage.setItem('tg_init_data', qd);
         } catch (e) {}
+        function signalReady() {
+          try {
+            var tg = window.Telegram && window.Telegram.WebApp;
+            if (!tg) return false;
+            tg.ready();
+            tg.expand();
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+        signalReady();
+        var n = 0;
+        var iv = setInterval(function () {
+          if (signalReady() || ++n > 40) clearInterval(iv);
+        }, 100);
       })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
     <title>Морской Бой · Дуэль капитанов</title>
     <style>
       html, body { margin: 0; background-color: #EAE6D7; }
       .boot {
-        display: flex; height: 100vh; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
-        background-color: #EAE6D7; color: #000000; font-family: 'Oswald', Impact, sans-serif;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        text-align: center;
+        background-color: #EAE6D7;
       }
-      .boot .name { font-size: 30px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; }
-      .boot .sub { font-size: 12px; letter-spacing: 0.26em; color: #444444; text-transform: uppercase; font-weight: 500; }
+      .boot__title {
+        font-family: 'Oswald', Impact, sans-serif;
+        font-size: 30px;
+        letter-spacing: 0.2em;
+        font-weight: 700;
+        color: #000000;
+        text-transform: uppercase;
+        margin: 0;
+      }
+      .boot__sub {
+        font-family: 'Oswald', Impact, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.26em;
+        font-weight: 500;
+        color: #444444;
+        text-transform: uppercase;
+        margin: 0;
+      }
     </style>
   </head>
   <body>
     <div id="root">
       <div class="boot">
-        <div class="name">Морской&nbsp;Бой</div>
-        <div class="sub">Загрузка</div>
+        <h1 class="boot__title">Морской&nbsp;Бой</h1>
+        <p class="boot__sub">Загрузка</p>
       </div>
     </div>
+    <script>
+      window.addEventListener(
+        'error',
+        function (e) {
+          var t = e.target;
+          if (!t || t.tagName !== 'SCRIPT') return;
+          var root = document.getElementById('root');
+          if (!root) return;
+          root.innerHTML =
+            '<div class="boot"><p class="boot__sub" style="max-width:90%;word-break:break-all">Не загрузился скрипт: ' +
+            (t.src || '?') +
+            '</p></div>';
+        },
+        true,
+      );
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

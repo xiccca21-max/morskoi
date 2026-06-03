@@ -125,9 +125,12 @@ export class WalletService {
       return this.prisma.$transaction(async (tx) => {
         const u = await tx.user.findUnique({ where: { id: userId } });
         if (!u) throw new NotFoundException('User not found');
-        const available = Number(u.balance);
-        if (available < amount) {
-          throw new BadRequestException(`Доступно к выводу: ${available.toFixed(0)} ₽`);
+        const withdrawable = Number(u.withdrawable ?? u.balance);
+        if (withdrawable < amount) {
+          throw new BadRequestException(`Доступно к выводу: ${withdrawable.toFixed(0)} ₽`);
+        }
+        if (Number(u.balance) < amount) {
+          throw new BadRequestException('Недостаточно средств на балансе');
         }
 
         const since = new Date(Date.now() - 24 * 3600 * 1000);

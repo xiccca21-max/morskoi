@@ -169,6 +169,12 @@ export default function App() {
     (async () => {
       const initDataTimeout = authAttempt > 0 ? 15000 : 10000;
 
+      if (!isTelegramWebView()) {
+        setAuthError('Откройте приложение через Telegram');
+        setReady(true);
+        return;
+      }
+
       const applyLoginResult = (res: Awaited<ReturnType<typeof AuthAPI.login>>) => {
         setAuthToken(res.token);
         setUser({ ...res.user, balance: Number(res.user.balance) });

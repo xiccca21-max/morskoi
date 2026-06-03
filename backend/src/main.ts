@@ -55,13 +55,15 @@ async function bootstrap() {
   // Без этого rate-limiter и логи видят один IP nginx на всех пользователей.
   app.set('trust proxy', 1);
 
-  // Security-заголовки. CSP и COEP выключены: ломали бы SPA, инлайн-скрипт
-  // админки и загрузку из Telegram. Остальные защиты (X-Frame, noSniff и т.д.) активны.
+  // Security-заголовки. CSP/COEP/CORP и frameguard выключены: Telegram Mini App
+  // открывается во WebView/iframe telegram.org — X-Frame-Options: SAMEORIGIN ломает загрузку.
   app.use(
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: false,
+      crossOriginOpenerPolicy: false,
+      frameguard: false,
     }),
   );
 
@@ -91,7 +93,30 @@ async function bootstrap() {
   ];
   const frontendDist = frontendCandidates.find((p) => existsSync(p));
   if (frontendDist) {
-    app.use('/assets', express.static(join(frontendDist, 'assets')));
+    // Vite ставит crossorigin на <script type="module"> — без ACAO WebView Telegram
+    // молча не выполняет JS (HTML грузится, «Загрузка» висит вечно).
+    const assetCors = (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      // CDN не должен пересжимать/резать тело (иначе Content-Length ≠ фактический размер).
+      res.setHeader('Cache-Control', 'public, max-age=604800, no-transform');
+      next();
+    };
+    const assetsDir = join(frontendDist, 'assets');
+    app.use(
+      '/assets',
+      assetCors,
+      express.static(assetsDir, {
+        maxAge: '7d',
+        immutable: false,
+        fallthrough: false,
+        index: false,
+        setHeaders(res) {
+          res.setHeader('Cache-Control', 'public, max-age=604800, no-transform');
+        },
+      }),
+    );
+    app.use(assetCors, express.static(join(frontendDist, 'public')));
     app.use((req, res, next) => {
       if (
         req.method !== 'GET' ||
@@ -101,7 +126,23 @@ async function bootstrap() {
       ) {
         return next();
       }
-      if (req.path.includes('.') && existsSync(join(frontendDist, req.path))) {
+      // Не отдаём index.html на /assets/*.js — иначе WebView получает text/html вместо JS
+      // (кэш старого HTML + новый деплой = вечная «Загрузка»).
+      if (req.path.startsWith('/assets/')) {
+        return res.status(404).type('text/plain').send('Not found');
+      }
+      if (req.path === '/admin.html' && process.env.NODE_ENV === 'production') {
+        const allowIps = (process.env.ADMIN_PANEL_IPS ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
+        if (!allowIps.length || !allowIps.includes(ip)) {
+          return res.status(404).type('text/plain').send('Not found');
+        }
+      }
+      const staticFile = join(frontendDist, req.path);
+      if (req.path.includes('.') && existsSync(staticFile)) {
         return express.static(frontendDist)(req, res, next);
       }
       // Telegram кэширует index.html — без no-cache пользователи видят старый JS

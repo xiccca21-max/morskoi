@@ -38,6 +38,10 @@ export class LobbyService {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);
     }
     await assertCanPlay(this.prisma, hostId);
+    const active = await this.game.findActiveMatchForUser(hostId);
+    if (active) {
+      throw new BadRequestException('Завершите текущий бой перед созданием нового лобби');
+    }
 
     const host = await this.prisma.user.findUnique({ where: { id: hostId } });
     if (!host) throw new NotFoundException('User not found');
@@ -173,6 +177,14 @@ export class LobbyService {
       if (lobby.expiresAt < new Date()) throw new BadRequestException('Lobby expired');
 
       await assertCanPlay(this.prisma, joinerId);
+      const activeJoiner = await this.game.findActiveMatchForUser(joinerId);
+      if (activeJoiner) {
+        throw new BadRequestException('Завершите текущий бой перед входом в другое лобби');
+      }
+      const activeHost = await this.game.findActiveMatchForUser(lobby.hostId);
+      if (activeHost) {
+        throw new BadRequestException('Хост уже в другом бою');
+      }
 
       const joiner = await this.prisma.user.findUnique({ where: { id: joinerId } });
       if (!joiner) throw new NotFoundException('User not found');

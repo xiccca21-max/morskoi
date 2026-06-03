@@ -44,22 +44,17 @@ export function getTelegramWebApp() {
 
 /** Запущены ли мы внутри Telegram (WebView), даже если initData ещё не прочитан. */
 export function isTelegramWebView(): boolean {
+  try {
+    if (sessionStorage.getItem(TG_INIT_KEY)) return true;
+  } catch { /* ignore */ }
   const tg = getTelegramWebApp();
-  if (!tg) {
-    try {
-      if (sessionStorage.getItem(TG_INIT_KEY)) return true;
-    } catch { /* ignore */ }
-    return false;
-  }
-  return !!(
-    tg.initData ||
-    tg.platform ||
-    tg.version ||
-    tg.initDataUnsafe?.user ||
-    (() => {
-      try { return !!sessionStorage.getItem(TG_INIT_KEY); } catch { return false; }
-    })()
-  );
+  if (!tg) return false;
+  if (tg.initData?.length) return true;
+  if (tg.initDataUnsafe?.user) return true;
+  // telegram-web-app.js в обычном Chrome даёт platform=unknown без initData — не считаем TG.
+  const p = tg.platform as string | undefined;
+  if (p && p !== 'unknown') return true;
+  return false;
 }
 
 /** Запущены ли мы внутри настоящего Telegram-клиента с данными для входа. */
