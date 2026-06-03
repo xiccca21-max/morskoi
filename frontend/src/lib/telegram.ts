@@ -171,37 +171,66 @@ export function setHapticsGate(fn: () => boolean) {
   hapticsAllowed = fn;
 }
 
-/** Управление нативной кнопкой «Назад» в Telegram. */
+let backButtonVisible = false;
+let backButtonHandler: (() => void) | null = null;
+
+/** Управление нативной кнопкой «Назад» в Telegram (без лишних show/hide — иначе мигает «Закрыть»). */
 export function tgBackButton(show: boolean, onClick?: () => void) {
   const tg = getTelegramWebApp();
   const bb = tg?.BackButton;
   if (!bb) return () => {};
   try {
     if (show) {
-      if (onClick) bb.onClick(onClick);
-      bb.show();
-    } else {
+      if (backButtonHandler && backButtonHandler !== onClick) {
+        bb.offClick(backButtonHandler);
+      }
+      if (onClick) {
+        backButtonHandler = onClick;
+        bb.onClick(onClick);
+      }
+      if (!backButtonVisible) {
+        bb.show();
+        backButtonVisible = true;
+      }
+    } else if (backButtonVisible) {
+      if (backButtonHandler) bb.offClick(backButtonHandler);
+      backButtonHandler = null;
       bb.hide();
+      backButtonVisible = false;
     }
   } catch {
     /* ignore */
   }
   return () => {
     try {
-      if (onClick) bb.offClick(onClick);
-      bb.hide();
+      if (onClick && backButtonHandler === onClick) bb.offClick(onClick);
+      if (backButtonVisible) {
+        bb.hide();
+        backButtonVisible = false;
+      }
+      backButtonHandler = null;
     } catch {
       /* ignore */
     }
   };
 }
 
+/** Спрятать «Назад» на обычных экранах (один вызов из Layout). */
+export function tgBackButtonHide() {
+  tgBackButton(false);
+}
+
+let closingConfirmEnabled = false;
+
 /** Подтверждение закрытия мини-аппа (чтобы не выйти случайно во время боя). */
 export function tgClosingConfirmation(enable: boolean) {
   const tg = getTelegramWebApp();
+  if (!tg) return;
+  if (enable === closingConfirmEnabled) return;
   try {
-    if (enable) tg?.enableClosingConfirmation?.();
-    else tg?.disableClosingConfirmation?.();
+    if (enable) tg.enableClosingConfirmation?.();
+    else tg.disableClosingConfirmation?.();
+    closingConfirmEnabled = enable;
   } catch {
     /* ignore */
   }

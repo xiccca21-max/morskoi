@@ -1,6 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { Icon, IconName } from './Icon';
@@ -9,6 +8,10 @@ import { Toaster } from './Toaster';
 import { OfflineBanner } from './OfflineBanner';
 import { formatCompactMoney, formatMoney } from '../lib/format';
 import { useCurrencyStore } from '../stores/currency-store';
+import { tgBackButtonHide, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
+
+/** Экраны, где не дёргаем маршрут из-за активного матча (нет петли «Назад» ↔ бой). */
+const SOFT_ROUTES = /^\/(home|wallet|settings|profile|leaderboard|history|matchmaking|lobby)(\/|$)/;
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -19,6 +22,7 @@ export function Layout() {
   useCurrencyStore((s) => s.ratesVersion);
 
   const [scrolled, setScrolled] = useState(false);
+  const lastAutoNav = useRef<string | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -30,20 +34,40 @@ export function Layout() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // На обычных экранах — только «Закрыть», без мигания BackButton
   useEffect(() => {
-    if (!match) return;
+    const p = loc.pathname;
+    const inGame =
+      p.startsWith('/placement') || p.startsWith('/battle') || p.startsWith('/result');
+    if (!inGame) {
+      tgBackButtonHide();
+      tgClosingConfirmation(false);
+      tgVerticalSwipes(true);
+    }
+  }, [loc.pathname]);
+
+  useEffect(() => {
+    if (!match) {
+      lastAutoNav.current = null;
+      return;
+    }
     const p = loc.pathname;
     const finished = match.status === 'FINISHED' || match.gameStatus === 'FINISHED';
     const inProgress = match.gameStatus === 'IN_PROGRESS' || match.status === 'IN_PROGRESS';
     const placing = !finished && !inProgress && match.gameStatus === 'PLACEMENT';
 
-    const softRoutes = /^\/(home|wallet|settings|profile|leaderboard|history|matchmaking)/;
-    if (finished && !p.startsWith('/result') && !softRoutes.test(p)) {
-      navigate(`/result/${match.matchId}`, { replace: true });
-    } else if (inProgress && !p.startsWith('/battle')) {
-      navigate(`/battle/${match.matchId}`);
-    } else if (placing && !p.startsWith('/placement') && !softRoutes.test(p)) {
-      navigate(`/placement/${match.matchId}`);
+    let target: string | null = null;
+    if (finished && !p.startsWith('/result') && !SOFT_ROUTES.test(p)) {
+      target = `/result/${match.matchId}`;
+    } else if (inProgress && !p.startsWith('/battle') && !SOFT_ROUTES.test(p)) {
+      target = `/battle/${match.matchId}`;
+    } else if (placing && !p.startsWith('/placement') && !SOFT_ROUTES.test(p)) {
+      target = `/placement/${match.matchId}`;
+    }
+
+    if (target && lastAutoNav.current !== target) {
+      lastAutoNav.current = target;
+      navigate(target, { replace: true });
     }
   }, [match?.matchId, match?.gameStatus, match?.status, loc.pathname, navigate]);
 
@@ -60,7 +84,7 @@ export function Layout() {
 
       <header
         className={[
-          'px-4 flex items-center justify-between sticky top-0 z-30 border-b border-line/40 backdrop-blur-xl transition-all duration-300',
+          'px-4 flex items-center justify-between sticky top-0 z-30 border-b border-line/40 backdrop-blur-xl transition-shadow duration-300',
           scrolled ? 'shadow-[0_4px_24px_rgba(0,0,0,0.25)]' : '',
         ].join(' ')}
         style={{
@@ -90,19 +114,12 @@ export function Layout() {
         </NavLink>
       </header>
 
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.main
-          key={loc.pathname}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-          className="flex-1 px-4 py-5"
-          style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
-        >
-          <Outlet />
-        </motion.main>
-      </AnimatePresence>
+      <main
+        className="flex-1 px-4 py-5"
+        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+      >
+        <Outlet />
+      </main>
 
       {!hideNav && (
         <nav
@@ -125,23 +142,19 @@ export function Layout() {
   );
 }
 
-/* ─── Центральная кнопка баланса ─────────────────────────────────────────── */
 function BalanceTab({ balance }: { balance: number }) {
   return (
     <li className="flex-1 flex justify-center">
       <NavLink to="/wallet" aria-label="Баланс" className="flex flex-col items-center gap-1 -mt-7">
         {({ isActive }) => (
           <>
-            <motion.div
-              whileTap={{ scale: 0.90 }}
+            <div
               className="flex flex-col items-center justify-center text-white border-[3px] border-panel"
               style={{
                 width: 60,
                 height: 60,
                 borderRadius: '50%',
-                background: isActive
-                  ? 'linear-gradient(145deg, #e83228, #ff5548, #c42820)'
-                  : 'linear-gradient(145deg, #e83228, #ff5548, #c42820)',
+                background: 'linear-gradient(145deg, #e83228, #ff5548, #c42820)',
                 boxShadow: isActive
                   ? '0 6px 24px rgba(232,50,40,0.65), 0 0 0 2px rgba(232,50,40,0.3)'
                   : '0 5px 18px rgba(232,50,40,0.50)',
@@ -151,7 +164,7 @@ function BalanceTab({ balance }: { balance: number }) {
               <span className="font-display text-[10px] leading-none tabular-nums mt-0.5">
                 <AnimatedNumber value={balance} formatter={formatCompactMoney} />
               </span>
-            </motion.div>
+            </div>
             <span className={['text-[10px] font-display uppercase tracking-wider', isActive ? 'text-danger' : 'text-muted'].join(' ')}>
               Баланс
             </span>
@@ -162,7 +175,6 @@ function BalanceTab({ balance }: { balance: number }) {
   );
 }
 
-/* ─── Вкладка навигации ──────────────────────────────────────────────────── */
 function Tab({ to, icon, label }: { to: string; icon: IconName; label: string }) {
   return (
     <li className="flex-1">
@@ -170,35 +182,18 @@ function Tab({ to, icon, label }: { to: string; icon: IconName; label: string })
         to={to}
         className={({ isActive }) =>
           [
-            'relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all text-[10px] font-display uppercase tracking-wider',
-            isActive ? 'text-main' : 'text-muted',
+            'relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-colors text-[10px] font-display uppercase tracking-wider',
+            isActive ? 'text-main bg-danger/10' : 'text-muted',
           ].join(' ')
         }
       >
         {({ isActive }) => (
           <>
-            {/* Активный фон */}
-            {isActive && (
-              <motion.span
-                layoutId="navBg"
-                className="absolute inset-0 rounded-xl"
-                style={{ background: 'rgba(var(--c-danger-rgb) / 0.08)' }}
-                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-              />
-            )}
             <Icon name={icon} size={20} />
             <span>{label}</span>
-            {/* Красная черта снизу */}
-            <span className="h-0.5 w-4 rounded-full overflow-hidden">
-              {isActive && (
-                <motion.span
-                  layoutId="navIndicator"
-                  className="block h-full w-full bg-danger"
-                  style={{ boxShadow: '0 0 6px rgba(232,50,40,0.8)' }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                />
-              )}
-            </span>
+            {isActive && (
+              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-4 rounded-full bg-danger" />
+            )}
           </>
         )}
       </NavLink>
