@@ -1,15 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Theme = 'navy' | 'brutal' | 'radar' | 'blueprint' | 'depth';
+export type Theme = 'brutal' | 'radar' | 'blueprint' | 'depth';
 
 export const THEMES: { id: Theme; name: string; base: string; accent: string; panel: string }[] = [
-  { id: 'navy',      name: 'Флот Адмирала',     base: '#050a14', accent: '#e83228', panel: '#0a1326' },
-  { id: 'brutal',   name: 'Необрутализм',       base: '#eae6d7', accent: '#e1574b', panel: '#ffffff' },
-  { id: 'radar',    name: 'Тактический Радар',  base: '#020a04', accent: '#4af626', panel: '#041408' },
-  { id: 'blueprint',name: 'Чертёж',             base: '#0a1628', accent: '#5b9bd5', panel: '#0f1f38' },
-  { id: 'depth',    name: 'Глубина',            base: '#0b1a2e', accent: '#3dd6c6', panel: '#122640' },
+  { id: 'brutal', name: 'Необрутализм', base: '#eae6d7', accent: '#e1574b', panel: '#ffffff' },
+  { id: 'radar', name: 'Тактический Радар', base: '#020a04', accent: '#4af626', panel: '#041408' },
+  { id: 'blueprint', name: 'Чертёж', base: '#0a1628', accent: '#5b9bd5', panel: '#0f1f38' },
+  { id: 'depth', name: 'Глубина', base: '#0b1a2e', accent: '#3dd6c6', panel: '#122640' },
 ];
+
+const DEFAULT_THEME: Theme = 'brutal';
+const VALID_THEMES = new Set<string>(THEMES.map((t) => t.id));
+
+function normalizeTheme(t: string | undefined): Theme {
+  if (t === 'navy' || !t || !VALID_THEMES.has(t)) return DEFAULT_THEME;
+  return t as Theme;
+}
 
 interface ThemeState {
   theme: Theme;
@@ -19,12 +26,21 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: 'navy',
+      theme: DEFAULT_THEME,
       setTheme: (theme) => {
-        document.documentElement.setAttribute('data-theme', theme);
-        set({ theme });
+        const next = normalizeTheme(theme);
+        document.documentElement.setAttribute('data-theme', next);
+        set({ theme: next });
       },
     }),
-    { name: 'theme-storage' }
-  )
+    {
+      name: 'theme-storage',
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const next = normalizeTheme(state.theme);
+        state.theme = next;
+        document.documentElement.setAttribute('data-theme', next);
+      },
+    },
+  ),
 );

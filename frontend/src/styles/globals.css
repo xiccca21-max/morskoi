@@ -26,33 +26,6 @@
   color-scheme: light;
 }
 
-/* ═══ ПРЕМИУМ ТЁМНАЯ МОРСКАЯ ТЕМА ═══ */
-[data-theme="navy"] {
-  --c-base-rgb: 5 10 20;
-  --c-panel-rgb: 10 19 38;
-  --c-main-rgb: 220 232 255;
-  --c-muted-rgb: 95 125 175;
-  --c-accent-rgb: 212 168 44;
-  --c-danger-rgb: 232 50 40;
-  --c-success-rgb: 46 196 96;
-  --c-warning-rgb: 220 148 24;
-  --c-line-rgb: 28 48 88;
-  --c-water: rgba(14, 80, 190, 0.55);
-  --radius-card: 14px;
-  --radius-btn: 10px;
-  --border-w: 1px;
-  --shadow-card:
-    0 4px 24px rgba(0,0,0,0.5),
-    0 0 0 1px rgba(212,168,44,0.09),
-    inset 0 1px 0 rgba(255,255,255,0.04);
-  --font-display: 'Oswald', Impact, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --bg-pattern:
-    radial-gradient(ellipse at 50% -10%, rgba(212,168,44,0.07) 0%, transparent 50%),
-    radial-gradient(ellipse at 88% 88%, rgba(14,80,190,0.12) 0%, transparent 45%);
-  color-scheme: dark;
-}
-
 [data-theme="radar"] {
   --c-base-rgb: 2 10 4;
   --c-panel-rgb: 4 20 8;
@@ -206,21 +179,6 @@ button:disabled { cursor: not-allowed; }
 .btn-primary:hover { filter: brightness(1.12); }
 .btn-primary:disabled { opacity: 0.5; filter: grayscale(1); }
 
-/* Navy: красный с свечением + белый текст */
-[data-theme="navy"] .btn-primary {
-  background: linear-gradient(145deg, #e83228, #ff5548, #c42820);
-  border: none;
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow:
-    0 4px 20px rgba(232,50,40,0.45),
-    0 1px 0 rgba(255,255,255,0.18) inset;
-}
-[data-theme="navy"] .btn-primary:hover {
-  filter: brightness(1.12);
-  box-shadow: 0 6px 28px rgba(232,50,40,0.6);
-}
-
 .btn-secondary {
   @apply btn;
   color: var(--c-main);
@@ -228,12 +186,6 @@ button:disabled { cursor: not-allowed; }
   border-color: var(--c-line);
 }
 .btn-secondary:hover { filter: brightness(1.1); }
-
-[data-theme="navy"] .btn-secondary {
-  background: rgba(20,36,72,0.85);
-  border-color: rgba(28,48,88,0.9);
-  color: rgb(var(--c-main-rgb));
-}
 
 /* DANGER — красная рамка, прозрачный фон */
 .btn-danger {
@@ -244,17 +196,6 @@ button:disabled { cursor: not-allowed; }
 }
 .btn-danger:hover { background: rgba(200,69,59,0.1); }
 
-[data-theme="navy"] .btn-danger {
-  color: rgb(var(--c-danger-rgb));
-  background: rgba(232,50,40,0.07);
-  border: 1px solid rgba(232,50,40,0.4);
-}
-[data-theme="navy"] .btn-danger:hover {
-  background: rgba(232,50,40,0.16);
-  border-color: rgb(var(--c-danger-rgb));
-  box-shadow: 0 0 20px rgba(232,50,40,0.25);
-}
-
 .btn-ghost {
   @apply btn;
   color: var(--c-muted);
@@ -263,14 +204,6 @@ button:disabled { cursor: not-allowed; }
   box-shadow: none;
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--c-main); }
-
-[data-theme="navy"] .btn-ghost {
-  border-color: rgba(28,48,88,0.9);
-}
-[data-theme="navy"] .btn-ghost:hover {
-  background: rgba(28,48,88,0.55);
-  color: rgb(var(--c-main-rgb));
-}
 
 /* ===== Карточки ===== */
 .card {
@@ -294,7 +227,6 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* === Карточки тёмных тем: используют CSS-переменные — переключение без артефактов === */
-[data-theme="navy"] .card,
 [data-theme="depth"] .card {
   background: linear-gradient(145deg,
     rgba(var(--c-panel-rgb) / 0.96),
@@ -311,7 +243,6 @@ button:disabled { cursor: not-allowed; }
   background: rgb(var(--c-panel-rgb));
   border-color: rgba(var(--c-line-rgb) / 0.7);
 }
-[data-theme="navy"] .plate,
 [data-theme="depth"] .plate {
   background: rgba(var(--c-panel-rgb) / 0.85);
   border-color: rgba(var(--c-line-rgb) / 0.8);
@@ -322,17 +253,6 @@ button:disabled { cursor: not-allowed; }
   border-color: rgba(var(--c-line-rgb) / 0.7);
 }
 
-/* === Золотой акцент — заголовки в navy === */
-[data-theme="navy"] .title {
-  background: linear-gradient(120deg, #e8c050 0%, #f8d878 45%, #c8940c 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-[data-theme="navy"] .eyebrow {
-  color: rgba(212,168,44,0.7);
-  letter-spacing: 0.26em;
-}
 /* radar / blueprint / depth: title и eyebrow через цветовые переменные темы */
 [data-theme="radar"] .title,
 [data-theme="blueprint"] .title,
@@ -393,21 +313,6 @@ button:disabled { cursor: not-allowed; }
   mix-blend-mode: screen;
 }
 
-/* Navy-тема: ещё насыщеннее, добавляем зеленоватый подводный оттенок */
-[data-theme="navy"] .sea-bg {
-  background-image:
-    radial-gradient(ellipse 90% 50% at 18% 14%, rgba(120,210,255,0.30), transparent 58%),
-    radial-gradient(ellipse 65% 55% at 84% 78%, rgba(40,140,230,0.22), transparent 52%),
-    radial-gradient(ellipse 50% 40% at 52% 42%, rgba(180,240,255,0.14), transparent 48%),
-    repeating-linear-gradient(112deg, rgba(160,225,255,0.10) 0 2px, transparent 2px 22px),
-    repeating-linear-gradient(68deg,  rgba( 90,180,255,0.07) 0 1px, transparent 1px 30px),
-    radial-gradient(ellipse at 50% 55%, transparent 25%, rgba(2, 8, 26,0.80) 100%),
-    linear-gradient(188deg,
-      rgba(20, 95,200,0.92) 0%,
-      rgba( 8, 44,115,0.96) 42%,
-      rgba( 2, 12, 42,1.00) 100%);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .sea-bg { animation: none; }
 }
@@ -425,35 +330,6 @@ button:disabled { cursor: not-allowed; }
 .cell-hit { background: var(--c-danger); opacity: 0.8; }
 .cell-miss { background: var(--c-muted); opacity: 0.3; }
 .cell-sunk { background: var(--c-danger); }
-
-/* Рамка поля боя — premium glow для navy */
-[data-theme="navy"] [data-board-frame] {
-  box-shadow:
-    inset 0 0 0 1px rgba(232,50,40,0.22),
-    0 8px 48px rgba(0,0,0,0.65),
-    0 0 80px rgba(14,60,160,0.25);
-}
-[data-theme="navy"] [data-board-frame]:has([data-my-turn="true"]) {
-  box-shadow:
-    inset 0 0 0 1px rgba(232,50,40,0.35),
-    0 8px 48px rgba(0,0,0,0.65),
-    0 0 80px rgba(232,50,40,0.15);
-}
-
-/* Инпуты на navy-теме */
-[data-theme="navy"] input,
-[data-theme="navy"] textarea,
-[data-theme="navy"] select {
-  background: rgba(5,10,20,0.75);
-  border-color: rgba(28,48,88,0.85);
-  color: rgb(var(--c-main-rgb));
-}
-[data-theme="navy"] input:focus,
-[data-theme="navy"] textarea:focus,
-[data-theme="navy"] select:focus {
-  border-color: rgba(232,50,40,0.6) !important;
-  box-shadow: 0 0 0 3px rgba(232,50,40,0.12);
-}
 
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -519,12 +395,10 @@ body::after {
   background-size: 180px 180px;
   mix-blend-mode: overlay;
 }
-[data-theme="navy"] body::after,
 [data-theme="depth"] body::after,
 [data-theme="radar"] body::after { opacity: 0.05; }
 
 /* мягкая виньетка к краям экрана — фокусирует взгляд на центре */
-[data-theme="navy"] #root::before,
 [data-theme="depth"] #root::before {
   content: '';
   position: fixed;
@@ -544,14 +418,6 @@ body::after {
 
 /* ── Слоистые тени с бликовой кромкой (ambient + key + rim light) ──
    Карточки выглядят «выдавленными» из поверхности, а не наклеенными. */
-[data-theme="navy"] .card {
-  box-shadow:
-    0 1px 2px rgba(0,0,0,0.40),
-    0 6px 16px rgba(0,0,0,0.34),
-    0 18px 48px rgba(0,0,0,0.30),
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    inset 0 0 0 1px rgba(212,168,44,0.07);
-}
 [data-theme="depth"] .card {
   box-shadow:
     0 1px 2px rgba(0,0,0,0.40),
@@ -561,7 +427,6 @@ body::after {
 }
 
 /* верхний бликовый волосок у карточек тёмных тем */
-[data-theme="navy"] .card::before,
 [data-theme="depth"] .card::before {
   content: '';
   position: absolute;
