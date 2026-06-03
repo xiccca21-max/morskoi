@@ -3,6 +3,8 @@ import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length, Max } from 'class-validator';
 import { MatchmakingService } from './matchmaking.service';
 import { LobbyService } from './lobby.service';
+import { MatchEventsService } from '../common/match-events.service';
+import { BotsService } from '../bots/bots.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/auth.service';
@@ -47,6 +49,8 @@ export class MatchmakingController {
   constructor(
     private readonly mm: MatchmakingService,
     private readonly lobbies: LobbyService,
+    private readonly matchEvents: MatchEventsService,
+    private readonly bots: BotsService,
   ) {}
 
   @Post('queue')
@@ -78,8 +82,11 @@ export class MatchmakingController {
   }
 
   @Post('lobby/join')
-  joinLobby(@CurrentUser() u: JwtPayload, @Body() dto: CodeDto) {
-    return this.lobbies.join(dto.code.toUpperCase(), u.sub);
+  async joinLobby(@CurrentUser() u: JwtPayload, @Body() dto: CodeDto) {
+    const r = await this.lobbies.join(dto.code.toUpperCase(), u.sub);
+    await this.bots.prepareBotMatch(r.matchId);
+    void this.matchEvents.notifyMatchFound(r.matchId);
+    return r;
   }
 
   // Принять вызов по deep-link challenge_<id>: создаёт лобби и зовёт инициатора

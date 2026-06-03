@@ -14,7 +14,8 @@ export function getSocket(): Socket {
     return socket;
   }
   socket = io(SOCKET_URL, {
-    transports: ['websocket'],
+    // polling как запасной канал — в Telegram WebView websocket часто рвётся
+    transports: ['websocket', 'polling'],
     auth: { token: getToken() ?? '' },
     reconnection: true,
     reconnectionAttempts: 20,

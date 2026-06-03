@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { GameAPI, MatchmakingAPI } from '../api/endpoints';
 import { tgShare, tgHaptic } from '../lib/telegram';
-import { getSocket, newNonce } from '../api/socket';
+import { joinLobbyAction } from '../api/lobby-join';
 import { useAuthStore } from '../stores/auth-store';
 import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
@@ -88,20 +88,19 @@ export default function LobbyScreen() {
     } catch { /* ignore */ }
   };
 
-  const accept = () => {
-    if (!lobby || !code) return;
+  const accept = async () => {
+    if (!lobby || !code || joining) return;
     setConfirmJoin(false);
     setError(null);
     setJoining(true);
     tgHaptic('medium');
-    getSocket().emit('lobby:join', { code: code.toUpperCase(), nonce: newNonce() }, (ack: any) => {
-      if (!ack?.ok) {
-        setError(mapApiError(ack?.error, 'Не удалось присоединиться'));
-        setJoining(false);
-        return;
-      }
-      navigate(`/placement/${ack.matchId}`);
-    });
+    try {
+      const { matchId } = await joinLobbyAction(code);
+      navigate(`/placement/${matchId}`);
+    } catch (e: any) {
+      setError(mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось присоединиться'));
+      setJoining(false);
+    }
   };
 
   const goWallet = () => {
@@ -243,7 +242,7 @@ export default function LobbyScreen() {
         }
         confirmLabel={isTraining ? 'В тренировку' : 'Да, в бой'}
         cancelLabel="Отмена"
-        onConfirm={accept}
+        onConfirm={() => void accept()}
         onCancel={() => setConfirmJoin(false)}
       />
     </div>

@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
 import { MatchmakingAPI, OpenMatch } from '../api/endpoints';
 import { getSocket, newNonce } from '../api/socket';
+import { joinLobbyAction } from '../api/lobby-join';
 import { tgHaptic, tgVibrate } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Modal, ConfirmDialog } from '../components/Modal';
@@ -108,6 +109,7 @@ export default function MatchmakingScreen() {
   const [sortAsc, setSortAsc] = useState(true); // true = от меньшего к большему
   const [myOpen, setMyOpen] = useState<{ code: string; wager: number } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [joiningLobby, setJoiningLobby] = useState(false);
   const [pendingMatch, setPendingMatch] = useState<OpenMatch | null>(null);
 
   useEffect(() => {
@@ -274,22 +276,24 @@ export default function MatchmakingScreen() {
     setPendingMatch(m);
   };
 
-  const confirmAcceptMatch = () => {
+  const confirmAcceptMatch = async () => {
     const m = pendingMatch;
-    setPendingMatch(null);
-    if (!m) return;
+    if (!m || joiningLobby) return;
     setError(null);
+    setJoiningLobby(true);
     setBusyId(m.id);
     tgHaptic('medium');
-    getSocket().emit('lobby:join', { code: m.code, nonce: newNonce() }, (ack: any) => {
+    try {
+      const { matchId } = await joinLobbyAction(m.code);
+      setPendingMatch(null);
+      navigate(`/placement/${matchId}`);
+    } catch (e: any) {
+      setError(mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось войти в бой'));
+      fetchListRef.current(false);
+    } finally {
+      setJoiningLobby(false);
       setBusyId(null);
-      if (!ack?.ok) {
-        setError(mapApiError(ack?.error, 'Не удалось войти в бой'));
-        fetchListRef.current(false);
-        return;
-      }
-      if (ack.matchId) navigate(`/placement/${ack.matchId}`);
-    });
+    }
   };
 
   const createPrivate = async () => {
@@ -468,8 +472,9 @@ export default function MatchmakingScreen() {
         }
         confirmLabel="Да, в бой"
         cancelLabel="Отмена"
-        onConfirm={confirmAcceptMatch}
-        onCancel={() => setPendingMatch(null)}
+        busy={joiningLobby}
+        onConfirm={() => void confirmAcceptMatch()}
+        onCancel={() => { if (!joiningLobby) setPendingMatch(null); }}
       />
 
       {/* Модалька: система званий */}
