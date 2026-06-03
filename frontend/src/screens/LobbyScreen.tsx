@@ -10,6 +10,7 @@ import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { ConfirmDialog } from '../components/Modal';
 import { formatMoney } from '../lib/format';
+import { mapApiError } from '../lib/api-errors';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -95,7 +96,7 @@ export default function LobbyScreen() {
     tgHaptic('medium');
     getSocket().emit('lobby:join', { code: code.toUpperCase(), nonce: newNonce() }, (ack: any) => {
       if (!ack?.ok) {
-        setError(ack?.error ?? 'Не удалось присоединиться');
+        setError(mapApiError(ack?.error, 'Не удалось присоединиться'));
         setJoining(false);
         return;
       }

@@ -81,6 +81,10 @@ export class GameService {
           attackHistory: '[]',
         },
       });
+      await tx.lobby.updateMany({
+        where: { hostId: { in: [p1Id, p2Id] }, status: LobbyStatus.OPEN },
+        data: { status: LobbyStatus.CLOSED },
+      });
       this.audit.log(p1Id, 'MATCH_CREATED', {
         matchId: match.id,
         p2Id,

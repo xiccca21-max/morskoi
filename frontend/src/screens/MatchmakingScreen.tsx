@@ -18,6 +18,7 @@ import { useDebounce } from '../lib/hooks';
 import { formatMoney, useMoney, currencySymbol } from '../lib/format';
 import { playSound } from '../lib/audio';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { mapApiError } from '../lib/api-errors';
 
 const ALL_RANKS_LOCAL = ALL_RANKS;
 
@@ -130,7 +131,7 @@ export default function MatchmakingScreen() {
     getSocket().emit('mm:join', { wagerAmount: wager, nonce: newNonce() }, (ack: any) => {
       setQueueSearching(false);
       if (!ack?.ok) {
-        setError(ack?.error ?? 'Не удалось встать в очередь');
+        setError(mapApiError(ack?.error, 'Не удалось встать в очередь'));
         setInQueue(false);
         return;
       }
@@ -179,8 +180,10 @@ export default function MatchmakingScreen() {
     return () => clearInterval(t);
   }, [inQueue]);
 
+  const listFingerprint = (list: OpenMatch[]) =>
+    list.map((m) => `${m.id}:${m.wagerAmount}`).join('|');
+
   const fetchList = useCallback(async (showSpinner = false) => {
-    // Показываем скелетон только если данных ещё нет И загрузка заняла > 200ms
     if (showSpinner) {
       loadingTimerRef.current = setTimeout(() => setLoadingList(true), 200);
     }
@@ -190,9 +193,17 @@ export default function MatchmakingScreen() {
         min: debouncedMin !== '' ? Number(debouncedMin) : undefined,
         max: debouncedMax !== '' ? Number(debouncedMax) : undefined,
       });
-      setMatches(list);
+      setMatches((prev) => (prev && listFingerprint(prev) === listFingerprint(list) ? prev : list));
       const mine = list.find((m) => m.isMine);
       setMyOpen(mine ? { code: mine.code, wager: mine.wagerAmount } : null);
+      setError((err) => {
+        if (!err) return err;
+        const stale =
+          err.includes('принят') ||
+          err.includes('закрыт') ||
+          err.includes('Lobby is not open');
+        return stale ? null : err;
+      });
     } catch {
       /* список не критичен */
     } finally {
@@ -204,13 +215,21 @@ export default function MatchmakingScreen() {
     }
   }, [debouncedQuery, debouncedMin, debouncedMax]);
 
-  // Загрузка + автообновление списка пока открыт таб «Поиск матча»
+  const fetchListRef = useRef(fetchList);
+  fetchListRef.current = fetchList;
+
+  // Перезагрузка при смене фильтров (без сброса интервала опроса)
   useEffect(() => {
     if (tab !== 'browse') return;
-    fetchList(true); // первая загрузка — показываем спиннер
-    const t = setInterval(() => fetchList(false), 5000); // фоновое обновление — без спиннера
+    fetchListRef.current(true);
+  }, [tab, debouncedQuery, debouncedMin, debouncedMax]);
+
+  // Фоновое обновление раз в 5 с — зависит только от вкладки
+  useEffect(() => {
+    if (tab !== 'browse') return;
+    const t = setInterval(() => fetchListRef.current(false), 5000);
     return () => clearInterval(t);
-  }, [tab, fetchList]);
+  }, [tab]);
 
   // Открываем выбор ставки (browse)
   const openCreateModal = () => { setShowCreateModal(true); tgHaptic('light'); };
@@ -238,7 +257,7 @@ export default function MatchmakingScreen() {
       setMyOpen({ code: l.code, wager });
       toast('Бой создан — ждём соперника', 'success', 'swords');
       fetchList();
-    } catch (e: any) { setError(e?.response?.data?.message ?? e?.message); }
+    } catch (e: any) { setError(mapApiError(e?.response?.data?.message ?? e?.message)); }
   };
 
   const cancelPublic = async () => {
@@ -264,7 +283,11 @@ export default function MatchmakingScreen() {
     tgHaptic('medium');
     getSocket().emit('lobby:join', { code: m.code, nonce: newNonce() }, (ack: any) => {
       setBusyId(null);
-      if (!ack?.ok) { setError(ack?.error ?? 'Не удалось войти в бой'); fetchList(); return; }
+      if (!ack?.ok) {
+        setError(mapApiError(ack?.error, 'Не удалось войти в бой'));
+        fetchListRef.current(false);
+        return;
+      }
       if (ack.matchId) navigate(`/placement/${ack.matchId}`);
     });
   };
@@ -277,7 +300,7 @@ export default function MatchmakingScreen() {
       const l = await MatchmakingAPI.createLobby(wager);
       tgHaptic('success');
       navigate(`/lobby/${l.code}`);
-    } catch (e: any) { setError(e?.response?.data?.message ?? e?.message); }
+    } catch (e: any) { setError(mapApiError(e?.response?.data?.message ?? e?.message)); }
   };
 
   const joinPrivate = () => {
@@ -309,8 +332,8 @@ export default function MatchmakingScreen() {
       )}
 
       <div className="card p-1 flex gap-1">
-        <TabBtn active={tab === 'browse'} onClick={() => setTab('browse')} icon="swords">Лобби</TabBtn>
-        <TabBtn active={tab === 'private'} onClick={() => setTab('private')} icon="lock">С другом</TabBtn>
+        <TabBtn active={tab === 'browse'} onClick={() => { setError(null); setTab('browse'); }} icon="swords">Лобби</TabBtn>
+        <TabBtn active={tab === 'private'} onClick={() => { setError(null); setTab('private'); }} icon="lock">С другом</TabBtn>
       </div>
 
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
@@ -626,9 +649,8 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
+      initial={false}
+      animate={{ opacity: 1 }}
       className="card p-3 flex items-center gap-3"
     >
       <Avatar name={name} src={m.host.avatar} size={44} rounded="lg" />

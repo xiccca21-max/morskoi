@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { randomBytes } from 'crypto';
-import { LobbyStatus } from '../common/enums';
+import { LobbyStatus, MatchStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { GameService } from '../game/game.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
@@ -133,8 +133,33 @@ export class LobbyService {
       take: 100,
     })) as any[];
 
+    const hostIds = [...new Set(lobbies.map((l: any) => l.hostId as string))];
+    const busyHostIds = new Set<string>();
+    if (hostIds.length) {
+      const active = await this.prisma.match.findMany({
+        where: {
+          status: { in: [MatchStatus.PLACEMENT, MatchStatus.IN_PROGRESS] },
+          OR: [{ player1Id: { in: hostIds } }, { player2Id: { in: hostIds } }],
+        },
+        select: { player1Id: true, player2Id: true },
+      });
+      const hostSet = new Set(hostIds);
+      for (const m of active) {
+        if (hostSet.has(m.player1Id)) busyHostIds.add(m.player1Id);
+        if (m.player2Id && hostSet.has(m.player2Id)) busyHostIds.add(m.player2Id);
+      }
+      const staleLobbyIds = lobbies.filter((l: any) => busyHostIds.has(l.hostId)).map((l: any) => l.id);
+      if (staleLobbyIds.length) {
+        await this.prisma.lobby.updateMany({
+          where: { id: { in: staleLobbyIds }, status: LobbyStatus.OPEN },
+          data: { status: LobbyStatus.CLOSED },
+        });
+      }
+    }
+
     const q = (opts.query ?? '').trim().toLowerCase();
     return lobbies
+      .filter((l: any) => !busyHostIds.has(l.hostId))
       .filter((l: any) => {
         if (!q) return true;
         const name = `${l.host.firstName ?? ''} ${l.host.username ?? ''}`.toLowerCase();
@@ -172,9 +197,11 @@ export class LobbyService {
     return this.redis.withLock(`lobby:join:${normalized}`, 8000, async () => {
       const lobby = await this.prisma.lobby.findUnique({ where: { code: normalized } });
       if (!lobby) throw new NotFoundException('Lobby not found');
-      if (lobby.status !== LobbyStatus.OPEN) throw new BadRequestException('Lobby is not open');
-      if (lobby.hostId === joinerId) throw new BadRequestException('Cannot join own lobby');
-      if (lobby.expiresAt < new Date()) throw new BadRequestException('Lobby expired');
+      if (lobby.status !== LobbyStatus.OPEN) {
+        throw new BadRequestException('Этот бой уже принят или закрыт');
+      }
+      if (lobby.hostId === joinerId) throw new BadRequestException('Нельзя вступить в свой бой');
+      if (lobby.expiresAt < new Date()) throw new BadRequestException('Приглашение истекло');
 
       await assertCanPlay(this.prisma, joinerId);
       const activeJoiner = await this.game.findActiveMatchForUser(joinerId);
@@ -198,7 +225,9 @@ export class LobbyService {
         where: { id: lobby.id, status: LobbyStatus.OPEN },
         data: { status: LobbyStatus.STARTED },
       });
-      if (claimed.count !== 1) throw new BadRequestException('Lobby is not open');
+      if (claimed.count !== 1) {
+        throw new BadRequestException('Кто-то только что принял этот бой — выберите другой');
+      }
 
       const host = await this.prisma.user.findUnique({ where: { id: lobby.hostId } });
       if (!host) {
