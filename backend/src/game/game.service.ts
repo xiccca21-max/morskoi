@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { Cron } from '@nestjs/schedule';
 import { GameStatus, LobbyStatus, MatchStatus } from '../common/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -124,7 +125,7 @@ export class GameService {
   }
 
   async findActiveMatchForUser(userId: string) {
-    return this.prisma.match.findFirst({
+    const match = await this.prisma.match.findFirst({
       where: {
         status: { in: [MatchStatus.PLACEMENT, MatchStatus.IN_PROGRESS] },
         OR: [{ player1Id: userId }, { player2Id: userId }],
@@ -132,6 +133,71 @@ export class GameService {
       include: { gameState: true },
       orderBy: { createdAt: 'desc' },
     });
+    if (!match) return null;
+    // Таймеры расстановки/хода живут в памяти и теряются при рестарте сервера.
+    // Если матч «завис» (давно просрочен) — закрываем его, чтобы не висела
+    // кнопка «Вернуться в бой» и можно было начать новый.
+    if (await this.resolveIfStale(match)) return null;
+    return match;
+  }
+
+  /**
+   * Закрывает «зависший» матч (сервер перезапускался, таймеры пропали).
+   * PLACEMENT — отмена по тайм-ауту расстановки; IN_PROGRESS — поражение
+   * того, чей ход (он явно покинул игру). Возвращает true, если закрыт.
+   */
+  private async resolveIfStale(match: {
+    id: string;
+    status: string;
+    startedAt: Date | null;
+    gameState: { turnDeadline: Date | null; currentTurn: string | null } | null;
+  }): Promise<boolean> {
+    const now = Date.now();
+
+    if (match.status === MatchStatus.PLACEMENT) {
+      const placementSec = Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60);
+      const deadline = (match.startedAt?.getTime() ?? now) + (placementSec + 30) * 1000;
+      if (now > deadline) {
+        await this.handlePlacementTimeout(match.id).catch(() => undefined);
+        this.logger.warn(`Stale PLACEMENT match ${match.id} cancelled (server restart)`);
+        return true;
+      }
+      return false;
+    }
+
+    // IN_PROGRESS
+    const gs = match.gameState;
+    if (!gs?.turnDeadline) return false;
+    const turnSec = Number(process.env.TURN_TIMEOUT_SEC ?? 20);
+    // Большой запас, чтобы не закрыть живой матч во время обычного дисконнекта.
+    const graceMs = Math.max(180, turnSec * 4) * 1000;
+    if (now > gs.turnDeadline.getTime() + graceMs) {
+      if (gs.currentTurn) {
+        await this.surrender(match.id, gs.currentTurn).catch(() => undefined);
+      } else {
+        await this.cancelMatch(match.id, 'abandoned_recovery').catch(() => undefined);
+      }
+      this.logger.warn(`Stale IN_PROGRESS match ${match.id} resolved (server restart)`);
+      return true;
+    }
+    return false;
+  }
+
+  /** Периодическая чистка зависших матчей — освобождает игроков даже без их запроса. */
+  @Cron('*/2 * * * *')
+  async sweepStaleMatches() {
+    const active = await this.prisma.match.findMany({
+      where: { status: { in: [MatchStatus.PLACEMENT, MatchStatus.IN_PROGRESS] } },
+      include: { gameState: true },
+      take: 200,
+    });
+    for (const m of active) {
+      try {
+        await this.resolveIfStale(m);
+      } catch (e: any) {
+        this.logger.warn(`sweepStaleMatches: ${e?.message}`);
+      }
+    }
   }
 
   // ===== Расстановка =====
