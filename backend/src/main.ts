@@ -157,13 +157,18 @@ async function bootstrap() {
         return res.status(404).type('text/plain').send('Not found');
       }
       if (req.path === '/admin.html' && process.env.NODE_ENV === 'production') {
-        const allowIps = (process.env.ADMIN_PANEL_IPS ?? '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
-        const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
-        if (!allowIps.length || !allowIps.includes(ip)) {
-          return res.status(404).type('text/plain').send('Not found');
+        const raw = (process.env.ADMIN_PANEL_IPS ?? '').trim();
+        // ADMIN_PANEL_IPS=*  → отдаём страницу с любого IP (защита только секретным
+        // ключом ADMIN_API_KEY на каждый /api/admin запрос). Иначе — allowlist по IP.
+        if (raw !== '*') {
+          const allowIps = raw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
+          if (!allowIps.length || !allowIps.includes(ip)) {
+            return res.status(404).type('text/plain').send('Not found');
+          }
         }
       }
       const staticFile = join(frontendDist, req.path);
