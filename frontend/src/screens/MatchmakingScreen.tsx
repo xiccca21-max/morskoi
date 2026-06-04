@@ -693,11 +693,8 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
       <div className="flex-1 min-w-0">
         <p className="text-main text-sm font-display truncate leading-tight">{name}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <Icon name={rank.icon} size={12} className="text-muted shrink-0" />
+          <Icon name={rank.icon} size={12} className="text-danger shrink-0" />
           <span className="text-muted text-xs truncate">{rank.title} · {m.host.wins}W</span>
-          <button onClick={onShowRank} className="text-danger text-[10px] font-display underline shrink-0 leading-none">
-            ещё
-          </button>
         </div>
       </div>
 
