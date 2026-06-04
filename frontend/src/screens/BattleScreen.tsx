@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Board } from '../components/Board';
 import { Ship } from '../components/Ship';
 import { getSocket, newNonce } from '../api/socket';
@@ -381,22 +381,19 @@ export default function BattleScreen() {
           <Board mode="own" ships={ownShips as any} attacks={ownAttacks} disabled skin={me?.equippedSkin ?? 'classic'} />
         )}
 
-        <AnimatePresence>
-          {!connected && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-[2px] rounded"
-            >
-              <span className="relative w-10 h-10">
-                <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
-              </span>
-              <p className="text-white text-sm font-display">Переподключаемся…</p>
-              <p className="text-white/70 text-xs">Бой сохранён, не закрывайте приложение</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {!connected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-[2px] rounded"
+          >
+            <span className="relative w-10 h-10">
+              <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
+            </span>
+            <p className="text-white text-sm font-display">Переподключаемся…</p>
+            <p className="text-white/70 text-xs">Бой сохранён, не закрывайте приложение</p>
+          </motion.div>
+        )}
       </div>
 
       {/* Трекер вражеского флота */}
@@ -450,20 +447,17 @@ export default function BattleScreen() {
 
       {/* Всплывающие анимации реакций поверх поля */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden z-50">
-        <AnimatePresence>
-          {reactions.map((r) => (
-            <motion.div
-              key={r.id}
-              initial={{ opacity: 0, scale: 0.5, y: 50, x: r.isMine ? -20 : 20 }}
-              animate={{ opacity: 1, scale: 1, y: -100, x: r.isMine ? -50 : 50 }}
-              exit={{ opacity: 0, scale: 1.5, y: -200 }}
-              transition={{ duration: 1.5, ease: 'easeOut' }}
-              className={['absolute bottom-1/3 text-4xl', r.isMine ? 'left-1/2 text-main' : 'right-1/2 text-danger'].join(' ')}
-            >
-              <Icon name={r.icon} size={48} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {reactions.map((r) => (
+          <motion.div
+            key={r.id}
+            initial={{ opacity: 0, scale: 0.5, y: 50, x: r.isMine ? -20 : 20 }}
+            animate={{ opacity: 0, scale: 1, y: -200, x: r.isMine ? -50 : 50 }}
+            transition={{ duration: 1.5, ease: 'easeOut' }}
+            className={['absolute bottom-1/3 text-4xl', r.isMine ? 'left-1/2 text-main' : 'right-1/2 text-danger'].join(' ')}
+          >
+            <Icon name={r.icon} size={48} />
+          </motion.div>
+        ))}
       </div>
 
       <ConfirmDialog

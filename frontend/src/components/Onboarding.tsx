@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useSettingsStore } from '../stores/settings-store';
 import { Modal } from './Modal';
 import { Icon, IconName } from './Icon';
@@ -27,29 +27,29 @@ export function Onboarding() {
   return (
     <Modal open={!done} dismissable={false} icon="anchor" title="Добро пожаловать на борт!">
       <div className="relative overflow-hidden min-h-[150px]">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.22 }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.18}
-            onDragEnd={(_, info) => {
-              if (info.offset.x < -60) go(step + 1);
-              else if (info.offset.x > 60) go(step - 1);
-            }}
-            className="flex flex-col items-center text-center px-2 cursor-grab active:cursor-grabbing"
-          >
-            <span className="w-16 h-16 rounded-2xl bg-danger/10 border border-danger flex items-center justify-center text-danger mb-4">
-              <Icon name={STEPS[step].icon} size={30} />
-            </span>
-            <p className="font-display text-lg text-main">{STEPS[step].title}</p>
-            <p className="text-muted text-sm mt-1.5 leading-relaxed">{STEPS[step].text}</p>
-          </motion.div>
-        </AnimatePresence>
+        {/* Без AnimatePresence/exit: keyed-слайд просто перемонтируется при смене
+            шага (обычный React unmount), без анимации выхода framer-motion,
+            которая роняла removeChild в Telegram WebView. */}
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.22 }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.18}
+          onDragEnd={(_, info) => {
+            if (info.offset.x < -60) go(step + 1);
+            else if (info.offset.x > 60) go(step - 1);
+          }}
+          className="flex flex-col items-center text-center px-2 cursor-grab active:cursor-grabbing"
+        >
+          <span className="w-16 h-16 rounded-2xl bg-danger/10 border border-danger flex items-center justify-center text-danger mb-4">
+            <Icon name={STEPS[step].icon} size={30} />
+          </span>
+          <p className="font-display text-lg text-main">{STEPS[step].title}</p>
+          <p className="text-muted text-sm mt-1.5 leading-relaxed">{STEPS[step].text}</p>
+        </motion.div>
       </div>
 
       {/* Точки-индикаторы */}
