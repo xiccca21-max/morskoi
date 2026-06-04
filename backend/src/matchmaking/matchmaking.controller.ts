@@ -86,6 +86,8 @@ export class MatchmakingController {
     const r = await this.lobbies.join(dto.code.toUpperCase(), u.sub);
     await this.bots.prepareBotMatch(r.matchId);
     void this.matchEvents.notifyMatchFound(r.matchId);
+    // Лобби бота поглощено — сразу создаём замену, чтобы список не показывал «протухший» бой.
+    void this.bots.lobbyFillTick().catch(() => undefined);
     return r;
   }
 

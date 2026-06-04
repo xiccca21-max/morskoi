@@ -98,8 +98,12 @@ export default function LobbyScreen() {
       const { matchId } = await joinLobbyAction(code);
       navigate(`/placement/${matchId}`);
     } catch (e: any) {
-      setError(mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось присоединиться'));
+      const msg = mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось присоединиться');
+      setError(msg);
+      toast(msg, 'error', 'flag');
+      tgHaptic('error');
       setJoining(false);
+      load();
     }
   };
 

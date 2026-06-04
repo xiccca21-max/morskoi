@@ -296,7 +296,12 @@ export default function MatchmakingScreen() {
       setPendingMatch(null);
       navigate(`/placement/${matchId}`);
     } catch (e: any) {
-      setError(mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось войти в бой'));
+      // Закрываем диалог — иначе ошибка прячется за модалкой и кажется, что «ничего не происходит».
+      setPendingMatch(null);
+      const msg = mapApiError(e?.response?.data?.message ?? e?.message, 'Не удалось войти в бой');
+      setError(msg);
+      toast(msg, 'error', 'flag');
+      tgVibrate(60);
       void fetchList();
     } finally {
       setJoiningLobby(false);

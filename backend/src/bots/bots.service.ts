@@ -342,8 +342,8 @@ export class BotsService implements OnModuleInit {
 
   // ============= Публичные лобби с ботами =============
 
-  /** Каждые 30 секунд держим открытыми ~BOT_OPEN_LOBBIES публичных вызовов от ботов. */
-  @Cron('*/30 * * * * *')
+  /** Каждые 10 секунд держим открытыми ~BOT_OPEN_LOBBIES публичных вызовов от ботов. */
+  @Cron('*/10 * * * * *')
   async lobbyFillTick() {
     if (!this.enabled || this.openLobbies <= 0) return;
     const now = new Date();
