@@ -8,7 +8,7 @@ import { tgHaptic } from '../lib/telegram';
 const STEPS: { icon: IconName; title: string; text: string }[] = [
   { icon: 'swords', title: 'Дуэль на ставку', text: 'Найдите соперника, поставьте равную сумму — победитель забирает банк.' },
   { icon: 'grid', title: 'Расставьте флот', text: 'Разместите корабли вручную или авто-расстановкой, затем топите врага по очереди.' },
-  { icon: 'trophy', title: 'Забирайте выигрыш', text: 'Победителю — 95% банка. Комиссия платформы всего 5%, вывод — на ваш @CryptoBot.' },
+  { icon: 'trophy', title: 'Забирайте выигрыш', text: 'Победителю — 95% банка. Комиссия платформы всего 5%, вывод — на ваш крипто кошелек.' },
 ];
 
 export function Onboarding() {
