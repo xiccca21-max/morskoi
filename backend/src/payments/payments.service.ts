@@ -32,6 +32,10 @@ export class PaymentsService {
   /** Пополнение через @CryptoBot: счёт в ₽, оплата криптой. Без демо-режима. */
   async createDeposit(userId: string, amountRub: number) {
     if (amountRub <= 0) throw new BadRequestException('Сумма должна быть положительной');
+    const MIN_DEP = Number(process.env.MIN_DEPOSIT ?? 0);
+    if (MIN_DEP > 0 && amountRub < MIN_DEP) {
+      throw new BadRequestException(`Минимальная сумма пополнения — ${MIN_DEP} ₽`);
+    }
 
     await assertCanPlay(this.prisma, userId);
 

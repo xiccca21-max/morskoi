@@ -19,12 +19,21 @@ function assertProductionSecrets() {
   const warn: string[] = [];
 
   const jwt = process.env.JWT_SECRET;
-  if (!jwt || jwt === 'change_me' || jwt.length < 16) {
-    fatal.push('JWT_SECRET не задан или слишком короткий/дефолтный (нужно ≥16 случайных символов)');
+  const weakJwt = /change_me|super_secret|example|placeholder|0123456789|qwerty/i;
+  if (!jwt || jwt.length < 16 || weakJwt.test(jwt)) {
+    fatal.push('JWT_SECRET не задан или слабый/дефолтный (нужно ≥16 случайных символов: openssl rand -hex 32)');
   }
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || token.startsWith('123456')) {
     fatal.push('TELEGRAM_BOT_TOKEN не задан');
+  }
+  // Секрет вебхука Telegram нельзя выводить из токена бота: утечка токена = подделка апдейтов.
+  const polling = process.env.TELEGRAM_BOT_POLLING === 'true';
+  if (!polling) {
+    const ws = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!ws || ws.length < 16) {
+      fatal.push('TELEGRAM_WEBHOOK_SECRET обязателен в webhook-режиме (≥16 случайных символов)');
+    }
   }
   if (!process.env.ADMIN_API_KEY) {
     warn.push('ADMIN_API_KEY не задан — админ-API отключён');
@@ -35,7 +44,6 @@ function assertProductionSecrets() {
   if (!process.env.REDIS_URL?.trim()) {
     fatal.push('REDIS_URL не задан — wallet locks не будут работать между инстансами');
   }
-  const polling = process.env.TELEGRAM_BOT_POLLING === 'true';
   if (!polling && !process.env.TELEGRAM_WEBHOOK_URL?.trim()) {
     fatal.push('TELEGRAM_WEBHOOK_URL обязателен при TELEGRAM_BOT_POLLING=false');
   }

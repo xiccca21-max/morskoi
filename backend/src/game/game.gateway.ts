@@ -51,8 +51,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private userSockets = new Map<string, string>();
   // Таймауты ходов: matchId → NodeJS.Timeout
   private turnTimers = new Map<string, NodeJS.Timeout>();
-  // Счётчик подряд пропущенных ходов (AFK/дисконнект): matchId → { userId, count }
-  private afkCounters = new Map<string, { userId: string; count: number }>();
+  // Счётчик пропущенных ходов (AFK/дисконнект): matchId → { userId, count, total }
+  //  count — подряд одним игроком (форфейт), total — всего по матчу (анти-зависание).
+  private afkCounters = new Map<string, { userId: string; count: number; total: number }>();
   // Таймауты фазы расстановки: matchId → NodeJS.Timeout
   private placementTimers = new Map<string, NodeJS.Timeout>();
   // Rate limit: userId:event → { count, resetAt }
@@ -146,6 +147,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return s;
   }
 
+  /** Лёгкая перепроверка бана/самоисключения на денежных действиях (бан мог прийти после connect). */
+  private async assertNotBlocked(userId: string) {
+    const u = (await this.prisma.user.findUnique({
+      where: { id: userId },
+    })) as { banned?: boolean; selfExcludedUntil?: Date | null } | null;
+    if (!u) throw new Error('User not found');
+    if (u.banned) throw new Error('Аккаунт заблокирован');
+    const until = u.selfExcludedUntil ? new Date(u.selfExcludedUntil) : null;
+    if (until && until.getTime() > Date.now()) throw new Error('Самоисключение активно');
+  }
+
   private async ensureNonce(userId: string, nonce?: string) {
     if (!nonce) {
       if (process.env.NODE_ENV === 'production') {
@@ -181,7 +193,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         const maxMissed = Number(process.env.AFK_FORFEIT_TIMEOUTS ?? 2);
         const prev = this.afkCounters.get(matchId);
         const count = prev && prev.userId === timedOut ? prev.count + 1 : 1;
-        this.afkCounters.set(matchId, { userId: timedOut, count });
+        const total = (prev?.total ?? 0) + 1;
+        this.afkCounters.set(matchId, { userId: timedOut, count, total });
+
+        // Анти-зависание: оба игрока пропускают ходы по очереди — счётчик подряд
+        // сбрасывается и форфейт не наступает. Ограничиваем общее число пропусков
+        // по матчу: после лимита отменяем бой и возвращаем ставки обоим.
+        const maxTotal = Number(process.env.AFK_MATCH_MAX_TIMEOUTS ?? 6);
+        if (total >= maxTotal) {
+          this.afkCounters.delete(matchId);
+          this.bots.forgetMatch(matchId);
+          this.clearTurnTimer(matchId);
+          await this.game.cancelMatch(matchId, 'afk_stall');
+          this.server.to(`match:${matchId}`).emit('match:cancelled', { matchId, reason: 'afk_stall' });
+          await this.broadcastStateToBothPlayers(matchId);
+          return;
+        }
 
         if (count >= maxMissed) {
           this.afkCounters.delete(matchId);
@@ -466,6 +493,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
+      await this.assertNotBlocked(s.data.userId);
       const r = await this.game.submitPlacement(body.matchId, s.data.userId, body.ships);
       // оповещаем обоих о смене состояния
       await this.broadcastStateToBothPlayers(body.matchId);

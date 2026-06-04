@@ -475,6 +475,12 @@ export class GameService {
 
   async cancelMatch(matchId: string, reason: string) {
     const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+    // Возврат заблокированных ставок (no-op, если ставка ещё не списана или матч тренировочный).
+    if (match && !match.isTraining) {
+      await this.wallet.refundMatchWagers(matchId).catch((e) =>
+        this.logger.warn(`refundMatchWagers ${matchId}: ${e?.message}`),
+      );
+    }
     await this.prisma.match.update({
       where: { id: matchId },
       data: { status: MatchStatus.CANCELLED, endedAt: new Date() },

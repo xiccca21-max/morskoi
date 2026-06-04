@@ -104,6 +104,7 @@ export class WalletService {
     address: string,
   ) {
     const MIN = Number(process.env.MIN_WITHDRAW ?? 1000);
+    const MAX = Number(process.env.MAX_WITHDRAW ?? 0);
     const FEE_PERCENT = Number(process.env.WITHDRAW_FEE_PERCENT ?? 0);
     const DAILY_LIMIT = Number(process.env.WITHDRAW_DAILY_LIMIT ?? 50000);
 
@@ -118,6 +119,7 @@ export class WalletService {
     }
     amount = roundRub(amount);
     if (amount < MIN) throw new BadRequestException(`Минимальная сумма вывода — ${MIN} ₽`);
+    if (MAX > 0 && amount > MAX) throw new BadRequestException(`Максимальная сумма вывода — ${MAX} ₽`);
 
     const method = methodForNetwork(network as UsdtNetwork);
 
@@ -370,6 +372,12 @@ export class WalletService {
     return this.redis.withLock(`wallet:${ordered[0]}`, 8000, async () => {
       return this.redis.withLock(`wallet:${ordered[1]}`, 8000, async () => {
         return this.prisma.$transaction(async (tx) => {
+          // Идемпотентность: ставка по матчу не должна списываться дважды.
+          const existingLock = await tx.transaction.findFirst({
+            where: { matchId, type: TxType.WAGER_LOCK },
+          });
+          if (existingLock) return;
+
           const [p1, p2] = await Promise.all([
             tx.user.findUnique({ where: { id: p1Id } }),
             tx.user.findUnique({ where: { id: p2Id } }),
@@ -423,13 +431,22 @@ export class WalletService {
     return this.redis.withLock(`wallet:${ordered[0]}`, 8000, async () => {
       return this.redis.withLock(`wallet:${ordered[1]}`, 8000, async () => {
         return this.prisma.$transaction(async (tx) => {
-          // Идемпотентность: если матч уже рассчитан — не платим повторно.
-          const current = await tx.match.findUnique({
-            where: { id: matchId },
-            select: { status: true, winnerId: true, rakeAmount: true, prizePool: true },
+          // Идемпотентность атомарно: «захватываем» матч одним conditional-апдейтом.
+          // Если статус уже FINISHED — claim.count === 0 и повторной выплаты не будет.
+          const claim = await tx.match.updateMany({
+            where: { id: matchId, status: { not: 'FINISHED' } },
+            data: { status: 'FINISHED', endedAt: new Date() },
           });
-          if (current?.status === 'FINISHED') {
-            return { winnerPayout: Number(current.prizePool) - Number(current.rakeAmount), rake: Number(current.rakeAmount), alreadySettled: true };
+          if (claim.count !== 1) {
+            const current = await tx.match.findUnique({
+              where: { id: matchId },
+              select: { rakeAmount: true, prizePool: true },
+            });
+            return {
+              winnerPayout: Number(current?.prizePool ?? 0) - Number(current?.rakeAmount ?? 0),
+              rake: Number(current?.rakeAmount ?? 0),
+              alreadySettled: true,
+            };
           }
 
           if (winnerId === null) {
@@ -501,6 +518,40 @@ export class WalletService {
           return { winnerPayout, rake };
         });
       });
+    });
+  }
+
+  /**
+   * Возврат заблокированных ставок при отмене матча (рестарт сервера, abandon и т.п.).
+   * Идемпотентно: если по матчу уже была выплата/возврат — ничего не делает.
+   * Без локов по userId — защита строится на guard'е + создании WAGER_REFUND.
+   */
+  async refundMatchWagers(matchId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const locks = await tx.transaction.findMany({
+        where: { matchId, type: TxType.WAGER_LOCK },
+      });
+      if (!locks.length) return { refunded: false as const };
+
+      const already = await tx.transaction.findFirst({
+        where: { matchId, type: { in: [TxType.WAGER_REFUND, TxType.PAYOUT] } },
+      });
+      if (already) return { refunded: false as const };
+
+      for (const l of locks) {
+        const amount = Number(l.amount);
+        await tx.user.update({
+          where: { id: l.userId },
+          data: { balance: { increment: amount }, withdrawable: { increment: amount } } as any,
+        });
+        await tx.transaction.create({
+          data: { userId: l.userId, matchId, type: TxType.WAGER_REFUND, amount, status: TxStatus.COMPLETED },
+        });
+      }
+      return { refunded: true as const, count: locks.length };
+    }).then((r) => {
+      if (r.refunded) this.audit.log(null, 'MATCH_WAGER_REFUND', { matchId, count: r.count });
+      return r;
     });
   }
 

@@ -23,7 +23,7 @@ export interface ParsedInitData {
 export function validateAndParseInitData(
   initData: string,
   botToken: string,
-  maxAgeSec = 3600 * 24,
+  maxAgeSec = Number(process.env.INITDATA_MAX_AGE_SEC ?? 3600),
 ): ParsedInitData {
   if (!initData) throw new Error('initData is empty');
 
@@ -42,7 +42,12 @@ export function validateAndParseInitData(
   const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
   const checkHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
-  if (checkHash !== hash) throw new Error('initData hash mismatch');
+  // Сравнение в постоянном времени — без утечки по времени.
+  const a = Buffer.from(checkHash, 'hex');
+  const b = Buffer.from(hash, 'hex');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    throw new Error('initData hash mismatch');
+  }
 
   const authDate = Number(params.get('auth_date') ?? '0');
   if (!authDate || Date.now() / 1000 - authDate > maxAgeSec) {
@@ -51,7 +56,13 @@ export function validateAndParseInitData(
 
   const userRaw = params.get('user');
   if (!userRaw) throw new Error('user missing');
-  const user = JSON.parse(userRaw) as TelegramUser;
+  let user: TelegramUser;
+  try {
+    user = JSON.parse(userRaw) as TelegramUser;
+  } catch {
+    throw new Error('user is malformed');
+  }
+  if (!user || typeof user.id !== 'number') throw new Error('user.id missing');
 
   return {
     user,

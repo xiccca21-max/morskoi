@@ -91,9 +91,16 @@ export class TelegramBotService implements OnModuleInit {
     if (webhookUrl) {
       this.bot = new TelegramBot(token, { polling: false, baseApiUrl: this.apiRoot });
       // Секрет для проверки входящих апдейтов (заголовок X-Telegram-Bot-Api-Secret-Token).
-      this.webhookSecret =
-        process.env.TELEGRAM_WEBHOOK_SECRET ||
-        createHash('sha256').update(token).digest('hex').slice(0, 48);
+      // В проде обязателен явный TELEGRAM_WEBHOOK_SECRET (проверяется в main.ts).
+      // Вывод из токена оставлен только как dev-fallback — при утечке токена он предсказуем.
+      if (process.env.TELEGRAM_WEBHOOK_SECRET) {
+        this.webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+      } else {
+        this.webhookSecret = createHash('sha256').update(token).digest('hex').slice(0, 48);
+        this.logger.warn(
+          'TELEGRAM_WEBHOOK_SECRET не задан — секрет выведен из токена (небезопасно, только для dev)',
+        );
+      }
       // Регистрируем webhook напрямую через Bot API, чтобы передать secret_token и allowed_updates.
       await fetch(`${this.apiRoot}/bot${token}/setWebhook`, {
         method: 'POST',

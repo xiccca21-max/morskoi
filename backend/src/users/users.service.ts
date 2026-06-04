@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MatchStatus } from '../common/enums';
+import { MatchStatus, TxType, TxStatus } from '../common/enums';
 
 export interface NotifyPrefsDto {
   notifyMatchFound?: boolean;
@@ -93,13 +93,17 @@ export class UsersService {
   async deleteAccount(userId: string) {
     const u = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!u) throw new NotFoundException('User not found');
-    if (Number(u.balance) > 0) {
+    if (Number(u.balance) > 0 || Number((u as any).withdrawable ?? 0) > 0) {
       throw new BadRequestException('Сначала выведите остаток баланса');
     }
     const pendingWd = await (this.prisma as any).withdrawalRequest.findFirst({
       where: { userId, status: 'PENDING' },
     });
     if (pendingWd) throw new BadRequestException('Дождитесь обработки заявки на вывод');
+    const pendingDep = await this.prisma.transaction.findFirst({
+      where: { userId, type: TxType.DEPOSIT, status: TxStatus.PENDING },
+    });
+    if (pendingDep) throw new BadRequestException('Дождитесь завершения пополнения');
     const active = await this.prisma.match.findFirst({
       where: {
         status: { in: [MatchStatus.PLACEMENT, MatchStatus.IN_PROGRESS] },

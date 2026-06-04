@@ -109,6 +109,13 @@ class FakePrisma {
       this.matches.set(where.id, r);
       return { ...r };
     },
+    updateMany: async ({ where, data }: any) => {
+      let count = 0;
+      for (const [id, r] of this.matches) {
+        if (matchWhere(r, where)) { applyData(r, data); this.matches.set(id, r); count++; }
+      }
+      return { count };
+    },
   };
 
   withdrawalRequest = {
@@ -153,6 +160,10 @@ class FakePrisma {
       id, balance, withdrawable: balance,
       wins: 0, losses: 0, draws: 0, totalWagered: 0, totalWon: 0,
     });
+  }
+
+  seedMatch(id: string, status = 'IN_PROGRESS') {
+    this.matches.set(id, { id, status, winnerId: null, rakeAmount: 0, prizePool: 0 });
   }
 }
 
@@ -201,6 +212,7 @@ describe('WalletService money flows', () => {
   it('settleMatch pays winner pool minus rake and is idempotent', async () => {
     prisma.seedUser('p1', 700); // уже за вычетом ставки 300
     prisma.seedUser('p2', 200);
+    prisma.seedMatch('m1');
 
     const r1 = await wallet.settleMatch('m1', 'p1', 'p2', 300, 'p1', 5);
     // pool = 600, rake = 30, payout = 570
@@ -222,6 +234,7 @@ describe('WalletService money flows', () => {
   it('settleMatch draw refunds both players the wager', async () => {
     prisma.seedUser('p1', 700);
     prisma.seedUser('p2', 200);
+    prisma.seedMatch('m1');
 
     const r = await wallet.settleMatch('m1', 'p1', 'p2', 300, null, 5);
     assert.equal(r.winnerPayout, 0);

@@ -119,6 +119,7 @@ export class MatchmakingController {
 
   /** Активное лобби хоста (legacy deep-link challenge_<hostId>). */
   @Get('lobby/host/:userId')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   getHostLobby(@Param('userId') userId: string) {
     return this.lobbies.getOpenByHost(userId);
   }

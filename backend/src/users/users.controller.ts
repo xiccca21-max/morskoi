@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -63,6 +64,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Throttle({ default: { limit: 40, ttl: 60_000 } })
   byId(@Param('id') id: string) {
     return this.users.getById(id);
   }
