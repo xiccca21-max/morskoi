@@ -83,7 +83,15 @@ export function ConfirmDialog({
           onClick={onConfirm}
           disabled={busy}
         >
-          {busy ? '…' : confirmLabel}
+          {busy ? (
+            <span
+              role="status"
+              aria-label="Загрузка"
+              className="inline-block w-[18px] h-[18px] rounded-full border-2 border-white/40 border-t-white animate-spin align-[-3px]"
+            />
+          ) : (
+            confirmLabel
+          )}
         </button>
       </div>
     </Modal>
