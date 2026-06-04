@@ -420,22 +420,6 @@ export default function BattleScreen() {
         </div>
       </div>
 
-      {/* Лог выстрелов */}
-      {myLog.length > 0 && view === 'enemy' && (
-        <div className="card p-3">
-          <p className="eyebrow mb-2">Твои залпы</p>
-          <ul className="space-y-1">
-            {myLog.map((a, i) => (
-              <li key={i} className="flex items-center justify-between text-sm">
-                <span className="font-display text-main tabular-nums">{coord(a.x, a.y)}</span>
-                <span className={['flex items-center gap-1.5', a.hit ? 'text-danger' : 'text-muted'].join(' ')}>
-                  {a.sunkShipId ? 'потоплен' : a.hit ? 'попадание' : 'мимо'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-sm text-muted">
         {myTurn ? 'Наведись на клетку врага и дай залп. Попал — стреляй снова.' : 'Ход соперника. Ожидайте.'}
