@@ -444,11 +444,13 @@ export class TelegramBotService implements OnModuleInit {
     };
 
     const sendInfo = async (chatId: number) => {
+      const minWager = Number(process.env.MIN_WAGER ?? 100);
+      const minWithdraw = Number(process.env.MIN_WITHDRAW ?? 1000);
       const text =
         'ℹ️ <b>Информация</b>\n\n' +
-        '⚓ PvP «Морской Бой» на ставки от <b>100 ₽</b>\n' +
+        `⚓ PvP «Морской Бой» на ставки от <b>${minWager} ₽</b>\n` +
         '• Победитель забирает 95% банка\n' +
-        '• Вывод USDT — от 100 ₽, до 24 ч\n' +
+        `• Вывод USDT — от ${minWithdraw} ₽, до 24 ч\n` +
         '• С другом: тренировка бесплатно или дуэль — /friends\n\n' +
         '📜 <b>Правила:</b>\n' +
         '• Флот: 1×4, 2×3, 3×2, 4×1 — корабли не соприкасаются\n' +
