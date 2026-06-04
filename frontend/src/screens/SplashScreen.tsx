@@ -24,8 +24,7 @@ export default function SplashScreen() {
 
   useEffect(() => {
     if (ready && authenticated) {
-      const t = setTimeout(() => navigate('/home'), 700);
-      return () => clearTimeout(t);
+      navigate('/home', { replace: true });
     }
   }, [ready, authenticated, navigate]);
 

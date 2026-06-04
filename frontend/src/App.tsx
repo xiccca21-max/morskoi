@@ -41,12 +41,15 @@ const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
 const RulesScreen = lazy(() => import('./screens/RulesScreen'));
 const ChallengeScreen = lazy(() => import('./screens/ChallengeScreen'));
 
+// Lazy-обёртка без fallback-спиннера: фон страницы виден сразу,
+// содержимое появляется с анимацией page-enter когда чанк загрузился.
 function LazyScreen({ children }: { children: JSX.Element }) {
-  return <Suspense fallback={<div className="flex justify-center py-16"><Spinner /></div>}>{children}</Suspense>;
+  return <Suspense fallback={null}>{children}</Suspense>;
 }
 
 function Protected({ children }: { children: JSX.Element }) {
   const { authenticated, ready } = useAuthStore();
+  // Пока идёт авторизация — держим SplashScreen; он сам делает navigate('/home') когда готов.
   if (!ready) return <SplashScreen />;
   if (!authenticated) return <Navigate to="/" replace />;
   return children;

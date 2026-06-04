@@ -143,7 +143,10 @@ export function Layout() {
         className="flex-1 px-4 py-5"
         style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
       >
-        <Outlet />
+        {/* key меняется при каждой навигации → перезапускает анимацию page-enter */}
+        <div key={loc.key} className="page-enter">
+          <Outlet />
+        </div>
       </main>
 
       {!hideNav && (

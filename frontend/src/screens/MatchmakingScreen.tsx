@@ -101,7 +101,8 @@ export default function MatchmakingScreen() {
 
   // Браузер открытых боёв; null = ещё не загружен (не показываем ни скелетон, ни фильтры)
   const [matches, setMatches] = useState<OpenMatch[] | null>(null);
-  const [loadingList, setLoadingList] = useState(false);
+  // Стартуем с true — скелетон виден сразу, без 200мс «пустоты»
+  const [loadingList, setLoadingList] = useState(true);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
@@ -204,7 +205,7 @@ export default function MatchmakingScreen() {
 
   const fetchList = useCallback(async () => {
     if (!listLoadedOnce.current) {
-      loadingTimerRef.current = setTimeout(() => setLoadingList(true), 200);
+      setLoadingList(true);
     }
     try {
       const list = await MatchmakingAPI.listOpen({
