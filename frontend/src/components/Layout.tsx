@@ -9,7 +9,9 @@ import { OfflineBanner } from './OfflineBanner';
 import { SoundToggle } from './SoundToggle';
 import { formatCompactMoney, formatMoney } from '../lib/format';
 import { useCurrencyStore } from '../stores/currency-store';
-import { tgBackButtonHide, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
+import { tgBackButtonHide, tgClosingConfirmation, tgVerticalSwipes, tgOpenLink, tgHaptic } from '../lib/telegram';
+
+const SUPPORT_URL = (import.meta.env.VITE_SUPPORT_URL as string) || 'https://t.me/Naval_pay_manager';
 
 /** Экраны, где не дёргаем маршрут из-за активного матча (нет петли «Назад» ↔ бой). */
 const SOFT_ROUTES = /^\/(home|wallet|settings|profile|leaderboard|history|matchmaking|lobby)(\/|$)/;
@@ -100,6 +102,19 @@ export function Layout() {
 
         <div className="flex items-center gap-2">
           <SoundToggle />
+          <button
+            type="button"
+            onClick={() => { tgHaptic('light'); tgOpenLink(SUPPORT_URL); }}
+            aria-label="Поддержка"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-main shrink-0 active:scale-90 transition"
+            style={{
+              background: 'rgba(var(--c-panel-rgb) / 0.8)',
+              border: '1px solid rgba(var(--c-line-rgb) / 0.6)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            <Icon name="lifebuoy" size={18} />
+          </button>
           <NavLink
             to="/wallet"
             aria-label="Кошелёк"
