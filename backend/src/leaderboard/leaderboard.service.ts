@@ -7,8 +7,20 @@ export interface SeasonInfo {
   end: string;
 }
 
-/** Боты и забаненные не участвуют в публичном рейтинге. */
-const PUBLIC_PLAYER = { telegramId: { not: { startsWith: 'bot:' } }, banned: false } as const;
+/** Бот-витрина «Рокки» (bot:1) — единственный бот, допущенный в публичный рейтинг. */
+const SHOWCASE_BOT_TID = 'bot:1';
+
+/**
+ * Боты и забаненные не участвуют в публичном рейтинге — кроме витринного «Рокки»,
+ * который специально показывается в топе (у него больше всех побед).
+ */
+const PUBLIC_PLAYER = {
+  OR: [
+    { telegramId: { not: { startsWith: 'bot:' } } },
+    { telegramId: SHOWCASE_BOT_TID },
+  ],
+  banned: false,
+};
 
 /** Всегда скрыты из публичного топа (служебные / тестовые аккаунты). */
 const LEADERBOARD_HIDDEN_DEFAULT = ['tugovainessa'];

@@ -62,7 +62,7 @@ function buildBotProfile(index: number): BotProfile {
     const losses = 27;
     return {
       telegramId: `bot:${index + 1}`,
-      username: 'rocky_balboa',
+      username: 'Рокки',
       firstName: 'Рокки',
       nickname: 'Рокки 🥊',
       avatar: selfAsset('rocky.jpg'),
