@@ -32,6 +32,9 @@ export default function HistoryScreen() {
   const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  const PREVIEW_COUNT = 5;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,6 +56,9 @@ export default function HistoryScreen() {
     if (m.result === 'loss') return acc - m.wagerAmount;
     return acc;
   }, 0);
+
+  const visibleItems = expanded ? items : items.slice(0, PREVIEW_COUNT);
+  const hiddenCount = items.length - PREVIEW_COUNT;
 
   return (
     <div className="max-w-md mx-auto space-y-3">
@@ -82,7 +88,7 @@ export default function HistoryScreen() {
         <EmptyState icon="scroll" title="Журнал пуст" subtitle="Сыграйте первый бой — он появится здесь" />
       )}
       <ul className="space-y-2">
-        {items.map((m, i) => {
+        {visibleItems.map((m, i) => {
           const win = m.result === 'win';
           const loss = m.result === 'loss';
           const resultLabel = win ? 'Победа' : loss ? 'Поражение' : m.result === 'cancelled' ? 'Отменён' : 'Ничья';
@@ -129,6 +135,18 @@ export default function HistoryScreen() {
           );
         })}
       </ul>
+
+      {!loading && hiddenCount > 0 && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full card card-press p-3 flex items-center justify-center gap-2 text-sm font-display uppercase tracking-wider text-main"
+        >
+          {expanded ? 'Свернуть' : `Показать ещё (${hiddenCount})`}
+          <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="inline-flex">
+            <Icon name="arrow-right" size={16} className="rotate-90" />
+          </motion.span>
+        </button>
+      )}
     </div>
   );
 }
