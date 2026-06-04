@@ -113,7 +113,7 @@ export function Layout() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
           >
-            <Icon name="lifebuoy" size={18} />
+            <Icon name="headset" size={18} />
           </button>
           <NavLink
             to="/wallet"
