@@ -70,7 +70,7 @@ export default function LobbyScreen() {
     return () => clearTimeout(t);
   }, [lobby, user, isHost]);
 
-  const inviteUrl = `https://t.me/${BOT}?startapp=lobby_${code}`;
+  const inviteUrl = `https://t.me/${BOT}?start=lobby_${code}`;
 
   const share = async () => {
     if (!lobby || !code) return;

@@ -197,6 +197,24 @@ export class TelegramBotService implements OnModuleInit {
     this.bot.onText(/\/start(.*)/, async (msg, match) => {
       const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
       const param = (match?.[1] ?? '').trim();
+
+      // Диплинк в лобби: t.me/Bot?start=lobby_CODE. Открываем бота и сразу даём
+      // web_app-кнопку прямо в лобби. web_app-кнопка работает в личке с ботом
+      // даже без настроенного Main Mini App — поэтому это надёжнее, чем startapp-URL.
+      if (/^lobby_[A-Za-z0-9]{4,12}$/.test(param)) {
+        const code = param.slice('lobby_'.length).toUpperCase();
+        const lobbyUrl = `${url}?startapp=lobby_${code}`;
+        await this.bot!.sendMessage(
+          msg.chat.id,
+          '⚔️ <b>Тебя зовут на морской бой!</b>\n\nНажми кнопку ниже — и ты сразу окажешься в лобби.',
+          {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [[{ text: '⚔️ Войти в лобби', web_app: { url: lobbyUrl } }]] },
+          },
+        );
+        return;
+      }
+
       const launchUrl = param ? `${url}?startapp=${encodeURIComponent(param)}` : url;
       const photoUrl = `${url}/bot-welcome.png`;
       const minWager = Number(process.env.MIN_WAGER ?? 100);
@@ -683,9 +701,14 @@ export class TelegramBotService implements OnModuleInit {
     return process.env.TELEGRAM_BOT_USERNAME ?? 'NavalClashBot';
   }
 
-  /** Ссылка в мини-апп: друг сразу попадает в лобби. */
+  /**
+   * Пригласительная ссылка в лобби. Используем ?start= (а не ?startapp=):
+   * клик открывает чат с ботом, и /start lobby_CODE отдаёт web_app-кнопку
+   * прямо в лобби. Это работает при пересылке и НЕ требует настроенного
+   * Main Mini App в BotFather (в отличие от прямых startapp-ссылок).
+   */
   private lobbyInviteUrl(code: string): string {
-    return `https://t.me/${this.botUsername}?startapp=lobby_${code}`;
+    return `https://t.me/${this.botUsername}?start=lobby_${code}`;
   }
 
   /** Deep-link вызова (legacy) — перенаправляем на открытое лобби хоста. */
@@ -1088,7 +1111,8 @@ export class TelegramBotService implements OnModuleInit {
     const u = await this.prisma.user.findUnique({ where: { id: opponentId } });
     if (!u) return;
     if (typeof u.telegramId === 'string' && u.telegramId.startsWith('bot:')) return;
-    const link = `https://t.me/${this.botUsername}?startapp=lobby_${code}`;
+    // Сообщение идёт прямо в личку — можно использовать web_app-кнопку (1 тап, надёжно).
+    const url = process.env.TELEGRAM_WEBAPP_URL;
     const text =
       `⚓ <b>${this.escapeHtml(fromName)}</b> принял твой вызов!\n` +
       `Ставка: <b>${wager} ₽</b>\n` +
@@ -1096,7 +1120,9 @@ export class TelegramBotService implements OnModuleInit {
     try {
       await this.bot.sendMessage(Number(u.telegramId), text, {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять бой', url: link }]] },
+        ...(url
+          ? { reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять бой', web_app: { url: `${url}?startapp=lobby_${code}` } }]] } }
+          : {}),
       });
     } catch (e: any) {
       this.logger.warn(`notifyChallenge tgId=${u.telegramId} failed: ${e?.message}`);
