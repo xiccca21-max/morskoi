@@ -233,11 +233,6 @@ export default function ProfileScreen() {
         </p>
       </Modal>
 
-      <section className="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">
-        <Stat label="Победы" value={user.wins} />
-        <Stat label="Поражения" value={user.losses} accent />
-        <Stat label="Точность" value={`${wr}%`} />
-      </section>
 
       <section className="grid grid-cols-2 gap-3">
         <button
