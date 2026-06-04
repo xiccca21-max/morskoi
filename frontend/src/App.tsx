@@ -33,6 +33,8 @@ const ResultScreen = lazy(() => import('./screens/ResultScreen'));
 const HistoryScreen = lazy(() => import('./screens/HistoryScreen'));
 const LeaderboardScreen = lazy(() => import('./screens/LeaderboardScreen'));
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen'));
+const AchievementsScreen = lazy(() => import('./screens/AchievementsScreen'));
+const CosmeticsScreen = lazy(() => import('./screens/CosmeticsScreen'));
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen'));
 const HowItWorksScreen = lazy(() => import('./screens/HowItWorksScreen'));
 const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
@@ -483,6 +485,8 @@ export default function App() {
         <Route path="/history" element={<LazyScreen><HistoryScreen /></LazyScreen>} />
         <Route path="/leaderboard" element={<LazyScreen><LeaderboardScreen /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><ProfileScreen /></LazyScreen>} />
+        <Route path="/achievements" element={<LazyScreen><AchievementsScreen /></LazyScreen>} />
+        <Route path="/cosmetics" element={<LazyScreen><CosmeticsScreen /></LazyScreen>} />
         <Route path="/player/:id" element={<LazyScreen><PlayerScreen /></LazyScreen>} />
         <Route path="/challenge/:id" element={<LazyScreen><ChallengeScreen /></LazyScreen>} />
         <Route path="/settings" element={<LazyScreen><SettingsScreen /></LazyScreen>} />

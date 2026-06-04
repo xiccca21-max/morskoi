@@ -14,7 +14,7 @@ import { tgBackButtonHide, tgClosingConfirmation, tgVerticalSwipes, tgOpenLink, 
 const SUPPORT_URL = (import.meta.env.VITE_SUPPORT_URL as string) || 'https://t.me/Naval_pay_manager';
 
 /** Экраны, где не дёргаем маршрут из-за активного матча (нет петли «Назад» ↔ бой). */
-const SOFT_ROUTES = /^\/(home|wallet|settings|profile|leaderboard|history|matchmaking|lobby)(\/|$)/;
+const SOFT_ROUTES = /^\/(home|wallet|settings|profile|achievements|cosmetics|leaderboard|history|matchmaking|lobby)(\/|$)/;
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
-import { AuthAPI, UsersAPI, CosmeticsAPI, type CosmeticsProfile } from '../api/endpoints';
+import { AuthAPI, UsersAPI } from '../api/endpoints';
 import { setAuthToken } from '../api/http';
 import { tgShare, tgPhotoUrl, tgHaptic, tgOpenLink } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
@@ -41,6 +41,10 @@ export default function ProfileScreen() {
   const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : null;
 
   const supportUrl = (import.meta.env.VITE_SUPPORT_URL as string) || 'https://t.me/Naval_pay_manager';
+
+  const achStats = statsFromUser({ ...user, wins: user.wins, losses: user.losses });
+  const totalAchievements = ACHIEVEMENTS.length;
+  const earnedAchievements = ACHIEVEMENTS.filter((a) => a.earned(achStats)).length;
 
   const copyId = () => {
     navigator.clipboard.writeText(user.telegramId).catch(() => {});
@@ -235,9 +239,26 @@ export default function ProfileScreen() {
         <Stat label="Точность" value={`${wr}%`} />
       </section>
 
-      <Achievements user={user} />
-
-      <CosmeticsSection />
+      <section className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/achievements')}
+          className="card card-press p-4 flex flex-col items-start gap-1.5 text-left"
+        >
+          <Icon name="medal" size={22} className="text-danger" />
+          <span className="font-display text-sm text-main">Достижения</span>
+          <span className="text-[11px] text-muted tabular-nums">{earnedAchievements} из {totalAchievements}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/cosmetics')}
+          className="card card-press p-4 flex flex-col items-start gap-1.5 text-left"
+        >
+          <Icon name="crown" size={22} className="text-danger" />
+          <span className="font-display text-sm text-main">Косметика</span>
+          <span className="text-[11px] text-muted">Титулы · рамки · скины</span>
+        </button>
+      </section>
 
       <section className="card p-3">
         <button onClick={() => setConfirmDelete(true)} className="w-full flex items-center gap-3 py-3 px-1 text-danger transition">
@@ -287,129 +308,6 @@ function plural(n: number): string {
   if (b > 1 && b < 5) return 'победы';
   if (b === 1) return 'победа';
   return 'побед';
-}
-
-function Achievements({ user }: { user: { wins: number; losses: number; loginStreak?: number; referralCount?: number } }) {
-  const stats = statsFromUser({ ...user, wins: user.wins, losses: user.losses });
-  const badges = ACHIEVEMENTS.map((a) => ({ ...a, earned: a.earned(stats), pct: Math.round(a.progress(stats)) }));
-  const earnedCount = badges.filter((b) => b.earned).length;
-  return (
-    <section className="card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-        <p className="eyebrow">Достижения</p>
-        <span className="text-[11px] tabular-nums font-display text-danger">{earnedCount}<span className="text-muted">/{badges.length}</span></span>
-      </div>
-      <ul className="divide-y divide-line">
-        {badges.map((b) => (
-          <li key={b.id} className="flex items-center gap-3 px-4 py-3">
-            <div className={['w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border', b.earned ? 'border-danger/40 bg-danger/8' : 'border-line bg-panel'].join(' ')}>
-              <Icon name={b.earned ? b.icon : 'lock'} size={16} className={b.earned ? 'text-danger' : 'text-muted'} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={['text-sm font-display', b.earned ? 'text-main' : 'text-muted'].join(' ')}>{b.title}</p>
-              <p className="text-[11px] text-muted leading-snug">{b.desc}</p>
-            </div>
-            {b.earned ? (
-              <Icon name="check" size={14} className="text-danger shrink-0" />
-            ) : b.pct > 0 ? (
-              <span className="text-[11px] tabular-nums text-muted shrink-0">{b.pct}%</span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-const REFERRAL_TIERS = [
-  { n: 1, reward: 'Рамка «Флаг» + бейдж «Вербовщик»' },
-  { n: 3, reward: 'Редкий скин «Корсар»' },
-  { n: 5, reward: 'Доступ к закрытому турниру' },
-  { n: 10, reward: 'Титул «Адмирал»' },
-];
-
-const TYPE_LABEL: Record<string, string> = { title: 'Титулы', frame: 'Рамки', skin: 'Скины кораблей', badge: 'Бейджи' };
-
-function CosmeticsSection() {
-  const patchUser = useAuthStore((s) => s.patchUser);
-  const [profile, setProfile] = useState<CosmeticsProfile | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-
-  useEffect(() => {
-    CosmeticsAPI.profile().then(setProfile).catch(() => undefined);
-  }, []);
-
-  if (!profile) return null;
-
-  const equip = async (type: 'title' | 'frame' | 'skin', id: string) => {
-    setBusy(id);
-    try {
-      const next = await CosmeticsAPI.equip(type, id);
-      setProfile(next);
-      patchUser({ equippedTitle: next.equipped.title, equippedFrame: next.equipped.frame, equippedSkin: next.equipped.skin });
-      tgHaptic('success');
-      toast('Применено', 'success', 'check');
-    } catch (e: any) {
-      tgHaptic('error');
-      toast(e?.response?.data?.message ?? 'Не удалось применить', 'error');
-    } finally { setBusy(null); }
-  };
-
-  const refs = profile.stats.referrals;
-  const groups: Array<'title' | 'frame' | 'skin'> = ['title', 'frame', 'skin'];
-
-  return (
-    <section className="card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-        <p className="eyebrow">Косметика</p>
-        <span className="text-muted text-[11px]">Не влияет на баланс</span>
-      </div>
-
-      {groups.map((g, gi) => {
-        const items = profile.items.filter((i) => i.type === g);
-        if (!items.length) return null;
-        return (
-          <div key={g} className={gi > 0 ? 'border-t border-line' : ''}>
-            {/* Подзаголовок группы */}
-            <div className="px-4 pt-3 pb-1">
-              <p className="eyebrow">{TYPE_LABEL[g]}</p>
-            </div>
-            {/* Строки элементов */}
-            <ul className="divide-y divide-line">
-              {items.map((it) => {
-                const equipped = profile.equipped[g] === it.id;
-                return (
-                  <li key={it.id}>
-                    <button
-                      disabled={!it.unlocked || busy !== null}
-                      onClick={() => equip(g, it.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 transition active:opacity-70"
-                    >
-                      <div className={[
-                        'w-7 h-7 rounded-md flex items-center justify-center shrink-0 border',
-                        equipped ? 'bg-danger border-danger' : 'bg-panel border-line',
-                      ].join(' ')}>
-                        {equipped
-                          ? <Icon name="check" size={13} className="text-white" />
-                          : <Icon name={it.unlocked ? 'check' : 'lock'} size={13} className="text-muted" />}
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className={['text-sm', equipped ? 'text-main font-display' : it.unlocked ? 'text-main' : 'text-muted'].join(' ')}>
-                          {it.name}
-                        </p>
-                        {!it.unlocked && <p className="text-[11px] text-muted">{it.desc}</p>}
-                      </div>
-                      {equipped && <span className="text-[10px] text-danger font-display uppercase tracking-wide">Активно</span>}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        );
-      })}
-    </section>
-  );
 }
 
 function Stat({ label, value, accent }: { label: string; value: any; accent?: boolean }) {
