@@ -107,7 +107,12 @@ async function bootstrap() {
   if (frontendDist) {
     // Vite ставит crossorigin на <script type="module"> — без ACAO WebView Telegram
     // молча не выполняет JS (HTML грузится, «Загрузка» висит вечно).
-    const assetCors = (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const assetCors = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      // КРИТИЧНО: этот middleware смонтирован на '/' и иначе вешает 7-дневный кэш
+      // на ответы /api (список боёв «протухает», join падает). Пропускаем API/сокеты.
+      if (req.path === '/api' || req.path.startsWith('/api/') || req.path.startsWith('/socket.io') || req.path === '/health') {
+        return next();
+      }
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       // CDN не должен пересжимать/резать тело (иначе Content-Length ≠ фактический размер).
