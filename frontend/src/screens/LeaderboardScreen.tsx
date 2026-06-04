@@ -27,7 +27,7 @@ export default function LeaderboardScreen() {
       if (tab === 'season') {
         const [info, list] = await Promise.all([
           LeaderboardAPI.seasonInfo(),
-          LeaderboardAPI.top('season', 50),
+          LeaderboardAPI.top('season', 10),
         ]);
         setSeasonName(info.name);
         setSeasonEnd(info.end);
@@ -35,7 +35,7 @@ export default function LeaderboardScreen() {
       } else if (tab === 'weekly') {
         const [info, list] = await Promise.all([
           LeaderboardAPI.weekInfo(),
-          LeaderboardAPI.top('weekly', 50),
+          LeaderboardAPI.top('weekly', 10),
         ]);
         setSeasonName('Неделя');
         setSeasonEnd(info.end);
@@ -43,7 +43,7 @@ export default function LeaderboardScreen() {
       } else {
         setSeasonName(null);
         setSeasonEnd(null);
-        setItems(await LeaderboardAPI.top(tab, 50));
+        setItems(await LeaderboardAPI.top(tab, 10));
       }
     } catch {
       /* ignore */
