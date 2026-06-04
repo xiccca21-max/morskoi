@@ -471,6 +471,19 @@ body::after {
   animation: sonarPing 2.2s ease-out infinite;
 }
 
+/* ── Экран загрузки (сплеш): вращающийся штурвал + индикатор ── */
+@keyframes splashSpin { to { transform: rotate(360deg); } }
+.splash-wheel { animation: splashSpin 9s linear infinite; transform-origin: 50% 50%; }
+@keyframes splashLoad {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(330%); }
+}
+.splash-load-bar { animation: splashLoad 1.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .splash-wheel { animation: none; }
+  .splash-load-bar { animation: none; }
+}
+
 /* ── Лёгкая пульсация логотипа в хедере: намёк, что он кликабельный ── */
 @keyframes logoPulse {
   0%, 100% { transform: scale(1); opacity: 0.9; }
