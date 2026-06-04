@@ -235,23 +235,19 @@ export default function WalletScreen() {
           animate={{ x: ['-120%', '320%'] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: 'linear', repeatDelay: 2.2 }}
         />
+        {/* Сундук — декоративный, без окружности, во всю высоту карточки */}
+        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+          <Icon name="chest" size={72} className="text-white/20" />
+        </div>
         {/* Содержимое */}
-        <div className="relative p-6 flex items-start justify-between">
-          <div>
-            <p className="text-[11px] font-display uppercase tracking-[0.18em] text-white/70">Баланс</p>
-            <p
-              className="font-display text-4xl text-white mt-1 tabular-nums"
-              style={{ textShadow: '0 2px 12px rgba(0,0,0,0.25)' }}
-            >
-              <AnimatedNumber value={balance} formatter={formatMoney} />
-            </p>
-          </div>
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center border border-white/25 shrink-0"
-            style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+        <div className="relative p-6">
+          <p className="text-[11px] font-display uppercase tracking-[0.18em] text-white/70">Баланс</p>
+          <p
+            className="font-display text-4xl text-white mt-1 tabular-nums"
+            style={{ textShadow: '0 2px 12px rgba(0,0,0,0.25)' }}
           >
-            <Icon name="chest" size={24} className="text-white" />
-          </div>
+            <AnimatedNumber value={balance} formatter={formatMoney} />
+          </p>
         </div>
       </section>
 
