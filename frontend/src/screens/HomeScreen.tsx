@@ -4,8 +4,9 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { GameAPI, MatchmakingAPI } from '../api/endpoints';
-import { tgHaptic } from '../lib/telegram';
+import { tgHaptic, tgPhotoUrl } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
+import { Avatar } from '../components/Avatar';
 import { Onboarding } from '../components/Onboarding';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { toast } from '../stores/toast-store';
@@ -31,6 +32,8 @@ export default function HomeScreen() {
   const total = wins + losses;
   const wr = total ? Math.round((wins / total) * 100) : 0;
   const balance = user?.balance ?? 0;
+  const avatarUrl = user?.avatar ?? tgPhotoUrl();
+  const displayName = user?.nickname ?? user?.firstName ?? user?.username ?? 'Без имени';
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -80,10 +83,15 @@ export default function HomeScreen() {
           <Icon name="wheel" size={130} className="text-main" />
         </div>
 
-        <p className="eyebrow">{greeting}, капитан</p>
-        <h2 className="font-display text-[22px] text-main leading-tight mt-1 tracking-wide">
-          {user?.nickname ?? user?.firstName ?? user?.username ?? 'Без имени'}
-        </h2>
+        <div className="flex items-center gap-3">
+          <Avatar name={displayName} src={avatarUrl} size={52} />
+          <div className="min-w-0">
+            <p className="eyebrow">{greeting}, капитан</p>
+            <h2 className="font-display text-[22px] text-main leading-tight mt-1 tracking-wide truncate">
+              {displayName}
+            </h2>
+          </div>
+        </div>
 
         {/* Статы */}
         <div className="grid grid-cols-3 gap-2 mt-4">
