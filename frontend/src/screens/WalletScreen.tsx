@@ -240,22 +240,6 @@ export default function WalletScreen() {
           animate={{ x: ['-120%', '320%'] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: 'linear', repeatDelay: 2.2 }}
         />
-        {/* Крупный знак ₽ — чистый водяной знак вместо иконки */}
-        <div
-          className="absolute pointer-events-none select-none font-display leading-none"
-          style={{
-            right: '-0.06em',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: 190,
-            fontWeight: 700,
-            color: 'rgba(255,255,255,0.12)',
-            textShadow: '0 2px 18px rgba(0,0,0,0.18)',
-          }}
-          aria-hidden
-        >
-          ₽
-        </div>
         {/* Содержимое */}
         <div className="relative p-6">
           <div className="flex items-center gap-2">
