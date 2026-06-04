@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
@@ -644,13 +644,11 @@ export default function MatchmakingScreen() {
                 />
               ) : (
                 <div className="space-y-2">
-                  <AnimatePresence initial={false}>
-                    {[...matches]
-                      .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
-                      .map((m) => (
-                        <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
-                      ))}
-                  </AnimatePresence>
+                  {[...matches]
+                    .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
+                    .map((m) => (
+                      <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
+                    ))}
                 </div>
               )}
             </div>
@@ -687,12 +685,7 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
   const name = m.host.firstName || m.host.username || 'Капитан';
   const rank = getRank(m.host.wins);
   return (
-    <motion.div
-      layout
-      initial={false}
-      animate={{ opacity: 1 }}
-      className="card p-3 flex items-center gap-3"
-    >
+    <div className="card p-3 flex items-center gap-3">
       <Avatar name={name} src={m.host.avatar} size={44} rounded="lg" />
 
       {/* Имя + звание */}
@@ -718,7 +711,7 @@ function MatchRow({ m, busy, onAccept, onCancel, onShowRank }: { m: OpenMatch; b
           </button>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
