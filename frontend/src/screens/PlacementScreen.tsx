@@ -334,7 +334,7 @@ export default function PlacementScreen() {
             className="btn-ghost text-xs py-1.5 px-2 shrink-0"
             title="Выйти из боя"
           >
-            <Icon name="logout" size={16} />
+            <Icon name="logout" size={16} className="text-danger" />
           </button>
           <div className="min-w-0">
             <h2 className="title text-main text-base truncate">Расставь флот</h2>
