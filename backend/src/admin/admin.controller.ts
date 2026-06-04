@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsNumber, IsOptional, IsString, IsIn, Min, Max, MaxLength } from 'class-validator';
 import { AdminService } from './admin.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -52,7 +53,9 @@ export class AdminController {
 
   @Get('logs')
   logs(@Query('limit') limit?: string, @Query('action') action?: string) {
-    return this.admin.listActionLogs(limit ? Number(limit) : 50, action || undefined);
+    const n = Number(limit ?? 50);
+    const lim = Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 200) : 50;
+    return this.admin.listActionLogs(lim, action || undefined);
   }
 
   @Get('activity')
@@ -65,6 +68,7 @@ export class AdminController {
     return this.alerts.status();
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('alerts/test')
   async alertsTest() {
     return this.alerts.sendTest();

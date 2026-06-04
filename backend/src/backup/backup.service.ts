@@ -55,12 +55,19 @@ export class BackupService implements OnModuleInit {
           `Размер: ${sizeMb} MB\n` +
           `Хранится копий: ${this.keep}`,
       );
-      if (this.adminTgId && stat.size < 48 * 1024 * 1024) {
-        await this.bot.sendDocument(
-          this.adminTgId,
-          dest,
-          `📦 Ежедневный бэкап БД (${sizeMb} MB)`,
-        );
+      // Файл БД (балансы, пользователи, транзакции, выводы) НЕ отправляем в Telegram
+      // по умолчанию — мессенджер сторонний канал, утечка чата = утечка всех финансов.
+      // Включить осознанно можно через BACKUP_SEND_TO_TELEGRAM=true (не рекомендуется).
+      const sendToTelegram = process.env.BACKUP_SEND_TO_TELEGRAM === 'true';
+      if (sendToTelegram && this.adminTgId && stat.size < 48 * 1024 * 1024) {
+        const firstAdmin = this.adminTgId.split(',')[0]?.trim();
+        if (firstAdmin) {
+          await this.bot.sendDocument(
+            firstAdmin,
+            dest,
+            `📦 Ежедневный бэкап БД (${sizeMb} MB)`,
+          );
+        }
       }
     } catch (e: any) {
       const msg = e?.message || String(e);

@@ -30,7 +30,7 @@ export class DailyBonusService {
   ) {}
 
   async tryClaim(userId: string): Promise<DailyBonusResult> {
-    return this.redis.withLock(`daily:${userId}`, 3000, async () => {
+    return this.redis.withLock(`daily:${userId}`, 10000, async () => {
       const user = await this.prisma.user.findUnique({ where: { id: userId } }) as any;
       if (!user) return { claimed: false };
 

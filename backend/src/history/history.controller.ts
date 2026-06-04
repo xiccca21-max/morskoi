@@ -11,7 +11,8 @@ export class HistoryController {
 
   @Get()
   list(@CurrentUser() u: JwtPayload, @Query('limit') limit?: string) {
-    const lim = Math.min(Math.max(Number(limit ?? 50), 1), 200);
+    const n = Number(limit ?? 50);
+    const lim = Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 200) : 50;
     return this.h.listForUser(u.sub, lim);
   }
 

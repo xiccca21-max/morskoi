@@ -331,15 +331,32 @@ export function tgOpenPayment(url: string, onDone?: (status: string) => void) {
   tgOpenLink(url);
 }
 
-/** Открыть ссылку (t.me — через Telegram, иначе в браузере). */
+/** Точная проверка, что ссылка ведёт на Telegram (t.me/telegram.me), без обхода подстрокой. */
+function isTelegramHost(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && (u.hostname === 't.me' || u.hostname === 'telegram.me');
+  } catch {
+    return false;
+  }
+}
+
+/** Открыть ссылку (t.me — через Telegram, иначе в браузере). Только http(s). */
 export function tgOpenLink(url: string) {
+  // Защита от javascript:/data: и прочих схем.
+  try {
+    const proto = new URL(url).protocol;
+    if (proto !== 'https:' && proto !== 'http:') return;
+  } catch {
+    return;
+  }
   const tg = getTelegramWebApp();
-  if (url.includes('t.me') && tg?.openTelegramLink) {
+  if (isTelegramHost(url) && tg?.openTelegramLink) {
     tg.openTelegramLink(url);
   } else if (tg?.openLink) {
     tg.openLink(url);
   } else {
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
 

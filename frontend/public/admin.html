@@ -459,7 +459,7 @@
           </tbody></table>
           <h3 style="margin-top:20px;">Заявки на вывод</h3>
           <table><thead><tr><th>Сумма</th><th>К выплате</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
-            ${withdrawals.length ? withdrawals.map(w => `<tr><td>${fmt(w.amount)}</td><td>${fmt(w.net)}</td><td><span class="badge ${w.status}">${w.status}</span></td><td>${dt(w.createdAt)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">нет</td></tr>'}
+            ${withdrawals.length ? withdrawals.map(w => `<tr><td>${fmt(w.amount)}</td><td>${fmt(w.net)}</td><td><span class="badge ${esc(w.status)}">${esc(w.status)}</span></td><td>${dt(w.createdAt)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">нет</td></tr>'}
           </tbody></table>`;
 
         document.getElementById('cBtn').onclick = async () => {
@@ -505,7 +505,7 @@
           div.style.cursor = 'default';
           div.innerHTML = `
             <div>
-              <div class="name">${fmt(w.amount)} ₽ → к выплате ${fmt(w.net)} <span class="badge ${w.status}">${w.status}</span></div>
+              <div class="name">${fmt(w.amount)} ₽ → к выплате ${fmt(w.net)} <span class="badge ${esc(w.status)}">${esc(w.status)}</span></div>
               <div class="id">${esc(u.nickname || u.firstName || u.username || u.id || '')} · tg: ${esc(u.telegramId || '')} · ${esc(w.method)} ${esc(w.destination || '')}</div>
               <div class="id">${dt(w.createdAt)} ${w.note ? '· ' + esc(w.note) : ''}</div>
             </div>

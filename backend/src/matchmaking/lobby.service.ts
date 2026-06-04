@@ -34,7 +34,9 @@ export class LobbyService {
   async create(hostId: string, wagerAmount: number, isPublic = false) {
     const min = Number(process.env.MIN_WAGER ?? 100);
     const max = Number(process.env.MAX_WAGER ?? 10000);
-    if (wagerAmount < min || wagerAmount > max) {
+    // Number.isFinite/Integer обязателен: NaN из недоверенного ввода (callback бота)
+    // проходит сравнения < и > как false и иначе создал бы лобби с некорректной ставкой.
+    if (!Number.isFinite(wagerAmount) || !Number.isInteger(wagerAmount) || wagerAmount < min || wagerAmount > max) {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);
     }
     await assertCanPlay(this.prisma, hostId);

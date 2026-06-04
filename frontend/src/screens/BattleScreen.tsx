@@ -144,9 +144,12 @@ export default function BattleScreen() {
   // Глобальный слушатель реакций
   useEffect(() => {
     const sock = getSocket();
+    const ALLOWED_REACTIONS = new Set<IconName>(['skull', 'crown', 'flag', 'wave']);
     const onReaction = (data: any) => {
+      const icon = data?.reaction as IconName;
+      if (!ALLOWED_REACTIONS.has(icon)) return; // игнорируем произвольные значения с сокета
       playSound('click');
-      setReactions((prev) => [...prev, { id: Date.now(), icon: data.reaction as IconName, isMine: data.by === me?.id }]);
+      setReactions((prev) => [...prev, { id: Date.now(), icon, isMine: data.by === me?.id }]);
       setTimeout(() => {
         setReactions((prev) => prev.slice(1));
       }, 3000);

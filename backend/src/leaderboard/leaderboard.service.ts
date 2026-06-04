@@ -117,8 +117,9 @@ export class LeaderboardService {
       where: {
         status: 'FINISHED',
         winnerId: { not: null },
+        isTraining: false,
         endedAt: { gte: start, lt: end },
-      },
+      } as any,
       select: {
         winnerId: true,
         prizePool: true,
