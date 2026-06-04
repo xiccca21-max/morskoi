@@ -8,6 +8,7 @@ import { tgHaptic, tgPhotoUrl } from '../lib/telegram';
 import { Icon, IconName } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { Onboarding } from '../components/Onboarding';
+import { Modal } from '../components/Modal';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { toast } from '../stores/toast-store';
 
@@ -49,19 +50,40 @@ export default function HomeScreen() {
     match.status !== 'CANCELLED' &&
     (match.gameStatus === 'PLACEMENT' || match.gameStatus === 'IN_PROGRESS');
   const [trainingBusy, setTrainingBusy] = useState(false);
+  const [showTrainingChoice, setShowTrainingChoice] = useState(false);
 
-  const startTrainingLobby = async () => {
+  const openTraining = () => {
     if (activeMatch) {
       navigate(`/${match!.gameStatus === 'PLACEMENT' ? 'placement' : 'battle'}/${match!.matchId}`);
       return;
     }
+    tgHaptic('light');
+    setShowTrainingChoice(true);
+  };
+
+  const startTrainingWithFriend = async () => {
     setTrainingBusy(true);
     try {
       tgHaptic('medium');
       const lobby = await MatchmakingAPI.createTrainingLobby();
+      setShowTrainingChoice(false);
       navigate(`/lobby/${lobby.code}`);
     } catch (e: any) {
       toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось создать тренировку', 'error');
+    } finally {
+      setTrainingBusy(false);
+    }
+  };
+
+  const startTrainingWithBot = async () => {
+    setTrainingBusy(true);
+    try {
+      tgHaptic('medium');
+      const { matchId } = await GameAPI.startBotTest();
+      setShowTrainingChoice(false);
+      navigate(`/placement/${matchId}`);
+    } catch (e: any) {
+      toast(e?.response?.data?.message ?? e?.message ?? 'Не удалось начать тренировку с ботом', 'error');
     } finally {
       setTrainingBusy(false);
     }
@@ -196,9 +218,8 @@ export default function HomeScreen() {
 
       {/* ── Тренировка ── */}
       <motion.button
-        onClick={startTrainingLobby}
-        disabled={trainingBusy}
-        className="w-full card card-press text-left flex items-center justify-between gap-4 px-5 py-4 disabled:opacity-60"
+        onClick={openTraining}
+        className="w-full card card-press text-left flex items-center justify-between gap-4 px-5 py-4"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.13 }}
@@ -206,7 +227,7 @@ export default function HomeScreen() {
       >
         <div>
           <span className="font-display text-[17px] text-main uppercase tracking-[0.1em] leading-none">Тренировка</span>
-          <p className="text-muted text-sm mt-1">Бесплатный бой с другом — без ставки</p>
+          <p className="text-muted text-sm mt-1">Бесплатный бой — с другом или с ботом</p>
         </div>
         <div
           className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
@@ -215,9 +236,54 @@ export default function HomeScreen() {
             border: '1px solid rgba(var(--c-line-rgb) / 0.8)',
           }}
         >
-          <Icon name={trainingBusy ? 'anchor' : 'target'} size={20} className="text-main" />
+          <Icon name="target" size={20} className="text-main" />
         </div>
       </motion.button>
+
+      {/* ── Выбор режима тренировки ── */}
+      <Modal
+        open={showTrainingChoice}
+        onClose={() => !trainingBusy && setShowTrainingChoice(false)}
+        title="Тренировка"
+        icon="target"
+      >
+        <p className="text-muted text-sm mb-4">Без ставки и без влияния на статистику. Выбери соперника:</p>
+        <div className="space-y-3">
+          <button
+            onClick={startTrainingWithFriend}
+            disabled={trainingBusy}
+            className="w-full card card-press text-left flex items-center gap-3 px-4 py-3 disabled:opacity-60"
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(var(--c-panel-rgb) / 0.8)', border: '1px solid rgba(var(--c-line-rgb) / 0.8)' }}
+            >
+              <Icon name="swords" size={18} className="text-main" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-display text-main text-[15px] leading-none">С другом</div>
+              <p className="text-muted text-xs mt-1">Создать лобби и пригласить по ссылке</p>
+            </div>
+          </button>
+
+          <button
+            onClick={startTrainingWithBot}
+            disabled={trainingBusy}
+            className="w-full card card-press text-left flex items-center gap-3 px-4 py-3 disabled:opacity-60"
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(var(--c-panel-rgb) / 0.8)', border: '1px solid rgba(var(--c-line-rgb) / 0.8)' }}
+            >
+              <Icon name="target" size={18} className="text-main" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-display text-main text-[15px] leading-none">С ботом</div>
+              <p className="text-muted text-xs mt-1">Сыграть прямо сейчас против тренажёра</p>
+            </div>
+          </button>
+        </div>
+      </Modal>
 
       {/* ── 2×2 тайлы ── */}
       <div className="grid grid-cols-2 gap-3">

@@ -15,9 +15,14 @@ const SHOWCASE_BOT_TID = 'bot:1';
  * который специально показывается в топе (у него больше всех побед).
  */
 const PUBLIC_PLAYER = {
-  OR: [
-    { telegramId: { not: { startsWith: 'bot:' } } },
-    { telegramId: SHOWCASE_BOT_TID },
+  AND: [
+    { telegramId: { not: { startsWith: 'trainbot:' } } },
+    {
+      OR: [
+        { telegramId: { not: { startsWith: 'bot:' } } },
+        { telegramId: SHOWCASE_BOT_TID },
+      ],
+    },
   ],
   banned: false,
 };
@@ -144,8 +149,8 @@ export class LeaderboardService {
     const stats = new Map<string, { wins: number; totalWon: number }>();
     for (const m of matches) {
       if (!m.winnerId) continue;
-      const p1Bot = m.player1?.telegramId?.startsWith('bot:');
-      const p2Bot = m.player2?.telegramId?.startsWith('bot:');
+      const p1Bot = m.player1?.telegramId?.startsWith('bot:') || m.player1?.telegramId?.startsWith('trainbot:');
+      const p2Bot = m.player2?.telegramId?.startsWith('bot:') || m.player2?.telegramId?.startsWith('trainbot:');
       if (p1Bot || p2Bot) continue;
       const cur = stats.get(m.winnerId) ?? { wins: 0, totalWon: 0 };
       cur.wins++;

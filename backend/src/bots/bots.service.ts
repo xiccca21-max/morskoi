@@ -41,6 +41,31 @@ interface BotProfile {
 const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
 const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 
+/**
+ * Выделенный тренировочный бот. Живёт в отдельном неймспейсе `trainbot:`,
+ * поэтому НЕ попадает ни в матчмейкинг/публичные лобби (там фильтр `bot:`),
+ * ни в публичный рейтинг (исключается в LeaderboardService). Используется
+ * только для бесплатной тренировки «С ботом».
+ */
+const TRAINING_BOT_TID = 'trainbot:1';
+
+function buildTrainingBotProfile(): BotProfile {
+  return {
+    telegramId: TRAINING_BOT_TID,
+    username: 'naval_trainer',
+    firstName: 'Боцман',
+    nickname: 'Боцман-тренажёр 🤖',
+    avatar: 'https://api.dicebear.com/7.x/bottts/png?seed=NavalTrainer&backgroundColor=1f2937',
+    balance: 1_000_000,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    totalWagered: 0,
+    totalWon: 0,
+    createdAt: new Date(),
+  };
+}
+
 function genLobbyCode(len = 6): string {
   const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -128,6 +153,7 @@ export class BotsService implements OnModuleInit {
   private readonly logger = new Logger('Bots');
   private readonly botIds = new Set<string>();
   private readonly matchSkill = new Map<string, BotSkillLevel>();
+  private trainingBotId: string | null = null;
 
   private readonly enabled = (process.env.BOTS_ENABLED ?? 'true') !== 'false';
   private readonly targetCount = Number(process.env.BOTS_COUNT ?? 1);
@@ -143,6 +169,14 @@ export class BotsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    // Тренировочный бот доступен всегда (даже при BOTS_ENABLED=false) —
+    // это осознанный выбор игрока, а не авто-добор очереди.
+    try {
+      await this.ensureTrainingBot();
+    } catch (e: any) {
+      this.logger.warn(`ensureTrainingBot failed: ${e?.message}`);
+    }
+
     if (!this.enabled) {
       this.logger.log('Bots disabled (BOTS_ENABLED=false)');
       return;
@@ -153,6 +187,49 @@ export class BotsService implements OnModuleInit {
     } catch (e: any) {
       this.logger.warn(`ensureBots failed: ${e?.message}`);
     }
+  }
+
+  /**
+   * Идемпотентно создаёт/обновляет выделенного тренировочного бота и
+   * регистрирует его id в botIds (чтобы GameGateway исполнял его ходы).
+   */
+  async ensureTrainingBot() {
+    const p = buildTrainingBotProfile();
+    let bot = await this.prisma.user.findUnique({ where: { telegramId: p.telegramId } });
+    if (!bot) {
+      bot = await this.prisma.user.create({
+        data: {
+          telegramId: p.telegramId,
+          username: p.username,
+          firstName: p.firstName,
+          nickname: p.nickname,
+          avatar: p.avatar,
+          balance: p.balance,
+          withdrawable: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          totalWagered: 0,
+          totalWon: 0,
+          agreedToTermsAt: new Date(),
+        } as any,
+      });
+    } else {
+      bot = await this.prisma.user.update({
+        where: { id: bot.id },
+        data: {
+          username: p.username,
+          firstName: p.firstName,
+          nickname: p.nickname,
+          avatar: p.avatar,
+          banned: false,
+          balance: p.balance,
+        } as any,
+      });
+    }
+    this.trainingBotId = bot.id;
+    this.botIds.add(bot.id);
+    this.logger.log(`Training bot ready: ${bot.id}`);
   }
 
   isBot(userId: string | null | undefined): boolean {
@@ -203,11 +280,8 @@ export class BotsService implements OnModuleInit {
     return true;
   }
 
-  /** Быстрый тестовый бой против бота (для разработки/проверки). */
+  /** Бесплатная тренировка против выделенного тренировочного бота. */
   async startBotTest(userId: string): Promise<{ matchId: string }> {
-    if (!this.enabled) {
-      throw new ServiceUnavailableException('Тест с ботом временно недоступен');
-    }
     const active = await this.game.findActiveMatchForUser(userId);
     if (active) throw new BadRequestException('У вас уже есть активный бой');
 
@@ -217,18 +291,22 @@ export class BotsService implements OnModuleInit {
       throw new BadRequestException(e?.message ?? 'Нельзя играть');
     }
 
-    const bot = await this.pickBot(0);
-    if (!bot) throw new ServiceUnavailableException('Тестовый бот недоступен');
+    // Гарантируем наличие тренировочного бота (на случай если init не успел).
+    if (!this.trainingBotId) {
+      await this.ensureTrainingBot();
+    }
+    const botId = this.trainingBotId;
+    if (!botId) throw new ServiceUnavailableException('Тренировочный бот недоступен');
 
     return this.redis.withLock(`bot-test:${userId}`, 5000, async () => {
       const stillActive = await this.game.findActiveMatchForUser(userId);
       if (stillActive) throw new BadRequestException('У вас уже есть активный бой');
 
-      const match = await this.game.createTrainingMatch(userId, bot.id);
+      const match = await this.game.createTrainingMatch(userId, botId);
       this.matchSkill.set(match.id, 'weak');
       await this.prepareBotMatch(match.id);
       await this.matchEvents.notifyMatchFound(match.id);
-      this.logger.log(`Bot test match ${match.id}: ${userId} vs bot ${bot.id}`);
+      this.logger.log(`Training-bot match ${match.id}: ${userId} vs trainbot ${botId}`);
       return { matchId: match.id };
     });
   }
