@@ -48,7 +48,34 @@ function genLobbyCode(len = 6): string {
   return s;
 }
 
+/** Полный URL аватара, отдаваемого нашим origin (из TELEGRAM_WEBAPP_URL). */
+function selfAsset(file: string): string {
+  const base = (process.env.TELEGRAM_WEBAPP_URL || 'https://navalclash.xyz').replace(/\/$/, '');
+  return `${base}/${file.replace(/^\//, '')}`;
+}
+
 function buildBotProfile(index: number): BotProfile {
+  // Первый бот — фиксированный «Рокки» с фото Рокки Бальбо.
+  if (index === 0) {
+    const wins = rnd(60, 180);
+    const wr = 0.6 + Math.random() * 0.15;
+    const losses = Math.max(1, Math.round((wins * (1 - wr)) / wr));
+    return {
+      telegramId: `bot:${index + 1}`,
+      username: 'rocky_balboa',
+      firstName: 'Рокки',
+      nickname: 'Рокки 🥊',
+      avatar: selfAsset('rocky.jpg'),
+      balance: rnd(40000, 140000),
+      wins,
+      losses,
+      draws: rnd(0, 2),
+      totalWagered: (wins + losses) * rnd(200, 700),
+      totalWon: wins * rnd(300, 950),
+      createdAt: new Date(Date.now() - rnd(30, 70) * 86_400_000),
+    };
+  }
+
   const female = index % 3 === 0;
   const first = female ? pick(FEMALE_NAMES) : pick(MALE_NAMES);
   const portraitN = index % 100;
@@ -221,6 +248,22 @@ export class BotsService implements OnModuleInit {
     const keep = all.slice(0, this.targetCount);
     const surplus = all.slice(this.targetCount);
     keep.forEach((u) => this.botIds.add(u.id));
+
+    // Первый бот (bot:1) — всегда «Рокки» с фото Рокки Бальбо.
+    // Обновляем личность существующей записи, чтобы переименование применялось
+    // на деплое без ручных команд в БД.
+    const firstBot = all[0];
+    if (firstBot) {
+      const r = buildBotProfile(0);
+      try {
+        await this.prisma.user.update({
+          where: { id: firstBot.id },
+          data: { username: r.username, firstName: r.firstName, nickname: r.nickname, avatar: r.avatar } as any,
+        });
+      } catch (e: any) {
+        this.logger.warn(`rename bot:1 to Рокки failed: ${e?.message}`);
+      }
+    }
 
     if (surplus.length) {
       const ids = surplus.map((u) => u.id);
