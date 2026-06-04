@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Icon } from './Icon';
 import { Avatar } from './Avatar';
 import { formatMoney } from '../lib/format';
@@ -15,15 +15,17 @@ interface Props {
 export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppAvatar }: Props) {
   const hasDuel = !!(meName || oppName);
 
+  // Без AnimatePresence/exit: оверлей живёт на уровне App, а закрытие совпадает
+  // по тику с navigate('/placement'). Exit-анимация на размонтировании при смене
+  // роута роняла "Failed to execute 'removeChild'". Закрываемся мгновенно.
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-base/95 backdrop-blur-md overflow-hidden"
-        >
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-base/95 backdrop-blur-md overflow-hidden"
+    >
           {/* Глубинный фон */}
           <div className="absolute inset-0 sea-bg opacity-30" />
 
@@ -41,7 +43,6 @@ export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppA
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.85, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
             className="relative text-center px-6 w-full max-w-sm"
           >
@@ -131,9 +132,7 @@ export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppA
               Расставляем флот…
             </p>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </motion.div>
   );
 }
 

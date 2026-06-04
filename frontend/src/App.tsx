@@ -85,13 +85,15 @@ export default function App() {
     if (!matchFound.open || !matchFound.matchId) return;
     const id = matchFound.matchId;
     const t = setTimeout(() => {
-      setMatchFound({ open: false });
       const path = window.location.pathname;
       const cur = useMatchStore.getState().state;
-      if (cur?.matchId === id && (cur.gameStatus === 'FINISHED' || cur.status === 'FINISHED')) return;
-      if (!path.includes('/placement/') && !path.includes('/battle/') && !path.includes('/result/')) {
+      const finished = cur?.matchId === id && (cur.gameStatus === 'FINISHED' || cur.status === 'FINISHED');
+      if (!finished && !path.includes('/placement/') && !path.includes('/battle/') && !path.includes('/result/')) {
         navigate(`/placement/${id}`);
       }
+      // Закрываем оверлей СЛЕДУЮЩИМ кадром, а не в один тик с navigate:
+      // одновременный коммит смены роута и снятия оверлея ронял removeChild.
+      requestAnimationFrame(() => setMatchFound({ open: false }));
     }, 1800);
     return () => clearTimeout(t);
   }, [matchFound.open, matchFound.matchId, navigate]);
