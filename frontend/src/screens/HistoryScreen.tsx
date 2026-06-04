@@ -87,6 +87,12 @@ export default function HistoryScreen() {
       {!loading && items.length === 0 && (
         <EmptyState icon="scroll" title="Журнал пуст" subtitle="Сыграйте первый бой — он появится здесь" />
       )}
+      {!loading && items.length > 0 && (
+        <div className="flex items-center gap-3 pt-1">
+          <span className="eyebrow text-muted">Бои</span>
+          <div className="flex-1 h-px bg-line" />
+        </div>
+      )}
       <ul className="space-y-2">
         {visibleItems.map((m, i) => {
           const win = m.result === 'win';
