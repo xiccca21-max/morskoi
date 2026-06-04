@@ -13,7 +13,7 @@ export interface GameConfig {
 const DEFAULTS: GameConfig = {
   minWager: 100,
   maxWager: 10_000,
-  minWithdraw: 100,
+  minWithdraw: 1000,
   placementTimeoutSec: 60,
   turnTimeoutSec: 20,
   mmFlexWaitSec: 30,

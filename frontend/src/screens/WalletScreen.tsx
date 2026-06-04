@@ -264,10 +264,11 @@ export default function WalletScreen() {
             <p className="eyebrow">Вывод средств</p>
             <span className="text-muted text-xs tabular-nums">Доступно: {withdrawable.toFixed(0)} ₽</span>
           </div>
-          <p className="text-xs text-muted leading-relaxed">
-            Вывод только в <b className="text-main">USDT</b> на ваш криптокошелёк.
-            Минимум — {minWithdraw} ₽. Обработка заявки — <b className="text-main">до 24 часов</b>.
-          </p>
+          <div className="text-xs text-muted leading-relaxed space-y-1">
+            <p>Вывод только в <b className="text-main">USDT</b> на ваш криптокошелёк.</p>
+            <p>Минимум — <b className="text-main">{minWithdraw} ₽</b>.</p>
+            <p>Обработка заявки — <b className="text-main">до 24 часов</b>.</p>
+          </div>
           <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < minWithdraw}>
             <Icon name="minus" size={16} /> Создать заявку на вывод
           </button>

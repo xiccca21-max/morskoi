@@ -8,7 +8,7 @@ export class ConfigController {
     return {
       minWager: Number(process.env.MIN_WAGER ?? 100),
       maxWager: Number(process.env.MAX_WAGER ?? 10000),
-      minWithdraw: Number(process.env.MIN_WITHDRAW ?? 100),
+      minWithdraw: Number(process.env.MIN_WITHDRAW ?? 1000),
       placementTimeoutSec: Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60),
       turnTimeoutSec: Number(process.env.TURN_TIMEOUT_SEC ?? 20),
       mmFlexWaitSec: Number(process.env.MM_FLEX_WAIT_SEC ?? 30),

@@ -103,7 +103,7 @@ export class WalletService {
     network: string,
     address: string,
   ) {
-    const MIN = Number(process.env.MIN_WITHDRAW ?? 100);
+    const MIN = Number(process.env.MIN_WITHDRAW ?? 1000);
     const FEE_PERCENT = Number(process.env.WITHDRAW_FEE_PERCENT ?? 0);
     const DAILY_LIMIT = Number(process.env.WITHDRAW_DAILY_LIMIT ?? 50000);
 
