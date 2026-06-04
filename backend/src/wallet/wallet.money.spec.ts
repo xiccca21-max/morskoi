@@ -233,20 +233,20 @@ describe('WalletService money flows', () => {
   });
 
   it('requestWithdrawal holds funds; reject refunds and is idempotent', async () => {
-    prisma.seedUser('p1', 1000);
+    prisma.seedUser('p1', 2000);
     const addr = '0x' + 'a'.repeat(40); // валидный ERC20
 
-    const wr = await wallet.requestWithdrawal('p1', 400, 'ERC20', addr);
+    const wr = await wallet.requestWithdrawal('p1', 1500, 'ERC20', addr);
     assert.equal(wr.status, 'PENDING');
-    assert.equal(Number(prisma.users.get('p1')!.balance), 600);
+    assert.equal(Number(prisma.users.get('p1')!.balance), 500);
 
     const rej1 = await wallet.resolveWithdrawal(wr.id, 'REJECTED', 'test');
     assert.equal(rej1.status, 'REJECTED');
-    assert.equal(Number(prisma.users.get('p1')!.balance), 1000); // возврат
+    assert.equal(Number(prisma.users.get('p1')!.balance), 2000); // возврат
 
     // Повторное отклонение не возвращает деньги снова.
     await wallet.resolveWithdrawal(wr.id, 'REJECTED', 'test');
-    assert.equal(Number(prisma.users.get('p1')!.balance), 1000);
+    assert.equal(Number(prisma.users.get('p1')!.balance), 2000);
   });
 
   it('completeDepositByInvoice credits once (idempotent)', async () => {
