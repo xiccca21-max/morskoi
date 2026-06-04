@@ -26,8 +26,14 @@ export function MatchFoundOverlay({ open, wager, meName, meAvatar, oppName, oppA
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[200] flex items-center justify-center bg-base/95 backdrop-blur-md overflow-hidden"
     >
-          {/* Глубинный фон */}
-          <div className="absolute inset-0 sea-bg opacity-30" />
+          {/* Глубинный фон — мягкая бежевая виньетка (в тон нашей теме) */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(ellipse at 50% 42%, rgb(var(--c-base-rgb) / 0) 30%, rgb(var(--c-base-rgb) / 0.55) 100%)',
+            }}
+          />
 
           {/* Расходящиеся боевые лучи */}
           <motion.div
