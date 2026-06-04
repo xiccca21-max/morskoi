@@ -6,6 +6,7 @@ import { Icon, IconName } from './Icon';
 import { AnimatedNumber } from './AnimatedNumber';
 import { Toaster } from './Toaster';
 import { OfflineBanner } from './OfflineBanner';
+import { SoundToggle } from './SoundToggle';
 import { formatCompactMoney, formatMoney } from '../lib/format';
 import { useCurrencyStore } from '../stores/currency-store';
 import { tgBackButtonHide, tgClosingConfirmation, tgVerticalSwipes } from '../lib/telegram';
@@ -97,21 +98,23 @@ export function Layout() {
           <span className="font-display text-[18px] font-bold uppercase tracking-[0.2em] text-main">Морской&nbsp;Бой</span>
         </NavLink>
 
-        <NavLink
-          to="/wallet"
-          aria-label="Кошелёк"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-main transition"
-          style={{
-            background: 'rgba(var(--c-panel-rgb) / 0.8)',
-            border: '1px solid rgba(var(--c-line-rgb) / 0.6)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          }}
-        >
-          <Icon name="coins" size={14} className="text-danger" />
-          <span className="font-display text-sm tabular-nums">
-            <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
-          </span>
-        </NavLink>
+        <div className="flex items-center gap-2">
+          <SoundToggle />
+          <NavLink
+            to="/wallet"
+            aria-label="Кошелёк"
+            className="flex items-center px-3 py-1.5 rounded-xl text-main transition"
+            style={{
+              background: 'rgba(var(--c-panel-rgb) / 0.8)',
+              border: '1px solid rgba(var(--c-line-rgb) / 0.6)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            <span className="font-display text-sm tabular-nums">
+              <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
+            </span>
+          </NavLink>
+        </div>
       </header>
 
       <main
