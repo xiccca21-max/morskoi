@@ -55,24 +55,24 @@ function selfAsset(file: string): string {
 }
 
 function buildBotProfile(index: number): BotProfile {
-  // Первый бот — фиксированный «Рокки» с фото Рокки Бальбо.
+  // Первый бот — фиксированный «Рокки» с фото Рокки Бальбо. Статистика фиксированная,
+  // чтобы он не висел в топе журнала/рейтинга (48 побед).
   if (index === 0) {
-    const wins = rnd(60, 180);
-    const wr = 0.6 + Math.random() * 0.15;
-    const losses = Math.max(1, Math.round((wins * (1 - wr)) / wr));
+    const wins = 48;
+    const losses = 27;
     return {
       telegramId: `bot:${index + 1}`,
       username: 'rocky_balboa',
       firstName: 'Рокки',
       nickname: 'Рокки 🥊',
       avatar: selfAsset('rocky.jpg'),
-      balance: rnd(40000, 140000),
+      balance: 60000,
       wins,
       losses,
-      draws: rnd(0, 2),
-      totalWagered: (wins + losses) * rnd(200, 700),
-      totalWon: wins * rnd(300, 950),
-      createdAt: new Date(Date.now() - rnd(30, 70) * 86_400_000),
+      draws: 1,
+      totalWagered: (wins + losses) * 400,
+      totalWon: wins * 600,
+      createdAt: new Date(Date.now() - 45 * 86_400_000),
     };
   }
 
@@ -258,7 +258,17 @@ export class BotsService implements OnModuleInit {
       try {
         await this.prisma.user.update({
           where: { id: firstBot.id },
-          data: { username: r.username, firstName: r.firstName, nickname: r.nickname, avatar: r.avatar } as any,
+          data: {
+            username: r.username,
+            firstName: r.firstName,
+            nickname: r.nickname,
+            avatar: r.avatar,
+            wins: r.wins,
+            losses: r.losses,
+            draws: r.draws,
+            totalWon: r.totalWon,
+            totalWagered: r.totalWagered,
+          } as any,
         });
       } catch (e: any) {
         this.logger.warn(`rename bot:1 to Рокки failed: ${e?.message}`);
