@@ -3,8 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
+// Идентификатор сборки для cache-busting загрузчика и чанков.
+// ВАЖНО: должен меняться при КАЖДОЙ сборке. Если CI не передал реальный git SHA
+// (приходит 'unknown'/'dev' или пусто) — берём timestamp, иначе legacy-loader
+// получает фиксированное имя, Telegram кэширует его на 7 дней и грузит устаревшие
+// чанки экранов → 404 и «вечная загрузка» на отдельных страницах.
+const RAW_BUILD_SHA = (process.env.VITE_BUILD_SHA || process.env.GIT_SHA || '').trim();
 const BUILD_ID =
-  process.env.VITE_BUILD_SHA || process.env.GIT_SHA || Date.now().toString(36);
+  RAW_BUILD_SHA && RAW_BUILD_SHA !== 'unknown' && RAW_BUILD_SHA !== 'dev'
+    ? RAW_BUILD_SHA
+    : Date.now().toString(36);
 
 const ASSET_ORIGIN = (process.env.VITE_ASSET_ORIGIN || '').replace(/\/$/, '');
 
