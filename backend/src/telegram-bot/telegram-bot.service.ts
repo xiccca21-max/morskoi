@@ -683,19 +683,14 @@ export class TelegramBotService implements OnModuleInit {
     return process.env.TELEGRAM_BOT_USERNAME ?? 'NavalClashBot';
   }
 
-  /** Базовый URL мини-аппа для deep-link кнопок. */
-  private get webappBase(): string {
-    return process.env.TELEGRAM_WEBAPP_URL ?? `https://t.me/${this.botUsername}`;
-  }
-
   /** Ссылка в мини-апп: друг сразу попадает в лобби. */
   private lobbyInviteUrl(code: string): string {
-    return `${this.webappBase}?startapp=lobby_${code}`;
+    return `https://t.me/${this.botUsername}?startapp=lobby_${code}`;
   }
 
   /** Deep-link вызова (legacy) — перенаправляем на открытое лобби хоста. */
   private challengeLink(userId: string): string {
-    return `${this.webappBase}?startapp=challenge_${userId}`;
+    return `https://t.me/${this.botUsername}?startapp=challenge_${userId}`;
   }
 
   /** Готовый текст вызова для пересылки в личку/группу/канал. */
@@ -1149,11 +1144,7 @@ export class TelegramBotService implements OnModuleInit {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || (typeof user.telegramId === 'string' && user.telegramId.startsWith('bot:'))) return;
 
-    // Используем прямой URL мини-аппа (не t.me/bot?startapp=), чтобы startapp
-    // гарантированно попал в window.location.search — t.me-ссылки через url-кнопки
-    // не всегда передают start_param через Telegram WebApp API.
-    const webappBase = process.env.TELEGRAM_WEBAPP_URL ?? `https://t.me/${this.botUsername}`;
-    const link = `${webappBase}?startapp=lobby_${code}`;
+    const link = this.lobbyInviteUrl(code);
     const hostName = this.escapeHtml(user.username ?? user.firstName ?? 'Капитан');
 
     const text = isTraining

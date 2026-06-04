@@ -18,14 +18,17 @@ function captureInitDataFromUrl(): void {
   if (typeof window === 'undefined') return;
   try {
     const hash = window.location.hash.slice(1);
+    let hashSp: string | null = null;
     if (hash.includes('tgWebAppData=')) {
       const p = new URLSearchParams(hash);
       storeInitData(p.get('tgWebAppData'));
+      // Telegram иногда кладёт start_param в hash вместе с initData.
+      hashSp = p.get('tgWebAppStartParam');
     }
     const q = new URLSearchParams(window.location.search);
     storeInitData(q.get('tgWebAppData'));
     // Захватываем startapp= до того, как React Router сотрёт query string.
-    const sp = q.get('startapp') ?? q.get('tgWebAppStartParam');
+    const sp = q.get('startapp') ?? q.get('tgWebAppStartParam') ?? hashSp;
     if (sp) {
       try { sessionStorage.setItem(TG_START_PARAM_KEY, sp); } catch { /* ignore */ }
     }
@@ -160,16 +163,22 @@ export async function waitForInitData(maxMs = 10000): Promise<string> {
 
 /** start_param из Telegram (?startapp=...) — например `lobby_AB12CD`. */
 export function getStartParam(): string | undefined {
-  // 1. Telegram WebApp API (основной путь, когда открыто через t.me deep-link).
+  // 1. Telegram WebApp API — основной путь при открытии через t.me deep-link.
   const tg = getTelegramWebApp();
   const p = tg?.initDataUnsafe?.start_param;
   if (p) return p as string;
-  // 2. sessionStorage — захваченный captureInitDataFromUrl() до React Router.
+  // 2. sessionStorage — захваченный до React Router (до того как роутер сбросил query).
   try {
     const stored = sessionStorage.getItem(TG_START_PARAM_KEY);
     if (stored) return stored;
   } catch { /* ignore */ }
-  // 3. Прямой URL-фолбэк (если URL ещё не изменён роутером).
+  // 3. URL hash — Telegram кладёт параметры в #tgWebAppStartParam=...
+  try {
+    const h = new URLSearchParams(window.location.hash.slice(1));
+    const fromHash = h.get('tgWebAppStartParam');
+    if (fromHash) return fromHash;
+  } catch { /* ignore */ }
+  // 4. Прямой query string (последний шанс, если роутер ещё не изменил URL).
   try {
     const q = new URLSearchParams(window.location.search);
     return q.get('startapp') ?? q.get('tgWebAppStartParam') ?? undefined;
