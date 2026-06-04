@@ -94,7 +94,7 @@ function paths(name: IconName) {
     case 'copy':
       return <g {...P}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></g>;
     case 'headset':
-      return <g {...P}><circle cx="12" cy="8.4" r="3.4" /><path d="M5 20.5a7 7 0 0 1 14 0" /><path d="M5.6 10a6.4 6.4 0 0 1 12.8 0" /><rect x="3.6" y="9.6" width="2.2" height="4.2" rx="1.1" /><rect x="18.2" y="9.6" width="2.2" height="4.2" rx="1.1" /></g>;
+      return <g {...P}><path d="M4.4 12.5V11a7.6 7.6 0 0 1 15.2 0v1.5" /><rect x="3" y="12" width="2.9" height="5.2" rx="1.45" /><rect x="18.1" y="12" width="2.9" height="5.2" rx="1.45" /><path d="M4.45 17.2v1.6a3.2 3.2 0 0 0 3.2 3.2H10" /></g>;
     default:
       return null;
   }
