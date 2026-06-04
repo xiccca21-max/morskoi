@@ -9,9 +9,10 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
-import { formatMoney } from '../lib/format';
+import { formatMoney, currencySymbol, currencyDecimals, rubToUnit, unitToRub, depositPresets } from '../lib/format';
 import { playSound } from '../lib/audio';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { useCurrencyStore } from '../stores/currency-store';
 import {
   USDT_NETWORKS,
   validateUsdtAddress,
@@ -57,6 +58,10 @@ export default function WalletScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+
+  // Подписка на валюту/курсы — экран пересобирается при переключении валюты.
+  useCurrencyStore((s) => s.currency);
+  useCurrencyStore((s) => s.ratesVersion);
 
   const [tab, setTab] = useState<Tab>('deposit');
   const [amount, setAmount] = useState(100);
@@ -114,7 +119,7 @@ export default function WalletScreen() {
   const validWithdraw = Number.isFinite(amount) && amount >= minWithdraw && amount <= withdrawable && !addressError && walletAddress.trim().length >= 10;
 
   const deposit = async () => {
-    if (!validDeposit) { setError(`Сумма от ${MIN_DEPOSIT} до ${MAX_DEPOSIT} ₽`); return; }
+    if (!validDeposit) { setError(`Сумма от ${formatMoney(MIN_DEPOSIT)} до ${formatMoney(MAX_DEPOSIT)}`); return; }
     setError(null); setBusy(true);
     try {
       const r = await WalletAPI.deposit(amount);
@@ -129,7 +134,7 @@ export default function WalletScreen() {
           toast('Оплата не прошла', 'error');
         }
       });
-      toast(`Счёт на ${amount} ₽ — оплатите в @CryptoBot`, 'info', 'coins');
+      toast(`Счёт на ${formatMoney(amount)} — оплатите в @CryptoBot`, 'info', 'coins');
       setAwaitingPayment(true);
     } catch (e: any) {
       tgHaptic('error'); setError(e?.response?.data?.message ?? e?.message ?? 'Не удалось пополнить');
@@ -139,7 +144,7 @@ export default function WalletScreen() {
   useEffect(() => {
     if (!isTelegram() || tab !== 'deposit' || showWithdraw) return;
     return tgMainButton({
-      text: validDeposit ? `Пополнить ${amount} ₽` : 'Пополнить',
+      text: validDeposit ? `Пополнить ${formatMoney(amount)}` : 'Пополнить',
       onClick: deposit,
       active: validDeposit && !busy && !awaitingPayment,
       progress: busy,
@@ -273,29 +278,33 @@ export default function WalletScreen() {
 
       {tab === 'deposit' ? (
         <section className="card p-5 space-y-3">
-          <p className="eyebrow">Сумма пополнения (₽ на баланс)</p>
+          <p className="eyebrow">Сумма пополнения ({currencySymbol()} на баланс)</p>
           <p className="text-muted text-xs leading-relaxed">
-            Оплата через @CryptoBot — сумма в ₽, платите криптой.
+            Оплата через @CryptoBot — платите криптой.
           </p>
           <input
-            type="number" min={MIN_DEPOSIT} max={MAX_DEPOSIT} value={Number.isFinite(amount) ? amount : ''}
-            onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
+            type="number"
+            min={rubToUnit(MIN_DEPOSIT)}
+            max={rubToUnit(MAX_DEPOSIT)}
+            step={currencyDecimals() === 2 ? 0.01 : 1}
+            value={Number.isFinite(amount) ? rubToUnit(amount) : ''}
+            onChange={(e) => { setError(null); setAmount(unitToRub(Number(e.target.value))); }}
             className="w-full px-4 py-3 rounded-lg bg-panel border border-line text-main outline-none tabular-nums"
           />
           <div className="flex gap-2">
-            {[100, 500, 1000, 5000].map((v) => (
+            {depositPresets().map((p) => (
               <button
-                key={v}
-                className={['flex-1 py-2.5 rounded-lg text-sm font-display tabular-nums transition border', amount === v ? 'bg-danger text-white border-danger' : 'bg-panel text-main border-line'].join(' ')}
-                onClick={() => { setError(null); setAmount(v); }}
+                key={p.rub}
+                className={['flex-1 py-2.5 rounded-lg text-sm font-display tabular-nums transition border', amount === p.rub ? 'bg-danger text-white border-danger' : 'bg-panel text-main border-line'].join(' ')}
+                onClick={() => { setError(null); setAmount(p.rub); }}
               >
-                {v}
+                {p.unit}
               </button>
             ))}
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
           <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit || awaitingPayment}>
-            <Icon name="plus" size={16} /> Пополнить {Number.isFinite(amount) ? amount : 0} ₽
+            <Icon name="plus" size={16} /> Пополнить {formatMoney(Number.isFinite(amount) ? amount : 0)}
           </button>
           {awaitingPayment && (
             <div className="flex items-center justify-center gap-2 text-muted text-xs">
@@ -308,11 +317,11 @@ export default function WalletScreen() {
         <section className="card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="eyebrow">Вывод средств</p>
-            <span className="text-muted text-xs tabular-nums">Доступно: {withdrawable.toFixed(0)} ₽</span>
+            <span className="text-muted text-xs tabular-nums">Доступно: {formatMoney(withdrawable)}</span>
           </div>
           <div className="text-xs text-muted leading-relaxed space-y-1">
             <p>Вывод только в <b className="text-main">USDT</b> на ваш криптокошелёк.</p>
-            <p>Минимум — <b className="text-main">{minWithdraw} ₽</b>.</p>
+            <p>Минимум — <b className="text-main">{formatMoney(minWithdraw)}</b>.</p>
             <p>Обработка заявки — <b className="text-main">до 24 часов</b>.</p>
           </div>
           <button className="btn-primary w-full" onClick={openWithdraw} disabled={withdrawable < minWithdraw}>
@@ -397,16 +406,19 @@ export default function WalletScreen() {
           </div>
 
           <div>
-            <p className="eyebrow mb-1.5">Сумма (₽)</p>
+            <p className="eyebrow mb-1.5">Сумма ({currencySymbol()})</p>
             <input
-              type="number" min={minWithdraw} max={Math.floor(withdrawable)}
-              value={Number.isFinite(amount) ? amount : ''}
-              onChange={(e) => { setError(null); setAmount(Math.floor(Number(e.target.value))); }}
+              type="number"
+              min={rubToUnit(minWithdraw)}
+              max={rubToUnit(Math.floor(withdrawable))}
+              step={currencyDecimals() === 2 ? 0.01 : 1}
+              value={Number.isFinite(amount) ? rubToUnit(amount) : ''}
+              onChange={(e) => { setError(null); setAmount(unitToRub(Number(e.target.value))); }}
               className={['w-full px-3 py-2.5 rounded-lg bg-panel border text-main outline-none tabular-nums', validWithdraw || !amount ? 'border-line' : 'border-danger'].join(' ')}
             />
             <div className="flex justify-between text-[10px] text-muted mt-1 tabular-nums">
-              <span>мин {minWithdraw} ₽</span>
-              <button type="button" className="text-danger" onClick={() => setAmount(Math.floor(withdrawable))}>всё ({withdrawable.toFixed(0)} ₽)</button>
+              <span>мин {formatMoney(minWithdraw)}</span>
+              <button type="button" className="text-danger" onClick={() => setAmount(Math.floor(withdrawable))}>всё ({formatMoney(withdrawable)})</button>
             </div>
             <p className="text-[10px] text-muted mt-1">Эквивалент в USDT рассчитывается по курсу на момент выплаты.</p>
           </div>
@@ -426,7 +438,7 @@ export default function WalletScreen() {
           {error && <p className="text-danger text-sm">{error}</p>}
           <div className="space-y-2 pt-1">
             <button className="btn-primary w-full" onClick={submitWithdraw} disabled={busy || !validWithdraw || !confirmWithdraw}>
-              {busy ? 'Отправляем…' : `Вывести ${Number.isFinite(amount) ? amount : 0} ₽ в USDT`}
+              {busy ? 'Отправляем…' : `Вывести ${formatMoney(Number.isFinite(amount) ? amount : 0)} в USDT`}
             </button>
             <button className="btn-ghost w-full" onClick={() => setShowWithdraw(false)}>Отмена</button>
           </div>

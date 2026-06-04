@@ -38,6 +38,37 @@ export function currencySymbol(): string {
   return getActiveCurrency().symbol;
 }
 
+/** Знаков после запятой у активной валюты (0 или 2). */
+export function currencyDecimals(): 0 | 2 {
+  return getActiveCurrency().decimals;
+}
+
+/** Рубли → единицы активной валюты (число для редактируемого поля). */
+export function rubToUnit(valueRub: number): number {
+  const c = getActiveCurrency();
+  const v = (valueRub || 0) / c.rubPerUnit;
+  return c.decimals === 2 ? Math.round(v * 100) / 100 : Math.round(v);
+}
+
+/** Единицы активной валюты → рубли (для отправки на сервер). */
+export function unitToRub(valueUnit: number): number {
+  const c = getActiveCurrency();
+  return Math.round((valueUnit || 0) * c.rubPerUnit);
+}
+
+/**
+ * Готовые «круглые» суммы пополнения для активной валюты.
+ * Возвращает пары {unit, rub}: unit — для показа, rub — для расчёта/отправки.
+ */
+export function depositPresets(): { unit: number; rub: number }[] {
+  const c = getActiveCurrency();
+  const units =
+    c.code === 'USDT' ? [1, 5, 10, 50]
+    : c.code === 'STARS' ? [50, 100, 500, 1000]
+    : [100, 500, 1000, 5000];
+  return units.map((unit) => ({ unit, rub: Math.round(unit * c.rubPerUnit) }));
+}
+
 /** Компактное число для тесных мест: 1500 → «1.5k». */
 export function formatCompact(value: number): string {
   const v = value || 0;
