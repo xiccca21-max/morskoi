@@ -59,7 +59,6 @@ export default function SplashScreen() {
         >
           Морской&nbsp;Бой
         </h1>
-        <span style={{ width: 56, height: 3, background: RED, borderRadius: 2 }} />
         <p
           className="font-display uppercase"
           style={{ fontSize: 12, letterSpacing: '0.26em', fontWeight: 500, color: '#6b655a' }}
