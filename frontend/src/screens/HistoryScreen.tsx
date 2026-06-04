@@ -28,18 +28,25 @@ function CopyId({ id }: { id: string }) {
   );
 }
 
+// Кэш списка между заходами: при повторном открытии показываем мгновенно,
+// обновляя в фоне — без мелькания серых скелетонов.
+let historyCache: any[] | null = null;
+
 export default function HistoryScreen() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<any[]>(historyCache ?? []);
+  const [loading, setLoading] = useState(historyCache === null);
   const [expanded, setExpanded] = useState(false);
 
   const PREVIEW_COUNT = 5;
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // Скелетон — только если данных ещё ни разу не было.
+    if (historyCache === null) setLoading(true);
     try {
-      setItems(await HistoryAPI.list(50));
+      const list = await HistoryAPI.list(50);
+      historyCache = list;
+      setItems(list);
     } catch {
       /* ignore */
     } finally {

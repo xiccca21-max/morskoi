@@ -24,6 +24,9 @@ import { mapApiError } from '../lib/api-errors';
 
 const ALL_RANKS_LOCAL = ALL_RANKS;
 
+// Кэш списка открытых боёв между заходами на вкладку «В бой».
+let openMatchesCache: OpenMatch[] | null = null;
+
 function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose: () => void; highlightTitle?: string }) {
   return (
     <Modal open={open} onClose={onClose} title="Система званий" icon="medal">
@@ -99,10 +102,10 @@ export default function MatchmakingScreen() {
   const [bigWagerConfirm, setBigWagerConfirm] = useState(false);
   const [ranksForPlayer, setRanksForPlayer] = useState<string | undefined>(undefined);
 
-  // Браузер открытых боёв; null = ещё не загружен (не показываем ни скелетон, ни фильтры)
-  const [matches, setMatches] = useState<OpenMatch[] | null>(null);
-  // Стартуем с true — скелетон виден сразу, без 200мс «пустоты»
-  const [loadingList, setLoadingList] = useState(true);
+  // Браузер открытых боёв; null = ещё не загружен (не показываем ни скелетон, ни фильтры).
+  // Инициализируемся из кэша — при повторном заходе список виден сразу, без скелетона.
+  const [matches, setMatches] = useState<OpenMatch[] | null>(openMatchesCache);
+  const [loadingList, setLoadingList] = useState(openMatchesCache === null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
@@ -201,7 +204,7 @@ export default function MatchmakingScreen() {
   const listFingerprint = (list: OpenMatch[]) =>
     list.map((m) => `${m.id}:${m.wagerAmount}`).join('|');
 
-  const listLoadedOnce = useRef(false);
+  const listLoadedOnce = useRef(openMatchesCache !== null);
 
   const fetchList = useCallback(async () => {
     if (!listLoadedOnce.current) {
@@ -214,6 +217,7 @@ export default function MatchmakingScreen() {
         max: debouncedMax !== '' ? Number(debouncedMax) : undefined,
       });
       listLoadedOnce.current = true;
+      openMatchesCache = list;
       setMatches((prev) => (prev && listFingerprint(prev) === listFingerprint(list) ? prev : list));
       const mine = list.find((m) => m.isMine);
       setMyOpen(mine ? { code: mine.code, wager: mine.wagerAmount } : null);

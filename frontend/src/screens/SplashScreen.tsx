@@ -1,7 +1,3 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/auth-store';
-
 const INK = '#15110E';
 const RED = '#E1574B';
 
@@ -18,16 +14,9 @@ const SPOKES = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
+// Чисто визуальный экран загрузки. Логику показа держит App (пока !ready),
+// поэтому здесь нет навигации — иначе роутер успевал мигнуть «палубой».
 export default function SplashScreen() {
-  const navigate = useNavigate();
-  const { ready, authenticated } = useAuthStore();
-
-  useEffect(() => {
-    if (ready && authenticated) {
-      navigate('/home', { replace: true });
-    }
-  }, [ready, authenticated, navigate]);
-
   return (
     <div
       className="relative min-h-[100dvh] flex flex-col items-center justify-center gap-6 text-center overflow-hidden"

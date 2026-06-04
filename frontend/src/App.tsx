@@ -48,9 +48,8 @@ function LazyScreen({ children }: { children: JSX.Element }) {
 }
 
 function Protected({ children }: { children: JSX.Element }) {
-  const { authenticated, ready } = useAuthStore();
-  // Пока идёт авторизация — держим SplashScreen; он сам делает navigate('/home') когда готов.
-  if (!ready) return <SplashScreen />;
+  const authenticated = useAuthStore((s) => s.authenticated);
+  // !ready обрабатывается на уровне App (один общий SplashScreen, без мигания роутов).
   if (!authenticated) return <Navigate to="/" replace />;
   return children;
 }
@@ -450,6 +449,12 @@ export default function App() {
       .catch(() => {});
   }, [ready, authenticated, navigate, setMatchState]);
 
+  // Пока авторизация не завершена — единый экран загрузки, до рендера роутов.
+  // Это гарантирует, что «палуба» не мелькнёт между загрузкой и готовностью.
+  if (!ready) {
+    return <SplashScreen />;
+  }
+
   if (ready && !authenticated) {
     return (
       <TelegramAuthError
@@ -476,7 +481,7 @@ export default function App() {
       meAvatar={matchFound.meAvatar}
     />
     <Routes>
-      <Route path="/" element={<SplashScreen />} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/home" element={<LazyScreen><HomeScreen /></LazyScreen>} />
         <Route path="/wallet" element={<LazyScreen><WalletScreen /></LazyScreen>} />
