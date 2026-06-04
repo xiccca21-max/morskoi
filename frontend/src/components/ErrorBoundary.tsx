@@ -20,6 +20,17 @@ export class ErrorBoundary extends Component<Props, State> {
         Sentry.captureException(error);
       });
     }
+    // Само-восстановление: большинство падений в Telegram WebView — разовые гонки
+    // DOM/анимаций. Перезагружаемся один раз (не чаще раза в 15с, чтобы не зациклиться),
+    // и игрок не застревает на экране ошибки на каждой странице.
+    try {
+      const now = Date.now();
+      const last = parseInt(sessionStorage.getItem('uiCrashReloadAt') || '0', 10);
+      if (now - last > 15000) {
+        sessionStorage.setItem('uiCrashReloadAt', String(now));
+        window.location.reload();
+      }
+    } catch { /* ignore */ }
   }
 
   render() {
