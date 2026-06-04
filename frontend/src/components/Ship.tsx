@@ -3,8 +3,15 @@ import type { ShipKind, Orientation } from '../lib/game-types';
 /** Цвет корпуса по скину (косметика). classic = цвет темы. */
 const SKIN_HULL: Record<string, string> = {
   classic: 'var(--c-main)',
-  corsair: '#7c1f2b', // багровый корсар
-  steel: '#33536e',   // стальной флот
+  corsair: '#a52234', // ярко-багровый корсар
+  steel: '#6f8eaa',   // светлый стальной флот (хорошо читается на воде)
+};
+
+/** Акцент палубы/надстроек по скину — чтобы силуэт отличался не только цветом. */
+const SKIN_DECK: Record<string, string> = {
+  classic: 'rgba(255,255,255,0.10)',
+  corsair: 'rgba(255,206,112,0.30)', // золотая палуба у корсара
+  steel: 'rgba(255,255,255,0.26)',   // яркая стальная палуба
 };
 
 interface ShipProps {
@@ -147,8 +154,9 @@ export function Ship({ kind, size, orientation, sunk = false, skin = 'classic', 
     for (let a = from; a <= to; a += step) cir(a, 70, 2.4, 'rgba(0,0,0,0.35)');
   };
 
-  // Приподнятая палуба (светлая полоса по всей длине).
-  rer(8, L - 14, 28, 44, 'rgba(255,255,255,0.10)', 8);
+  // Приподнятая палуба (полоса по всей длине) — цвет зависит от скина.
+  const deckAccent = SKIN_DECK[skin] ?? SKIN_DECK.classic;
+  rer(8, L - 14, 28, 44, deckAccent, 8);
 
   if (kind === 'submarine') {
     // ПЛ: рубка + перископ + люки.
