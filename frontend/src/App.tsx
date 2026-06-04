@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { tgReady, waitForInitData, isTelegramWebView, getStartParam, setHapticsGate } from './lib/telegram';
+import { tgReady, waitForInitData, isTelegramWebView, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
@@ -418,9 +418,10 @@ export default function App() {
     // чтобы исключить навигацию по произвольным значениям.
     const isLobbyCode = (s: string) => /^[A-Z0-9]{4,12}$/.test(s);
     const isId = (s: string) => /^[A-Za-z0-9_-]{6,40}$/.test(s);
+    clearStartParam();
     if (sp.startsWith('lobby_')) {
       const code = sp.slice('lobby_'.length).toUpperCase();
-      if (isLobbyCode(code)) navigate(`/lobby/${code}`);
+      if (isLobbyCode(code)) navigate(`/lobby/${code}`, { replace: true });
     } else if (sp.startsWith('challenge_')) {
       const hostId = sp.slice('challenge_'.length);
       if (isId(hostId)) {
@@ -437,12 +438,12 @@ export default function App() {
   }, [ready, authenticated, navigate]);
 
   // Авто-возврат в активный бой после перезапуска мини-аппа.
-  // Идёт ход (IN_PROGRESS) — каждый пропущенный ход грозит AFK-поражением и
-  // потерей ставки, поэтому сразу возвращаем игрока в бой. Для PLACEMENT
-  // оставляем мягкую кнопку «Вернуться в бой» на главной (там штрафа нет).
+  // Не активируем, если пришли по deep-link в лобби — пусть лобби имеет приоритет.
   useEffect(() => {
     if (!ready || !authenticated || resumeHandled.current) return;
     resumeHandled.current = true;
+    // Если есть pending start_param (лобби-ссылка) — deep-link хэндлер разберётся сам.
+    if (getStartParam()) return;
     GameAPI.active()
       .then((m) => {
         if (!m?.matchId) return;

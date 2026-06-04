@@ -11,7 +11,9 @@ function storeInitData(raw: string | null | undefined): void {
   }
 }
 
-/** Сохранить initData из hash/query до того, как роутер изменит URL. */
+const TG_START_PARAM_KEY = 'tg_start_param';
+
+/** Сохранить initData и start_param из hash/query до того, как роутер изменит URL. */
 function captureInitDataFromUrl(): void {
   if (typeof window === 'undefined') return;
   try {
@@ -22,6 +24,11 @@ function captureInitDataFromUrl(): void {
     }
     const q = new URLSearchParams(window.location.search);
     storeInitData(q.get('tgWebAppData'));
+    // Захватываем startapp= до того, как React Router сотрёт query string.
+    const sp = q.get('startapp') ?? q.get('tgWebAppStartParam');
+    if (sp) {
+      try { sessionStorage.setItem(TG_START_PARAM_KEY, sp); } catch { /* ignore */ }
+    }
   } catch {
     /* ignore */
   }
@@ -153,16 +160,27 @@ export async function waitForInitData(maxMs = 10000): Promise<string> {
 
 /** start_param из Telegram (?startapp=...) — например `lobby_AB12CD`. */
 export function getStartParam(): string | undefined {
+  // 1. Telegram WebApp API (основной путь, когда открыто через t.me deep-link).
   const tg = getTelegramWebApp();
   const p = tg?.initDataUnsafe?.start_param;
   if (p) return p as string;
-  // Фолбэк для обычного браузера: ?startapp=... или ?tgWebAppStartParam=...
+  // 2. sessionStorage — захваченный captureInitDataFromUrl() до React Router.
+  try {
+    const stored = sessionStorage.getItem(TG_START_PARAM_KEY);
+    if (stored) return stored;
+  } catch { /* ignore */ }
+  // 3. Прямой URL-фолбэк (если URL ещё не изменён роутером).
   try {
     const q = new URLSearchParams(window.location.search);
     return q.get('startapp') ?? q.get('tgWebAppStartParam') ?? undefined;
   } catch {
     return undefined;
   }
+}
+
+/** Очистить захваченный start_param (вызывать после успешной обработки deep-link). */
+export function clearStartParam(): void {
+  try { sessionStorage.removeItem(TG_START_PARAM_KEY); } catch { /* ignore */ }
 }
 
 let hapticsAllowed = () => true;
