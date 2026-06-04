@@ -23,7 +23,7 @@ export interface CurrencyDef {
 
 export const CURRENCIES: Record<CurrencyCode, CurrencyDef> = {
   RUB: { code: 'RUB', name: 'Рубль', symbol: '₽', rubPerUnit: 1, decimals: 0, symbolAfter: true },
-  USDT: { code: 'USDT', name: 'USDT', symbol: '$', rubPerUnit: 95, decimals: 2, symbolAfter: false },
+  USDT: { code: 'USDT', name: 'USDT', symbol: '$', rubPerUnit: 95, decimals: 2, symbolAfter: true },
   STARS: { code: 'STARS', name: 'Stars', symbol: '⭐', rubPerUnit: 1.9, decimals: 0, symbolAfter: true },
 };
 
