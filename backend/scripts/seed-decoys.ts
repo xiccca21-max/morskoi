@@ -13,21 +13,21 @@ const avatar = (seed: string, style = 'bottts') =>
   `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
 
 const DECOYS = [
-  { username: 'CaliLinux',    firstName: 'CaliLinux',    avatar: avatar('CaliLinux',   'bottts'),        wins: 23, losses: 8,  totalWon: 18400 },
-  { username: 'Rocketeer',    firstName: 'Rocketeer',    avatar: avatar('Rocket',      'bottts-neutral'), wins: 20, losses: 11, totalWon: 15900 },
-  { username: 'SharkBite',    firstName: 'SharkBite',    avatar: avatar('Shark',       'lorelei'),        wins: 18, losses: 9,  totalWon: 14200 },
-  { username: 'DemonKing',    firstName: 'DemonKing',    avatar: avatar('Demon',       'adventurer'),     wins: 17, losses: 7,  totalWon: 13700 },
-  { username: 'NightOwl',     firstName: 'NightOwl',     avatar: avatar('Owl',         'bottts'),         wins: 16, losses: 10, totalWon: 12500 },
-  { username: 'IronWolf',     firstName: 'IronWolf',     avatar: avatar('Wolf',        'bottts-neutral'), wins: 14, losses: 6,  totalWon: 11200 },
-  { username: 'VoidWalker',   firstName: 'VoidWalker',   avatar: avatar('Void',        'adventurer'),     wins: 13, losses: 8,  totalWon: 10400 },
-  { username: 'ThunderBolt',  firstName: 'ThunderBolt',  avatar: avatar('Thunder',     'bottts'),         wins: 12, losses: 5,  totalWon:  9600 },
-  { username: 'CyberPunk',    firstName: 'CyberPunk',    avatar: avatar('Cyber',       'lorelei'),        wins: 11, losses: 7,  totalWon:  8800 },
-  { username: 'DeepSea',      firstName: 'DeepSea',      avatar: avatar('DeepSea',     'bottts-neutral'), wins: 10, losses: 4,  totalWon:  7900 },
-  { username: 'StormBreaker', firstName: 'StormBreaker', avatar: avatar('Storm',       'adventurer'),     wins:  9, losses: 6,  totalWon:  7100 },
-  { username: 'SilverFox',    firstName: 'SilverFox',    avatar: avatar('Fox',         'bottts'),         wins:  8, losses: 5,  totalWon:  6400 },
-  { username: 'NeonRider',    firstName: 'NeonRider',    avatar: avatar('Neon',        'lorelei'),        wins:  7, losses: 3,  totalWon:  5600 },
-  { username: 'DarkMatter',   firstName: 'DarkMatter',   avatar: avatar('Dark',        'adventurer'),     wins:  6, losses: 4,  totalWon:  4700 },
-  { username: 'SpeedRacer',   firstName: 'SpeedRacer',   avatar: avatar('Speed',       'bottts-neutral'), wins:  5, losses: 2,  totalWon:  3900 },
+  { username: 'CaliLinux',    firstName: 'CaliLinux',    avatar: avatar('CaliLinux',   'bottts'),         wins: 53, losses: 8,  totalWon: 42400 },
+  { username: 'Rocketeer',    firstName: 'Rocketeer',    avatar: avatar('Rocket',      'bottts-neutral'), wins: 50, losses: 11, totalWon: 39900 },
+  { username: 'SharkBite',    firstName: 'SharkBite',    avatar: avatar('Shark',       'lorelei'),        wins: 48, losses: 9,  totalWon: 38200 },
+  { username: 'DemonKing',    firstName: 'DemonKing',    avatar: avatar('Demon',       'adventurer'),     wins: 47, losses: 7,  totalWon: 37700 },
+  { username: 'NightOwl',     firstName: 'NightOwl',     avatar: avatar('Owl',         'bottts'),         wins: 46, losses: 10, totalWon: 36500 },
+  { username: 'IronWolf',     firstName: 'IronWolf',     avatar: avatar('Wolf',        'bottts-neutral'), wins: 44, losses: 6,  totalWon: 35200 },
+  { username: 'VoidWalker',   firstName: 'VoidWalker',   avatar: avatar('Void',        'adventurer'),     wins: 43, losses: 8,  totalWon: 34400 },
+  { username: 'ThunderBolt',  firstName: 'ThunderBolt',  avatar: avatar('Thunder',     'bottts'),         wins: 42, losses: 5,  totalWon: 33600 },
+  { username: 'CyberPunk',    firstName: 'CyberPunk',    avatar: avatar('Cyber',       'lorelei'),        wins: 41, losses: 7,  totalWon: 32800 },
+  { username: 'DeepSea',      firstName: 'DeepSea',      avatar: avatar('DeepSea',     'bottts-neutral'), wins: 40, losses: 4,  totalWon: 31900 },
+  { username: 'StormBreaker', firstName: 'StormBreaker', avatar: avatar('Storm',       'adventurer'),     wins: 39, losses: 6,  totalWon: 31100 },
+  { username: 'SilverFox',    firstName: 'SilverFox',    avatar: avatar('Fox',         'bottts'),         wins: 38, losses: 5,  totalWon: 30400 },
+  { username: 'NeonRider',    firstName: 'NeonRider',    avatar: avatar('Neon',        'lorelei'),        wins: 37, losses: 3,  totalWon: 29600 },
+  { username: 'DarkMatter',   firstName: 'DarkMatter',   avatar: avatar('Dark',        'adventurer'),     wins: 36, losses: 4,  totalWon: 28700 },
+  { username: 'SpeedRacer',   firstName: 'SpeedRacer',   avatar: avatar('Speed',       'bottts-neutral'), wins: 35, losses: 2,  totalWon: 27900 },
 ];
 
 async function main() {
