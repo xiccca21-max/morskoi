@@ -92,6 +92,7 @@ export const MatchmakingAPI = {
     return api.get<OpenMatch[]>(`/matchmaking/open${suffix}`).then(r => r.data);
   },
   cancelOpen: () => api.delete('/matchmaking/open').then(r => r.data),
+  sendInviteCard: (code: string) => api.post(`/matchmaking/lobby/${code}/invite-card`).then(r => r.data),
 };
 
 export interface CosmeticItem {

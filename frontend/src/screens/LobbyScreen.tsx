@@ -11,6 +11,7 @@ import { Avatar } from '../components/Avatar';
 import { ConfirmDialog } from '../components/Modal';
 import { formatMoney } from '../lib/format';
 import { mapApiError } from '../lib/api-errors';
+import { isTelegram } from '../lib/telegram';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -18,6 +19,7 @@ export default function LobbyScreen() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const [cardSending, setCardSending] = useState(false);
   const [lobby, setLobby] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
@@ -68,14 +70,36 @@ export default function LobbyScreen() {
 
   const inviteUrl = `https://t.me/${BOT}?startapp=lobby_${code}`;
 
-  const share = () => {
-    if (!lobby) return;
-    tgShare(
-      inviteUrl,
-      isTraining
-        ? `Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби`
-        : `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
-    );
+  const share = async () => {
+    if (!lobby || !code) return;
+    tgHaptic('light');
+
+    // В Telegram — отправляем карточку через бота (получатель увидит кнопку «⚔️ Принять бой»)
+    if (isTelegram()) {
+      setCardSending(true);
+      try {
+        await MatchmakingAPI.sendInviteCard(code.toUpperCase());
+        toast('Карточка отправлена в Telegram — перешлите её другу!', 'success', 'share');
+        tgHaptic('success');
+      } catch {
+        // Если не вышло — fallback на обычный шаринг
+        tgShare(
+          inviteUrl,
+          isTraining
+            ? `Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби`
+            : `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
+        );
+      } finally {
+        setCardSending(false);
+      }
+    } else {
+      tgShare(
+        inviteUrl,
+        isTraining
+          ? `Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби`
+          : `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
+      );
+    }
   };
 
   const copy = async () => {
@@ -204,10 +228,18 @@ export default function LobbyScreen() {
             <span className="relative w-6 h-6 shrink-0">
               <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-danger animate-spin" />
             </span>
-            <p className="text-main text-sm">Ждём друга. Отправьте ссылку — он сразу попадёт сюда.</p>
+            <p className="text-main text-sm">
+            {isTelegram()
+              ? 'Нажмите «Отправить» — бот пришлёт карточку с кнопкой «⚔️ Принять бой». Перешлите её другу!'
+              : 'Отправьте ссылку — друг сразу попадёт в лобби.'}
+          </p>
           </motion.div>
           <div className="grid grid-cols-2 gap-3">
-            <button className="btn-primary" onClick={share}><Icon name="share" size={16} /> Отправить</button>
+            <button className="btn-primary" onClick={share} disabled={cardSending}>
+              {cardSending
+                ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" /> Отправка…</>
+                : <><Icon name="share" size={16} /> Отправить</>}
+            </button>
             <button className="btn-secondary" onClick={copy}>
               <Icon name={copied ? 'check' : 'scroll'} size={16} /> {copied ? 'Скопировано' : 'Копировать'}
             </button>

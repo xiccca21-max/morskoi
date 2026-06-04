@@ -1129,4 +1129,37 @@ export class TelegramBotService implements OnModuleInit {
       this.logger.warn(`notifyLobbyJoined tgId=${user.telegramId} failed: ${e?.message}`);
     }
   }
+
+  /**
+   * Отправляет хосту лобби красивую карточку-приглашение с кнопкой «⚔️ Принять бой».
+   * Хост пересылает её другу — тот нажимает кнопку и попадает прямо в лобби.
+   */
+  async sendLobbyCard(userId: string, code: string, isTraining: boolean, wager: number): Promise<void> {
+    if (!this.bot) return;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || (typeof user.telegramId === 'string' && user.telegramId.startsWith('bot:'))) return;
+
+    const link = `https://t.me/${this.botUsername}?startapp=lobby_${code}`;
+    const hostName = this.escapeHtml(user.username ?? user.firstName ?? 'Капитан');
+
+    const text = isTraining
+      ? `⚓ <b>${hostName}</b> приглашает на тренировочный морской бой!\n\n` +
+        `Нажми кнопку ниже — и ты сразу окажешься в лобби.`
+      : `⚔️ <b>${hostName}</b> вызывает тебя на дуэль в морской бой!\n\n` +
+        `🎯 Ставка: <b>${wager} ₽</b>\n` +
+        `🏆 Победителю: <b>${(wager * 2 * 0.95).toFixed(0)} ₽</b>\n\n` +
+        `Нажми кнопку ниже, чтобы принять вызов и войти в лобби.`;
+
+    try {
+      await this.bot.sendMessage(Number(user.telegramId), text, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [[{ text: '⚔️ Принять бой', url: link }]],
+        },
+      });
+      this.logger.log(`sendLobbyCard sent to userId=${userId} code=${code}`);
+    } catch (e: any) {
+      this.logger.warn(`sendLobbyCard userId=${userId} failed: ${e?.message}`);
+    }
+  }
 }

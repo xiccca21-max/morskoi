@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length, Max } from 'class-validator';
 import { MatchmakingService } from './matchmaking.service';
 import { LobbyService } from './lobby.service';
 import { MatchEventsService } from '../common/match-events.service';
 import { BotsService } from '../bots/bots.service';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/auth.service';
@@ -51,6 +52,7 @@ export class MatchmakingController {
     private readonly lobbies: LobbyService,
     private readonly matchEvents: MatchEventsService,
     private readonly bots: BotsService,
+    private readonly tg: TelegramBotService,
   ) {}
 
   @Post('queue')
@@ -127,5 +129,20 @@ export class MatchmakingController {
   @Get('lobby/:code')
   getLobby(@Param('code') code: string) {
     return this.lobbies.get(code.toUpperCase());
+  }
+
+  /**
+   * Отправляет хосту лобби карточку-приглашение через бота с кнопкой «⚔️ Принять бой».
+   * Хост пересылает её другу — тот нажимает кнопку и попадает прямо в лобби.
+   */
+  @Post('lobby/:code/invite-card')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async sendInviteCard(@CurrentUser() u: JwtPayload, @Param('code') code: string) {
+    const lobby = await this.lobbies.get(code.toUpperCase());
+    if (!lobby || lobby.host?.id !== u.sub) {
+      throw new ForbiddenException('Только хост лобби может отправить карточку');
+    }
+    await this.tg.sendLobbyCard(u.sub, code.toUpperCase(), lobby.isTraining ?? false, lobby.wagerAmount);
+    return { ok: true };
   }
 }
