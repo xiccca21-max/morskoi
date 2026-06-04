@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Icon, IconName } from './Icon';
 
 interface ModalProps {
@@ -13,38 +13,36 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, icon, children, dismissable = true }: ModalProps) {
+  // Без AnimatePresence/exit: при подтверждении мы закрываем модалку и тут же
+  // переходим на /placement — exit-анимация на размонтируемом дереве роняла
+  // "Failed to execute 'removeChild'" → экран боя падал с error boundary.
+  if (!open) return null;
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-        >
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-            onClick={() => dismissable && onClose?.()}
-          />
-          <motion.div
-            className="relative w-full max-w-sm card p-5 z-10 max-h-[85vh] overflow-y-auto"
-            initial={{ y: 30, scale: 0.96, opacity: 0 }}
-            animate={{ y: 0, scale: 1, opacity: 1 }}
-            exit={{ y: 20, scale: 0.97, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-          >
-            {(title || icon) && (
-              <div className="flex items-center gap-2 mb-3">
-                {icon && <Icon name={icon} size={20} className="text-danger" />}
-                {title && <h3 className="title text-main text-base leading-none">{title}</h3>}
-              </div>
-            )}
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <motion.div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
+    >
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+        onClick={() => dismissable && onClose?.()}
+      />
+      <motion.div
+        className="relative w-full max-w-sm card p-5 z-10 max-h-[85vh] overflow-y-auto"
+        initial={{ y: 30, scale: 0.96, opacity: 0 }}
+        animate={{ y: 0, scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+      >
+        {(title || icon) && (
+          <div className="flex items-center gap-2 mb-3">
+            {icon && <Icon name={icon} size={20} className="text-danger" />}
+            {title && <h3 className="title text-main text-base leading-none">{title}</h3>}
+          </div>
+        )}
+        {children}
+      </motion.div>
+    </motion.div>
   );
 }
 
