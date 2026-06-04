@@ -97,7 +97,7 @@ export function Layout() {
         }}
       >
         <NavLink to="/home" className="flex items-center text-main" aria-label="На палубу">
-          <span className="font-display text-[18px] font-bold uppercase tracking-[0.2em] text-main">Морской&nbsp;Бой</span>
+          <span className="logo-pulse font-display text-[18px] font-bold uppercase tracking-[0.2em] text-main">Морской&nbsp;Бой</span>
         </NavLink>
 
         <div className="flex items-center gap-2">
