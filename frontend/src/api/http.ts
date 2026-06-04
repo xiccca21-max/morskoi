@@ -51,9 +51,33 @@ export function setAuthToken(token: string | null) {
   }
 }
 
+/** Истёк ли JWT по полю exp (без доверия к payload — только парсинг времени). */
+function isJwtExpired(token: string): boolean {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return false;
+    const json = JSON.parse(
+      decodeURIComponent(
+        atob(part.replace(/-/g, '+').replace(/_/g, '/'))
+          .split('')
+          .map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+          .join(''),
+      ),
+    );
+    if (typeof json.exp !== 'number') return false;
+    return Date.now() >= json.exp * 1000;
+  } catch {
+    return false; // не смогли распарсить — пусть сервер решает (401)
+  }
+}
+
 export function loadToken(): string | null {
   try {
     const t = sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
+    if (t && isJwtExpired(t)) {
+      setAuthToken(null);
+      return null;
+    }
     if (t) {
       _token = t;
       api.defaults.headers.common.Authorization = `Bearer ${t}`;
@@ -74,6 +98,9 @@ export function getToken() {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
+    // Только 401 (невалидный/просроченный токен) сбрасывает сессию.
+    // 403 — это «аутентифицирован, но запрещено» (бан/самоисключение):
+    // сброс здесь привёл бы к циклу логаута, поэтому не трогаем токен.
     if (err?.response?.status === 401) {
       setAuthToken(null);
     }

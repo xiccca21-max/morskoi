@@ -323,7 +323,7 @@ export class WalletService {
           where: { id, status: 'PENDING' },
           data:
             status === 'PAID'
-              ? { status: 'PAID', processedAt: new Date() }
+              ? { status: 'PAID', processedAt: new Date(), note: note ?? null }
               : { status: 'REJECTED', note: note ?? null, processedAt: new Date() },
         });
         if (updated.count !== 1) {

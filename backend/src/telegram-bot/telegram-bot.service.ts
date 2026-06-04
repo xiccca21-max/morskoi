@@ -22,9 +22,28 @@ export class TelegramBotService implements OnModuleInit {
   // Базовый адрес Bot API. По умолчанию api.telegram.org, но если провайдер
   // его блокирует (частый случай в РФ) — задайте TELEGRAM_API_ROOT с адресом
   // прокси-релея (например, Cloudflare Worker), который форвардит на Telegram.
-  private readonly apiRoot = (
-    process.env.TELEGRAM_API_ROOT || 'https://api.telegram.org'
-  ).replace(/\/+$/, '');
+  // Токен бота уходит в path запроса, поэтому apiRoot должен быть доверенным
+  // https-хостом: при некорректном/небезопасном значении откатываемся на дефолт.
+  private readonly apiRoot = TelegramBotService.sanitizeApiRoot(process.env.TELEGRAM_API_ROOT);
+
+  private static sanitizeApiRoot(raw?: string): string {
+    const fallback = 'https://api.telegram.org';
+    if (!raw) return fallback;
+    try {
+      const u = new URL(raw);
+      // Только https (токен в URL) и без credentials в самом URL.
+      if (u.protocol !== 'https:' || u.username || u.password) {
+        // eslint-disable-next-line no-console
+        console.warn('[TelegramBot] TELEGRAM_API_ROOT небезопасен — используется api.telegram.org');
+        return fallback;
+      }
+      return `${u.origin}${u.pathname}`.replace(/\/+$/, '');
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn('[TelegramBot] TELEGRAM_API_ROOT некорректен — используется api.telegram.org');
+      return fallback;
+    }
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -556,7 +575,7 @@ export class TelegramBotService implements OnModuleInit {
         msg.chat.id,
         `🛡 <b>Админ-мониторинг</b>\n\n` +
           `🔔 Уведомления: <b>${st.enabled ? 'включены' : 'выключены'}</b>\n` +
-          `📱 ID админа: <code>${st.adminIds.join(', ') || 'не задан'}</code>\n` +
+          `📱 Админов настроено: <b>${st.adminIds.length || 'не задан'}</b>\n` +
           `🤖 Бот: <b>@${botName}</b>\n` +
           `👥 Онлайн: <b>${onlineHumans}</b>\n\n` +
           `Уведомления приходят в личку <b>игрового бота</b>, не в @Naval_pay_manager.\n\n` +

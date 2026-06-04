@@ -34,6 +34,7 @@ class ProcessDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   note?: string;
 }
 
@@ -96,7 +97,9 @@ export class AdminController {
 
   @Get('withdrawals')
   withdrawals(@Query('status') status?: string) {
-    return this.admin.listWithdrawals(status);
+    const allowed = ['PENDING', 'PAID', 'REJECTED'];
+    const s = status && allowed.includes(status) ? status : undefined;
+    return this.admin.listWithdrawals(s);
   }
 
   @Post('withdrawals/:id/process')

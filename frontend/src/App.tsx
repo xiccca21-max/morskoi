@@ -269,7 +269,9 @@ export default function App() {
       toastTimer = setTimeout(() => { toastTimer = null; }, 2700);
     };
 
-    const onConnectError = (e: Error) => console.warn('socket connect_error', e.message);
+    const onConnectError = (e: Error) => {
+      if (import.meta.env.DEV) console.warn('socket connect_error', e.message);
+    };
     const onConnect = () => {
       if (wasConnected) showOnce('Соединение восстановлено', 'success', 'wave', 'connected');
       wasConnected = true;
@@ -411,12 +413,16 @@ export default function App() {
     deepLinkHandled.current = true;
     const sp = getStartParam();
     if (!sp) return;
+    // start_param из initDataUnsafe не подписан на клиенте — строго валидируем формат,
+    // чтобы исключить навигацию по произвольным значениям.
+    const isLobbyCode = (s: string) => /^[A-Z0-9]{4,12}$/.test(s);
+    const isId = (s: string) => /^[A-Za-z0-9_-]{6,40}$/.test(s);
     if (sp.startsWith('lobby_')) {
       const code = sp.slice('lobby_'.length).toUpperCase();
-      if (code) navigate(`/lobby/${code}`);
+      if (isLobbyCode(code)) navigate(`/lobby/${code}`);
     } else if (sp.startsWith('challenge_')) {
       const hostId = sp.slice('challenge_'.length);
-      if (hostId) {
+      if (isId(hostId)) {
         MatchmakingAPI.lobbyByHost(hostId)
           .then((l) => navigate(`/lobby/${l.code}`, { replace: true }))
           .catch(() => toast('Приглашение устарело. Попроси друга отправить новую ссылку.', 'error'));
@@ -425,7 +431,7 @@ export default function App() {
       navigate('/wallet');
     } else if (sp.startsWith('profile_')) {
       const id = sp.slice('profile_'.length);
-      if (id) navigate(`/player/${id}`);
+      if (isId(id)) navigate(`/player/${id}`);
     }
   }, [ready, authenticated, navigate]);
 

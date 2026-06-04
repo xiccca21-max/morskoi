@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('UI crash:', error, info);
+    if (import.meta.env.DEV) console.error('UI crash:', error, info);
     if (sentryEnabled) {
       Sentry.withScope((scope) => {
         scope.setExtra('componentStack', info.componentStack);

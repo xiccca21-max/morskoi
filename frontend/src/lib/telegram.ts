@@ -319,6 +319,16 @@ export function isTelegramInvoiceUrl(url: string): boolean {
 
 /** Открыть счёт Crypto Pay: openInvoice только для mini-app URL, иначе — ссылка в @CryptoBot. */
 export function tgOpenPayment(url: string, onDone?: (status: string) => void) {
+  // Платёжная ссылка приходит с сервера — открываем только доверенные форматы:
+  // mini-app invoice (t.me) через openInvoice, иначе только https через tgOpenLink.
+  let isHttps = false;
+  try {
+    isHttps = new URL(url).protocol === 'https:';
+  } catch {
+    isHttps = false;
+  }
+  if (!isHttps && !isTelegramInvoiceUrl(url)) return;
+
   const tg = getTelegramWebApp();
   if (tg?.openInvoice && isTelegramInvoiceUrl(url)) {
     try {

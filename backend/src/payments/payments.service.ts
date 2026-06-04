@@ -108,11 +108,25 @@ export class PaymentsService {
 
     // USDT на внешний кошелёк — выплата вручную админом на wr.destination (не через Telegram transfer).
     if (String(wr.method).startsWith('USDT_')) {
+      // Обязательный tx hash в note: без on-chain пруфа нельзя помечать PAID
+      // (защита от ошибочной/инсайдерской отметки выплаты без реального перевода).
+      const txHash = (note ?? '').trim();
+      if (txHash.length < 10) {
+        throw new BadRequestException(
+          'Для ручной USDT-выплаты укажите хеш транзакции (tx hash) в примечании',
+        );
+      }
       this.logger.warn(
-        `Manual USDT payout required: ${wr.net} ₽ → ${wr.destination} (${wr.method}) id=${id}`,
+        `Manual USDT payout: ${wr.net} ₽ → ${wr.destination} (${wr.method}) id=${id} tx=${txHash}`,
       );
-      const res = await this.wallet.resolveWithdrawal(id, 'PAID');
-      this.audit.log(wr.userId, 'WITHDRAW_PAID', { id, net: wr.net, method: wr.method, manual: true });
+      const res = await this.wallet.resolveWithdrawal(id, 'PAID', txHash);
+      this.audit.log(wr.userId, 'WITHDRAW_PAID', {
+        id,
+        net: wr.net,
+        method: wr.method,
+        manual: true,
+        txHash,
+      });
       this.bot.notifyWithdrawal?.(wr.userId, wr.net, 'paid').catch(() => {});
       return res;
     }

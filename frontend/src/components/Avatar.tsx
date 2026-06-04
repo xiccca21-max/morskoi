@@ -52,6 +52,9 @@ export function Avatar({ name, src, size = 40, rounded = 'full', className = '' 
           alt=""
           className="w-full h-full object-cover"
           style={{ borderRadius: radius }}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
         />
       ) : (

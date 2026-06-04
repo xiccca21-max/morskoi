@@ -514,18 +514,23 @@
             const actions = div.querySelector('.row');
             const pay = document.createElement('button'); pay.className = 'green'; pay.textContent = 'Выплатить';
             const rej = document.createElement('button'); rej.className = 'red'; rej.textContent = 'Отклонить';
-            pay.onclick = () => processW(w.id, 'pay');
-            rej.onclick = () => processW(w.id, 'reject');
+            pay.onclick = () => processW(w.id, 'pay', w.method);
+            rej.onclick = () => processW(w.id, 'reject', w.method);
             actions.appendChild(pay); actions.appendChild(rej);
           }
           list.appendChild(div);
         });
       } catch (e) { errEl.textContent = e.message; list.innerHTML = ''; }
     }
-    async function processW(id, action) {
+    async function processW(id, action, method) {
       if (!confirm(action === 'pay' ? 'Подтвердить выплату?' : 'Отклонить заявку (средства вернутся игроку)?')) return;
       let note = '';
-      if (action === 'reject') note = prompt('Причина отклонения (необязательно):') || '';
+      if (action === 'reject') {
+        note = prompt('Причина отклонения (необязательно):') || '';
+      } else if (action === 'pay' && String(method || '').startsWith('USDT_')) {
+        note = prompt('Хеш транзакции (tx hash) — обязателен для USDT-выплаты:') || '';
+        if (note.trim().length < 10) { flash('Нужен корректный tx hash'); return; }
+      }
       try { await api('/withdrawals/' + encodeURIComponent(id) + '/process', { method: 'POST', body: JSON.stringify({ action, note }) }); flash('Готово'); loadWithdrawals(); }
       catch (e) { flash(e.message); }
     }
