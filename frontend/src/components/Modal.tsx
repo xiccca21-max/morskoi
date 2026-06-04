@@ -10,16 +10,18 @@ interface ModalProps {
   children: ReactNode;
   /** Закрывать по клику на фон. По умолчанию да. */
   dismissable?: boolean;
+  /** Доп. отступ снизу на мобильных — приподнимает модалку над краем экрана. */
+  raised?: boolean;
 }
 
-export function Modal({ open, onClose, title, icon, children, dismissable = true }: ModalProps) {
+export function Modal({ open, onClose, title, icon, children, dismissable = true, raised = false }: ModalProps) {
   // Без AnimatePresence/exit: при подтверждении мы закрываем модалку и тут же
   // переходим на /placement — exit-анимация на размонтируемом дереве роняла
   // "Failed to execute 'removeChild'" → экран боя падал с error boundary.
   if (!open) return null;
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
+      className={`fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 ${raised ? 'pb-24 sm:pb-4' : ''}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.18 }}

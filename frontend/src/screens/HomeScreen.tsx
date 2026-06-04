@@ -246,6 +246,7 @@ export default function HomeScreen() {
         onClose={() => !trainingBusy && setShowTrainingChoice(false)}
         title="Тренировка"
         icon="target"
+        raised
       >
         <p className="text-muted text-sm mb-4">Без ставки и без влияния на статистику. Выбери соперника:</p>
         <div className="space-y-3">
