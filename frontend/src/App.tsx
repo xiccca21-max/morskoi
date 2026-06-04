@@ -40,6 +40,7 @@ const HowItWorksScreen = lazy(() => import('./screens/HowItWorksScreen'));
 const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
 const RulesScreen = lazy(() => import('./screens/RulesScreen'));
 const ChallengeScreen = lazy(() => import('./screens/ChallengeScreen'));
+const TrainingScreen = lazy(() => import('./screens/TrainingScreen'));
 
 // Lazy-обёртка без fallback-спиннера: фон страницы виден сразу,
 // содержимое появляется с анимацией page-enter когда чанк загрузился.
@@ -506,6 +507,7 @@ export default function App() {
         <Route path="/settings" element={<LazyScreen><SettingsScreen /></LazyScreen>} />
         <Route path="/how-it-works" element={<LazyScreen><HowItWorksScreen /></LazyScreen>} />
         <Route path="/rules" element={<LazyScreen><RulesScreen /></LazyScreen>} />
+        <Route path="/training" element={<LazyScreen><TrainingScreen /></LazyScreen>} />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
