@@ -67,6 +67,18 @@ async function bootstrap() {
     }),
   );
 
+  // Ответы API не должны кэшироваться: Telegram WebView/браузер кэшируют GET
+  // (список боёв, баланс) и показывают «протухшие» лобби — join падает с
+  // «бой уже принят или закрыт». Жёстко запрещаем кэш для всех /api.
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.path === '/api' || req.path.startsWith('/api/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+
   app.useGlobalFilters(new AllExceptionsFilter());
 
   const isDev = process.env.NODE_ENV !== 'production';

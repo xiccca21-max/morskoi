@@ -10,6 +10,18 @@ export const api = axios.create({
   timeout: 15000,
 });
 
+// Telegram WebView агрессивно кэширует GET — список боёв «протухает» и join падает.
+// Заставляем ревалидировать каждый GET (backend отдаёт no-store).
+api.interceptors.request.use((config) => {
+  if ((config.method ?? 'get').toLowerCase() === 'get') {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>)['Cache-Control'] = 'no-cache';
+    (config.headers as Record<string, string>)['Pragma'] = 'no-cache';
+    config.params = { ...(config.params ?? {}), _t: Date.now() };
+  }
+  return config;
+});
+
 const TOKEN_KEY = 'naval_token';
 let _token: string | null = null;
 
