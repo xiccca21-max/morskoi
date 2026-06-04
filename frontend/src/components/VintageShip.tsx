@@ -6,11 +6,27 @@ interface VintageShipProps {
   orientation: Orientation;
   sunk?: boolean;
   icon?: boolean;
+  /** Скин корпуса (косметика): classic | corsair | steel. */
+  skin?: string;
   className?: string;
 }
 
+// Металлический градиент корпуса по скину (4 стопа: блик → корпус → тень → дно).
+const SKIN_METAL: Record<string, [string, string, string, string]> = {
+  classic: ['#9aa3ac', '#6d7780', '#4a535b', '#353c42'],
+  steel: ['#b6c7d8', '#82a0bd', '#4f7194', '#33506e'],
+  corsair: ['#caa0a4', '#a84a52', '#7c2730', '#511a20'],
+};
+// Градиент палубы по скину (верх → низ).
+const SKIN_DECK: Record<string, [string, string]> = {
+  classic: ['#7a848d', '#525a62'],
+  steel: ['#8aa0b8', '#516d8c'],
+  corsair: ['#a55d63', '#6e2730'],
+};
+
 /**
- * Винтажный вид сверху: серый металлический корпус, башни, надстройка — как на тактической карте.
+ * Винтажный вид сверху: металлический корпус, башни, надстройка — как на тактической карте.
+ * Цвет корпуса/палубы зависит от выбранного скина.
  */
 export function VintageShip({
   kind,
@@ -18,8 +34,11 @@ export function VintageShip({
   orientation,
   sunk = false,
   icon = false,
+  skin = 'classic',
   className = '',
 }: VintageShipProps) {
+  const metal = SKIN_METAL[skin] ?? SKIN_METAL.classic;
+  const deckGrad = SKIN_DECK[skin] ?? SKIN_DECK.classic;
   const L = size * 100;
   const horizontal = icon ? true : orientation === 'H';
   const viewBox = horizontal ? `0 0 ${L} 100` : `0 0 100 ${L}`;
@@ -74,14 +93,14 @@ export function VintageShip({
     >
       <defs>
         <linearGradient id={`metal-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#9aa3ac" />
-          <stop offset="35%" stopColor="#6d7780" />
-          <stop offset="70%" stopColor="#4a535b" />
-          <stop offset="100%" stopColor="#353c42" />
+          <stop offset="0%" stopColor={metal[0]} />
+          <stop offset="35%" stopColor={metal[1]} />
+          <stop offset="70%" stopColor={metal[2]} />
+          <stop offset="100%" stopColor={metal[3]} />
         </linearGradient>
         <linearGradient id={`deck-${uid}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#7a848d" />
-          <stop offset="100%" stopColor="#525a62" />
+          <stop offset="0%" stopColor={deckGrad[0]} />
+          <stop offset="100%" stopColor={deckGrad[1]} />
         </linearGradient>
         <clipPath id={`clip-${uid}`}>
           <path d={hullPath} />

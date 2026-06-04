@@ -182,7 +182,7 @@ export function Board({
                     }}
                   >
                     {realisticShips ? (
-                      <VintageShip kind={s.kind} size={s.size} orientation={s.orientation} />
+                      <VintageShip kind={s.kind} size={s.size} orientation={s.orientation} skin={skin} />
                     ) : (
                       <Ship kind={s.kind} size={s.size} orientation={s.orientation} hits={s.hits} skin={skin} />
                     )}
@@ -206,7 +206,7 @@ export function Board({
                 }}
               >
                 {realisticShips ? (
-                  <VintageShip kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} />
+                  <VintageShip kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} skin={skin} />
                 ) : (
                   <Ship kind={ghostShip.kind} size={ghostShip.size} orientation={ghostShip.orientation} skin={skin} />
                 )}

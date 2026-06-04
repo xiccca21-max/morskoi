@@ -384,7 +384,7 @@ export default function PlacementScreen() {
                   className="placement-dock-ship"
                   style={{ width: `${s.size * 11 + 6}px` }}
                 >
-                  <VintageShip kind={s.kind} size={s.size} orientation="H" icon />
+                  <VintageShip kind={s.kind} size={s.size} orientation="H" icon skin={skin} />
                 </div>
                 <span className="placement-dock-name">{KIND_LABEL[s.kind]}</span>
                 <span className="placement-dock-meta">{s.placed ? '✓' : `${s.size}×1`}</span>
