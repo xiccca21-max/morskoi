@@ -117,8 +117,9 @@ export function Layout() {
           </button>
           <NavLink
             to="/wallet"
-            aria-label="Кошелёк"
-            className="flex items-center px-3 py-1.5 rounded-xl text-main transition"
+            aria-label="Пополнить баланс"
+            onClick={() => tgHaptic('light')}
+            className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl text-main transition"
             style={{
               background: 'rgba(var(--c-panel-rgb) / 0.8)',
               border: '1px solid rgba(var(--c-line-rgb) / 0.6)',
@@ -127,6 +128,12 @@ export function Layout() {
           >
             <span className="font-display text-sm tabular-nums">
               <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
+            </span>
+            <span
+              className="flex items-center justify-center w-5 h-5 rounded-full text-white shrink-0"
+              style={{ background: 'var(--c-danger)' }}
+            >
+              <Icon name="plus" size={13} />
             </span>
           </NavLink>
         </div>
