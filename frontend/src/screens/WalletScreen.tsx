@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
@@ -200,16 +201,57 @@ export default function WalletScreen() {
           <span className="text-main text-sm">Вернуться к приглашению на бой</span>
         </button>
       )}
-      <section className="card p-6 relative overflow-hidden">
+      <section
+        className="relative overflow-hidden"
+        style={{
+          borderRadius: 'var(--radius-card)',
+          border: 'var(--border-w) solid var(--c-line)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
         {celebrate && <VictoryBurst />}
-        <div className="flex items-start justify-between">
+        {/* Красный градиент */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(145deg, #e83228 0%, #ff5548 50%, #c42820 100%)' }}
+        />
+        {/* Диагональная штриховка (текстура) */}
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',
+            backgroundSize: '10px 10px',
+          }}
+        />
+        {/* Белая линия сверху */}
+        <div
+          className="absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%)' }}
+        />
+        {/* Мерцающий блик */}
+        <motion.div
+          className="absolute inset-y-0 w-2/5 pointer-events-none"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }}
+          animate={{ x: ['-120%', '320%'] }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: 'linear', repeatDelay: 2.2 }}
+        />
+        {/* Содержимое */}
+        <div className="relative p-6 flex items-start justify-between">
           <div>
-            <p className="eyebrow">Баланс</p>
-            <p className="font-display text-4xl text-main mt-1 tabular-nums">
+            <p className="text-[11px] font-display uppercase tracking-[0.18em] text-white/70">Баланс</p>
+            <p
+              className="font-display text-4xl text-white mt-1 tabular-nums"
+              style={{ textShadow: '0 2px 12px rgba(0,0,0,0.25)' }}
+            >
               <AnimatedNumber value={balance} formatter={formatMoney} />
             </p>
           </div>
-          <Icon name="coins" size={32} className="text-muted" />
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center border border-white/25 shrink-0"
+            style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+          >
+            <Icon name="chest" size={24} className="text-white" />
+          </div>
         </div>
       </section>
 

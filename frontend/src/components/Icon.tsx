@@ -6,7 +6,7 @@ export type IconName =
   | 'skull' | 'gear' | 'plus' | 'minus' | 'arrow-right' | 'check'
   | 'lock' | 'bolt' | 'wheel' | 'crown' | 'ship' | 'user' | 'grid'
   | 'medal' | 'handshake' | 'crosshair' | 'wave' | 'logout'
-  | 'clock' | 'info' | 'pencil' | 'copy' | 'headset';
+  | 'clock' | 'info' | 'pencil' | 'copy' | 'headset' | 'chest';
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -95,6 +95,8 @@ function paths(name: IconName) {
       return <g {...P}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></g>;
     case 'headset':
       return <g {...P}><path d="M4.4 12.5V11a7.6 7.6 0 0 1 15.2 0v1.5" /><rect x="3" y="12" width="2.9" height="5.2" rx="1.45" /><rect x="18.1" y="12" width="2.9" height="5.2" rx="1.45" /><path d="M4.45 17.2v1.6a3.2 3.2 0 0 0 3.2 3.2H10" /></g>;
+    case 'chest':
+      return <g {...P}><path d="M4 20V10a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" /><path d="M4 13h16" /><rect x="10.4" y="11" width="3.2" height="4" rx="0.8" /><path d="M12 14v1" /></g>;
     default:
       return null;
   }
