@@ -199,10 +199,11 @@ export class TelegramBotService implements OnModuleInit {
       const param = (match?.[1] ?? '').trim();
       const launchUrl = param ? `${url}?startapp=${encodeURIComponent(param)}` : url;
       const photoUrl = `${url}/bot-welcome.png`;
+      const minWager = Number(process.env.MIN_WAGER ?? 100);
       const caption =
         '⚓ <b>Naval Clash — морской бой с реальными ставками</b>\n\n' +
         '🚢 Расставь флот, вызови соперника и потопи его корабли\n' +
-        '💰 Делай ставки от 100 ₽ и забирай выигрыш\n' +
+        `💰 Делай ставки от ${minWager} ₽ и забирай выигрыш\n` +
         '👥 С другом — тренировка или дуэль: кнопка «Игра с другом»\n' +
         '🏆 Расти в звании: от Юнги до Адмирала\n\n' +
         'Выбирай действие кнопками ниже 👇';
@@ -446,10 +447,12 @@ export class TelegramBotService implements OnModuleInit {
     const sendInfo = async (chatId: number) => {
       const minWager = Number(process.env.MIN_WAGER ?? 100);
       const minWithdraw = Number(process.env.MIN_WITHDRAW ?? 1000);
+      const rake = Number(process.env.PLATFORM_RAKE_PERCENT ?? 5);
+      const winPct = 100 - rake;
       const text =
         'ℹ️ <b>Информация</b>\n\n' +
         `⚓ PvP «Морской Бой» на ставки от <b>${minWager} ₽</b>\n` +
-        '• Победитель забирает 95% банка\n' +
+        `• Победитель забирает ${winPct}% банка\n` +
         `• Вывод USDT — от ${minWithdraw} ₽, до 24 ч\n` +
         '• С другом: тренировка бесплатно или дуэль — /friends\n\n' +
         '📜 <b>Правила:</b>\n' +
@@ -1149,7 +1152,7 @@ export class TelegramBotService implements OnModuleInit {
         `Нажми кнопку ниже — и ты сразу окажешься в лобби.`
       : `⚔️ <b>${hostName}</b> вызывает тебя на дуэль в морской бой!\n\n` +
         `🎯 Ставка: <b>${wager} ₽</b>\n` +
-        `🏆 Победителю: <b>${(wager * 2 * 0.95).toFixed(0)} ₽</b>\n\n` +
+        `🏆 Победителю: <b>${(wager * 2 * (1 - Number(process.env.PLATFORM_RAKE_PERCENT ?? 5) / 100)).toFixed(0)} ₽</b>\n\n` +
         `Нажми кнопку ниже, чтобы принять вызов и войти в лобби.`;
 
     try {

@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSettingsStore } from '../stores/settings-store';
+import { useGameConfigStore } from '../stores/game-config-store';
 import { Modal } from './Modal';
 import { Icon, IconName } from './Icon';
 import { tgHaptic } from '../lib/telegram';
 
-const STEPS: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'swords', title: 'Дуэль на ставку', text: 'Найдите соперника, поставьте равную сумму — победитель забирает банк.' },
-  { icon: 'grid', title: 'Расставьте флот', text: 'Разместите корабли вручную или авто-расстановкой, затем топите врага по очереди.' },
-  { icon: 'trophy', title: 'Забирайте выигрыш', text: 'Победителю — 95% банка. Комиссия платформы всего 5%, вывод — на ваш крипто кошелек.' },
-];
-
 export function Onboarding() {
   const done = useSettingsStore((s) => s.onboardingDone);
   const setDone = useSettingsStore((s) => s.setOnboardingDone);
+  const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
+  const winPct = 100 - platformRakePercent;
+
+  const STEPS: { icon: IconName; title: string; text: string }[] = [
+    { icon: 'swords', title: 'Дуэль на ставку', text: 'Найдите соперника, поставьте равную сумму — победитель забирает банк.' },
+    { icon: 'grid', title: 'Расставьте флот', text: 'Разместите корабли вручную или авто-расстановкой, затем топите врага по очереди.' },
+    { icon: 'trophy', title: 'Забирайте выигрыш', text: `Победителю — ${winPct}% банка. Комиссия платформы всего ${platformRakePercent}%, вывод — на ваш крипто кошелек.` },
+  ];
   const [step, setStep] = useState(0);
 
   const last = step === STEPS.length - 1;

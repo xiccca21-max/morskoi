@@ -4,6 +4,9 @@ export interface GameConfig {
   minWager: number;
   maxWager: number;
   minWithdraw: number;
+  minDeposit: number;
+  platformRakePercent: number;
+  afkForfeitTimeouts: number;
   placementTimeoutSec: number;
   turnTimeoutSec: number;
   mmFlexWaitSec: number;
@@ -14,6 +17,9 @@ const DEFAULTS: GameConfig = {
   minWager: 100,
   maxWager: 10_000,
   minWithdraw: 1000,
+  minDeposit: 0,
+  platformRakePercent: 5,
+  afkForfeitTimeouts: 2,
   placementTimeoutSec: 60,
   turnTimeoutSec: 20,
   mmFlexWaitSec: 30,
@@ -37,6 +43,9 @@ export function getGameConfig(): GameConfig {
     minWager: s.minWager,
     maxWager: s.maxWager,
     minWithdraw: s.minWithdraw,
+    minDeposit: s.minDeposit,
+    platformRakePercent: s.platformRakePercent,
+    afkForfeitTimeouts: s.afkForfeitTimeouts,
     placementTimeoutSec: s.placementTimeoutSec,
     turnTimeoutSec: s.turnTimeoutSec,
     mmFlexWaitSec: s.mmFlexWaitSec,

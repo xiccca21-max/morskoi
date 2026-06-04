@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../components/Modal';
 import { formatMoney } from '../lib/format';
 import { mapApiError } from '../lib/api-errors';
 import { isTelegram } from '../lib/telegram';
+import { useGameConfigStore } from '../stores/game-config-store';
 
 const BOT = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -19,6 +20,7 @@ export default function LobbyScreen() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const rakePct = useGameConfigStore((s) => s.platformRakePercent);
   const [cardSending, setCardSending] = useState(false);
   const [lobby, setLobby] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +150,7 @@ export default function LobbyScreen() {
 
   const hostName = lobby.host?.firstName || lobby.host?.username || 'Капитан';
   const pool = lobby.wagerAmount * 2;
-  const win = +(pool - pool * 0.05).toFixed(2);
+  const win = +(pool - pool * rakePct / 100).toFixed(2);
   const need = Math.max(0, lobby.wagerAmount - (user?.balance ?? 0));
 
   // Гость без денег — сначала пополнение, без лишних кнопок.

@@ -103,8 +103,8 @@ TELEGRAM_BOT_POLLING=false
 CORS_ORIGINS=https://navalclash.ru
 
 PLATFORM_RAKE_PERCENT=5
-MIN_WAGER=1
-MAX_WAGER=1000
+MIN_WAGER=100
+MAX_WAGER=10000
 ```
 
 Сохранить в nano: `Ctrl+O` → Enter → `Ctrl+X`.

@@ -13,6 +13,7 @@ import { FULL_FLEET_SLOTS, fleetTrackerSlots } from '../lib/game-types';
 import { Icon, IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
+import { getGameConfig } from '../stores/game-config-store';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
 
@@ -164,7 +165,7 @@ export default function BattleScreen() {
     const onTimeout = (data: any) => {
       const timedOutMe = data.timedOut === me?.id;
       const missed = data.missed ?? 1;
-      const max = 3; // AFK_FORFEIT_TIMEOUTS
+      const max = data.maxMissed ?? getGameConfig().afkForfeitTimeouts;
       if (timedOutMe) {
         tgHaptic('error');
         toast(`Ход пропущен — ${missed} из ${max}. Ещё ${max - missed} — поражение`, 'error', 'skull');

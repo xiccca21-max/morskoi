@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { useThemeStore, THEMES } from '../stores/theme-store';
 import { useSettingsStore } from '../stores/settings-store';
 import { useCurrencyStore, CURRENCY_LIST } from '../stores/currency-store';
+import { useGameConfigStore } from '../stores/game-config-store';
 import { tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { useNotifyPrefsStore, saveNotifyPref } from '../stores/notify-prefs-store';
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const currency = useCurrencyStore((s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
   const notify = useNotifyPrefsStore();
+  const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [depLimit, setDepLimit] = useState(user?.dailyDepositLimit ?? 0);
   const [savingLimit, setSavingLimit] = useState(false);
@@ -172,7 +174,7 @@ export default function SettingsScreen() {
         <p className="eyebrow mb-2">Честная игра</p>
         <p className="text-main text-sm leading-relaxed">
           «Морской Бой» — честная PvP-дуэль на ставки. Платформа не играет против вас:
-          комиссия составляет 5% с банка. Все ходы проверяются на сервере, поля соперников
+          комиссия составляет {platformRakePercent}% с банка. Все ходы проверяются на сервере, поля соперников
           скрыты до выстрела — никто не видит расстановку противника.
         </p>
       </section>

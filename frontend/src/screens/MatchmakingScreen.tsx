@@ -742,8 +742,9 @@ function matchesPlural(n: number): string {
 
 function PrizeBreakdown({ wager }: { wager: number }) {
   const fmt = useMoney();
+  const rakePct = useGameConfigStore((s) => s.platformRakePercent);
   const pool = wager * 2;
-  const rake = +(pool * 0.05).toFixed(2);
+  const rake = +(pool * rakePct / 100).toFixed(2);
   const win = +(pool - rake).toFixed(2);
   return (
     <div className="mt-4 grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden">

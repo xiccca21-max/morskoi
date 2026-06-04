@@ -26,7 +26,6 @@ function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
 
 const GAME_TYPES = new Set(['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE']);
 
-const MIN_DEPOSIT = 10;
 const MAX_DEPOSIT = 100000;
 
 type Tab = 'deposit' | 'withdraw';
@@ -54,6 +53,7 @@ const WD_STATUS: Record<string, { label: string; cls: string }> = {
 export default function WalletScreen() {
   const user = useAuthStore((s) => s.user);
   const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
+  const minDeposit = useGameConfigStore((s) => s.minDeposit);
   const updateWallet = useAuthStore((s) => s.updateWallet);
   const navigate = useNavigate();
   const location = useLocation();
@@ -114,12 +114,12 @@ export default function WalletScreen() {
   const balance = user?.balance ?? 0;
   const withdrawable = balance;
 
-  const validDeposit = Number.isFinite(amount) && amount >= MIN_DEPOSIT && amount <= MAX_DEPOSIT;
+  const validDeposit = Number.isFinite(amount) && amount >= minDeposit && amount <= MAX_DEPOSIT;
   const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;
   const validWithdraw = Number.isFinite(amount) && amount >= minWithdraw && amount <= withdrawable && !addressError && walletAddress.trim().length >= 10;
 
   const deposit = async () => {
-    if (!validDeposit) { setError(`Сумма от ${formatMoney(MIN_DEPOSIT)} до ${formatMoney(MAX_DEPOSIT)}`); return; }
+    if (!validDeposit) { setError(`Сумма от ${formatMoney(minDeposit)} до ${formatMoney(MAX_DEPOSIT)}`); return; }
     setError(null); setBusy(true);
     try {
       const r = await WalletAPI.deposit(amount);
@@ -284,7 +284,7 @@ export default function WalletScreen() {
           </p>
           <input
             type="number"
-            min={rubToUnit(MIN_DEPOSIT)}
+            min={rubToUnit(minDeposit)}
             max={rubToUnit(MAX_DEPOSIT)}
             step={currencyDecimals() === 2 ? 0.01 : 1}
             value={Number.isFinite(amount) ? rubToUnit(amount) : ''}

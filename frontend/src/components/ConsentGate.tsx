@@ -15,6 +15,7 @@ export function ConsentGate() {
   const patchUser = useAuthStore((s) => s.patchUser);
   const minWager = useGameConfigStore((s) => s.minWager);
   const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
+  const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -71,7 +72,7 @@ export function ConsentGate() {
 
         {showRules && (
           <div className="bg-panel rounded-lg p-3 text-[11px] text-muted leading-relaxed space-y-1.5 max-h-40 overflow-y-auto">
-            <p>• Каждый бой — ставка двух игроков. Победитель забирает банк за вычетом комиссии 5%.</p>
+            <p>• Каждый бой — ставка двух игроков. Победитель забирает банк за вычетом комиссии {platformRakePercent}%.</p>
             <p>• Все ходы проверяются на сервере, поля соперников скрыты. Читы невозможны.</p>
             <p>• Выход из боя или бездействие засчитывается как поражение, ставка не возвращается.</p>
             <p>• Минимальная ставка — {minWager} ₽. Вывод USDT — от {minWithdraw} ₽, обработка до 24 часов.</p>

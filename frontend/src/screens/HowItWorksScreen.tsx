@@ -14,7 +14,8 @@ const RANKS = [
 
 export default function HowItWorksScreen() {
   const navigate = useNavigate();
-  const { minWager, placementTimeoutSec, turnTimeoutSec } = useGameConfigStore();
+  const { minWager, placementTimeoutSec, turnTimeoutSec, platformRakePercent } = useGameConfigStore();
+  const winPct = 100 - platformRakePercent;
 
   const STEPS = [
     {
@@ -45,7 +46,7 @@ export default function HowItWorksScreen() {
       n: 5,
       icon: 'trophy' as const,
       title: 'Победитель забирает банк',
-      body: 'Кто первым потопит все 10 кораблей врага — получает 95% общего банка. 5% — комиссия платформы. Сумма зачисляется мгновенно.',
+      body: `Кто первым потопит все 10 кораблей врага — получает ${winPct}% общего банка. ${platformRakePercent}% — комиссия платформы. Сумма зачисляется мгновенно.`,
     },
   ];
 

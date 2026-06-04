@@ -9,8 +9,6 @@ export const USDT_NETWORKS = [
 
 export type UsdtNetworkId = (typeof USDT_NETWORKS)[number]['id'];
 
-export const MIN_WITHDRAW = 100;
-
 const PATTERNS: Record<UsdtNetworkId, RegExp> = {
   TRC20: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
   ERC20: /^0x[a-fA-F0-9]{40}$/,
