@@ -86,20 +86,51 @@
       </div>
     </div>
     <script>
-      window.addEventListener(
-        'error',
-        function (e) {
-          var t = e.target;
-          if (!t || t.tagName !== 'SCRIPT') return;
+      (function () {
+        // После деплоя у клиента может остаться старый index.html, ссылающийся на
+        // чанки с устаревшими хэшами (их уже нет на сервере → 404). Вместо «битого»
+        // экрана с текстом ошибки молча перезагружаемся один раз, чтобы получить
+        // свежий index.html и новые чанки. Защита от зацикливания — не чаще раза в 15с.
+        var RELOAD_KEY = 'chunkReloadAt';
+        function recoverFromStaleChunk() {
+          try {
+            var now = Date.now();
+            var last = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
+            if (now - last > 15000) {
+              sessionStorage.setItem(RELOAD_KEY, String(now));
+              location.reload();
+              return;
+            }
+          } catch (err) {}
+          // Перезагрузка уже была и не помогла — дружелюбный экран с кнопкой.
           var root = document.getElementById('root');
           if (!root) return;
           root.innerHTML =
-            '<div class="boot"><p class="boot__sub" style="max-width:90%;word-break:break-all">Не загрузился скрипт: ' +
-            (t.src || '?') +
-            '</p></div>';
-        },
-        true,
-      );
+            '<div class="boot">' +
+            '<h1 class="boot__title">Морской&nbsp;Бой</h1>' +
+            '<p class="boot__sub">Обновляем игру…</p>' +
+            '<button type="button" onclick="location.reload()" style="margin-top:10px;font-family:Oswald,Impact,sans-serif;text-transform:uppercase;letter-spacing:0.12em;font-weight:700;font-size:13px;padding:11px 26px;border:2px solid #000;background:#E1574B;color:#fff;border-radius:10px;cursor:pointer">Перезагрузить</button>' +
+            '</div>';
+        }
+        // Сбой загрузки нашего <script> из /assets/ (внешние скрипты вроде telegram.org не трогаем).
+        window.addEventListener(
+          'error',
+          function (e) {
+            var t = e.target;
+            if (!t || t.tagName !== 'SCRIPT') return;
+            if ((t.src || '').indexOf('/assets/') === -1) return;
+            recoverFromStaleChunk();
+          },
+          true,
+        );
+        // Провал динамического import() (React.lazy) — тоже признак устаревших чанков.
+        window.addEventListener('unhandledrejection', function (e) {
+          var msg = (e && e.reason && (e.reason.message || e.reason)) + '';
+          if (/dynamically imported module|importing a module script|Failed to fetch|Loading chunk|error loading/i.test(msg)) {
+            recoverFromStaleChunk();
+          }
+        });
+      })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
