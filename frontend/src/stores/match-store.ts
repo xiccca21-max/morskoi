@@ -16,21 +16,15 @@ interface MatchStoreState {
   clear: () => void;
 }
 
-function sameMatch(a: MatchState | null, b: MatchState | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return (
-    a.matchId === b.matchId &&
-    a.status === b.status &&
-    a.gameStatus === b.gameStatus &&
-    a.winnerId === b.winnerId
-  );
-}
-
 export const useMatchStore = create<MatchStoreState>((set) => ({
   state: null,
-  setState: (s) =>
-    set((prev) => (sameMatch(prev.state, s) ? prev : { state: s })),
+  // Сервер шлёт полный авторитетный снимок матча после каждого хода/таймаута/хода бота.
+  // Раньше здесь стоял дедуп по matchId/status/gameStatus/winnerId — но за весь бой
+  // эти поля не меняются, поэтому обновления currentTurn, turnDeadline, выстрелов и
+  // потопленных кораблей терялись (поле «зависало», таймер врал, ходы бота не отражались).
+  // Снимки приходят по одному сокет-соединению в правильном порядке, поэтому просто
+  // применяем последний.
+  setState: (s) => set({ state: s }),
   lastAttack: null,
   setLastAttack: (a) => set({ lastAttack: a }),
   clear: () => set({ state: null, lastAttack: null }),
