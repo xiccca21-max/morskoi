@@ -215,6 +215,11 @@ export default function WalletScreen() {
           className="absolute inset-0"
           style={{ background: 'linear-gradient(145deg, #e83228 0%, #ff5548 50%, #c42820 100%)' }}
         />
+        {/* Радиальное свечение в правом верхнем углу — объём */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(120% 90% at 88% 8%, rgba(255,255,255,0.22) 0%, transparent 55%)' }}
+        />
         {/* Диагональная штриховка (текстура) */}
         <div
           className="absolute inset-0 opacity-[0.06]"
@@ -235,19 +240,38 @@ export default function WalletScreen() {
           animate={{ x: ['-120%', '320%'] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: 'linear', repeatDelay: 2.2 }}
         />
-        {/* Сундук — декоративный, без окружности, во всю высоту карточки */}
-        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-          <Icon name="chest" size={72} className="text-white/20" />
+        {/* Крупный знак ₽ — чистый водяной знак вместо иконки */}
+        <div
+          className="absolute pointer-events-none select-none font-display leading-none"
+          style={{
+            right: '-0.06em',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: 190,
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.12)',
+            textShadow: '0 2px 18px rgba(0,0,0,0.18)',
+          }}
+          aria-hidden
+        >
+          ₽
         </div>
         {/* Содержимое */}
         <div className="relative p-6">
-          <p className="text-[11px] font-display uppercase tracking-[0.18em] text-white/70">Баланс</p>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-white/80" />
+            <p className="text-[11px] font-display uppercase tracking-[0.22em] text-white/75">Баланс</p>
+          </div>
           <p
-            className="font-display text-4xl text-white mt-1 tabular-nums"
-            style={{ textShadow: '0 2px 12px rgba(0,0,0,0.25)' }}
+            className="font-display text-[2.6rem] text-white mt-2 tabular-nums leading-none"
+            style={{ textShadow: '0 2px 14px rgba(0,0,0,0.28)' }}
           >
             <AnimatedNumber value={balance} formatter={formatMoney} />
           </p>
+          <div
+            className="mt-4 h-px w-16"
+            style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.55), transparent)' }}
+          />
         </div>
       </section>
 
