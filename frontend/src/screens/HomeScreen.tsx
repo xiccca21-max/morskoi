@@ -95,7 +95,7 @@ export default function HomeScreen() {
         <div className="grid grid-cols-3 gap-2 mt-4">
           <StatCard icon="trophy" label="Победы" value={wins} color="success" />
           <StatCard icon="skull" label="Поражения" value={losses} color="danger" />
-          <StatCard icon="target" label="% побед" value={`${wr}%`} color="accent" />
+          <StatCard icon="target" label="Побед" value={`${wr}%`} color="accent" />
         </div>
       </motion.section>
 
