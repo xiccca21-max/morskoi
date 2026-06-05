@@ -5,9 +5,11 @@ import { tgOpenLink } from '../lib/telegram';
 export function TelegramAuthError({
   message,
   onRetry,
+  build,
 }: {
   message: string;
   onRetry: () => void;
+  build?: string | null;
 }) {
   const bot = import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot';
 
@@ -44,6 +46,7 @@ export function TelegramAuthError({
 
         <p className="text-[11px] text-muted leading-relaxed text-center">
           Закройте мини-приложение и нажмите «⚔️ В бой» в боте. Не открывайте сайт напрямую в браузере.
+          {build ? <> Версия сервера: <b>{build}</b>.</> : null}
         </p>
       </motion.div>
     </div>

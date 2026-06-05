@@ -124,6 +124,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * Защита от replay: один hash initData нельзя привязать к другому telegram id.
    * Повторный вход того же пользователя (закрыл/открыл Mini App) — разрешён.
    */
+  /** Привязка JWT к Telegram после успешного login (если WebView не шлёт initData в заголовке). */
+  async setTelegramSession(userId: string, tgId: string, ttlSec: number): Promise<void> {
+    const k = `tg_sess:${userId}`;
+    if (this.useMemory) {
+      await this.memSet([k, tgId, 'EX', ttlSec]);
+    } else {
+      await this.ioredis!.set(k, tgId, 'EX', ttlSec);
+    }
+  }
+
+  async hasTelegramSession(userId: string, tgId: string): Promise<boolean> {
+    const k = `tg_sess:${userId}`;
+    const v = this.useMemory ? this.memGet(k) : await this.ioredis!.get(k);
+    return v === tgId;
+  }
+
   async consumeInitDataHash(hash: string, telegramId: string, ttlSec: number): Promise<boolean> {
     const k = `initdata:hash:${hash}`;
     if (this.useMemory) {

@@ -67,6 +67,7 @@ export default function App() {
   const clearMatch = useMatchStore((s) => s.clear);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authAttempt, setAuthAttempt] = useState(0);
+  const [serverBuild, setServerBuild] = useState<string | null>(null);
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
   const resumeHandled = useRef(false);
@@ -169,6 +170,12 @@ export default function App() {
     document.addEventListener('click', handleGlobalClick, true);
     return () => document.removeEventListener('click', handleGlobalClick, true);
   }, []);
+
+  useEffect(() => {
+    ConfigAPI.get()
+      .then((c) => setServerBuild((c as { build?: string }).build ?? null))
+      .catch(() => setServerBuild(null));
+  }, [authAttempt]);
 
   useEffect(() => {
     tgReady();
@@ -492,6 +499,7 @@ export default function App() {
         message={authError ?? (isTelegramWebView()
           ? 'Не удалось авторизоваться через Telegram'
           : 'Игра доступна только в Telegram. Откройте через бота «⚔️ В бой».')}
+        build={serverBuild}
         onRetry={() => setAuthAttempt((a) => a + 1)}
       />
     );

@@ -6,6 +6,9 @@ import { validateAndParseInitData, type ParsedInitData } from './telegram-init-d
 import { DailyBonusService, type DailyBonusResult } from './daily-bonus.service';
 import { AuditService } from '../common/audit.service';
 import { PresenceService } from '../common/presence.service';
+import { RedisService } from '../redis/redis.service';
+import { readTelegramBotToken } from './bot-token';
+
 export interface JwtPayload {
   sub: string;       // userId
   tgId: string;
@@ -21,10 +24,23 @@ export class AuthService {
     private readonly bot: TelegramBotService,
     private readonly audit: AuditService,
     private readonly presence: PresenceService,
+    private readonly redis: RedisService,
   ) {}
 
+  private telegramSessionTtlSec(): number {
+    const raw = (process.env.JWT_EXPIRES_IN ?? '7d').trim();
+    const m = raw.match(/^(\d+)\s*([dhms])$/i);
+    if (!m) return 7 * 86400;
+    const n = Number(m[1]);
+    const u = m[2].toLowerCase();
+    if (u === 'd') return n * 86400;
+    if (u === 'h') return n * 3600;
+    if (u === 'm') return n * 60;
+    return n;
+  }
+
   async loginWithTelegram(initData: string) {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = readTelegramBotToken();
     if (!botToken) throw new UnauthorizedException('Bot token not configured');
 
     let parsed;
@@ -104,6 +120,8 @@ export class AuthService {
       tgId: user.telegramId,
       username: user.username ?? undefined,
     } as JwtPayload);
+
+    await this.redis.setTelegramSession(user.id, telegramId, this.telegramSessionTtlSec());
 
     const dailyBonus: DailyBonusResult = await this.dailyBonus.tryClaim(user.id).catch(() => ({ claimed: false }));
 
@@ -225,23 +243,30 @@ export class AuthService {
 
     const raw = initData?.trim();
     if (!raw) {
-      throw new UnauthorizedException('Откройте игру через Telegram (нет initData)');
+      const bound = await this.redis.hasTelegramSession(payload.sub, payload.tgId);
+      if (bound) return null;
+      throw new UnauthorizedException(
+        'Откройте игру через Telegram (нет initData). Закройте Mini App и нажмите «⚔️ В бой» в боте.',
+      );
     }
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = readTelegramBotToken();
     if (!botToken) throw new UnauthorizedException('Bot token not configured');
 
     let parsed: ParsedInitData;
     try {
       parsed = validateAndParseInitData(raw, botToken);
     } catch {
-      throw new UnauthorizedException('Недействительные данные Telegram — перезайдите из бота');
+      throw new UnauthorizedException(
+        'Недействительные данные Telegram. Проверьте TELEGRAM_BOT_TOKEN на сервере и откройте игру из бота.',
+      );
     }
 
     if (String(parsed.user.id) !== payload.tgId) {
       throw new UnauthorizedException('Сессия не совпадает с Telegram');
     }
 
+    await this.redis.setTelegramSession(payload.sub, payload.tgId, this.telegramSessionTtlSec());
     return parsed;
   }
 }
