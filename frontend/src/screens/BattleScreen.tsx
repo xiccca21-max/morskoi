@@ -355,10 +355,10 @@ export default function BattleScreen() {
         </div>
         <button
           onClick={() => setShowSurrender(true)}
-          className="btn-ghost text-xs py-2 px-2.5 transition"
+          className="flex items-center justify-center rounded-lg bg-danger text-white py-2 px-3 transition active:scale-95"
           title="Сдаться"
         >
-          <Icon name="flag" size={16} />
+          <Icon name="flag" size={24} />
         </button>
       </div>
 
