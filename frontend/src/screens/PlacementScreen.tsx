@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../components/Board';
 import {
   autoPlaceLocal,
@@ -20,6 +20,7 @@ import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
 import { VintageShip } from '../components/VintageShip';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { useSettingsStore } from '../stores/settings-store';
 import '../styles/placement-vintage.css';
 
 interface SlotShip {
@@ -60,6 +61,9 @@ export default function PlacementScreen() {
   const setMatchState = useMatchStore((s) => s.setState);
   const clearMatch = useMatchStore((s) => s.clear);
   const skin = useAuthStore((s) => s.user?.equippedSkin) ?? 'classic';
+  const hintDone = useSettingsStore((s) => s.placementHintDone);
+  const setHintDone = useSettingsStore((s) => s.setPlacementHintDone);
+  const [showHint, setShowHint] = useState(!hintDone);
 
   const [fleet, setFleet] = useState<SlotShip[]>(initialFleet);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -327,8 +331,38 @@ export default function PlacementScreen() {
     });
   }, [useNative, allPlaced, submitting, sent, placedShips.length, fleet.length]); // eslint-disable-line
 
+  const dismissHint = () => { setShowHint(false); setHintDone(true); };
+
   return (
     <div className="max-w-md mx-auto space-y-2 pb-2">
+
+      {/* ══ Подсказка первого раза ══ */}
+      <AnimatePresence>
+        {showHint && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="card p-4 border-2 border-danger/40 space-y-2"
+          >
+            <p className="font-display text-main text-sm">📋 Как расставить флот</p>
+            <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
+              <li>👆 <b>Тапни на поле</b> — корабль поставится туда</li>
+              <li>🔄 <b>Двойной тап по клетке</b> — повернёт корабль</li>
+              <li>✨ <b>«Авто»</b> — расставит всё за тебя за секунду</li>
+              <li>🚫 Корабли <b>не должны касаться</b> друг друга</li>
+            </ul>
+            <button
+              type="button"
+              onClick={dismissHint}
+              className="w-full btn-ghost py-2 text-xs mt-1"
+            >
+              Понятно, скрыть ✓
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button

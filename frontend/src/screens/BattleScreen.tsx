@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
+
 import { motion } from 'framer-motion';
 import { Board } from '../components/Board';
 import { Ship } from '../components/Ship';
@@ -15,8 +16,10 @@ import { Icon, IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
 import { getGameConfig } from '../stores/game-config-store';
+import { useSettingsStore } from '../stores/settings-store';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
+import { AnimatePresence, motion as motionLib } from 'framer-motion';
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const coord = (x: number, y: number) => `${LETTERS[x] ?? '?'}${y + 1}`;
@@ -39,6 +42,9 @@ export default function BattleScreen() {
   const [showSurrender, setShowSurrender] = useState(false);
   const [connected, setConnected] = useState(true);
   const [reactionCooldown, setReactionCooldown] = useState(false);
+  const hintDone = useSettingsStore((s) => s.battleHintDone);
+  const setHintDone = useSettingsStore((s) => s.setBattleHintDone);
+  const [showHint, setShowHint] = useState(!hintDone);
   const [opponent, setOpponent] = useState<{ name: string; avatar?: string | null; wins: number; losses: number } | null>(null);
 
   const enemyId = state?.enemy.userId;
@@ -294,8 +300,38 @@ export default function BattleScreen() {
 
   if (!stateOk || !state || state.matchId !== matchId) return <div className="card p-6 text-center text-muted max-w-md mx-auto">Выходим на позицию…</div>;
 
+  const dismissHint = () => { setShowHint(false); setHintDone(true); };
+
   return (
     <div className={['max-w-md mx-auto space-y-3', shake ? 'fx-shake' : ''].join(' ')}>
+
+      {/* ══ Подсказка первого боя ══ */}
+      <AnimatePresence>
+        {showHint && (
+          <motionLib.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="card p-4 border-2 border-danger/40 space-y-2"
+          >
+            <p className="font-display text-main text-sm">⚔️ Первый бой — правила за 10 сек</p>
+            <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
+              <li>🎯 <b>Жми по клеткам врага</b> — ищи его корабли. Попал — ходишь ещё раз!</li>
+              <li>👁 Кнопки <b>«Враг / Мои»</b> — переключают вид поля</li>
+              <li>⏱ Красный таймер — не прозевай ход, иначе он пропустится</li>
+              <li>🏳 Кнопка «Сдаться» — только если совсем плохо</li>
+            </ul>
+            <button
+              type="button"
+              onClick={dismissHint}
+              className="w-full btn-ghost py-2 text-xs mt-1"
+            >
+              Понятно, начинаем! ✓
+            </button>
+          </motionLib.div>
+        )}
+      </AnimatePresence>
+
       {/* Соперник */}
       <div className="card p-2.5 flex items-center gap-3">
         <div className="relative">

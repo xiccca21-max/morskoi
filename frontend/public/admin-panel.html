@@ -2,131 +2,71 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Naval Clash — Админка</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --panel2: #273449;
-      --border: #334155;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --green: #22c55e;
-      --red: #ef4444;
-      --amber: #f59e0b;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 15px; line-height: 1.4;
-    }
-    header {
-      padding: 16px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    }
-    header h1 { font-size: 18px; margin: 0; flex: 1; }
-    .wrap { max-width: 960px; margin: 0 auto; padding: 20px; }
-    .card {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-      padding: 16px; margin-bottom: 16px;
-    }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    input, select, button {
-      font-size: 15px; font-family: inherit; border-radius: 8px; border: 1px solid var(--border);
-      padding: 9px 12px; background: var(--panel2); color: var(--text); outline: none;
-    }
-    input:focus, select:focus { border-color: var(--accent); }
-    input { flex: 1; min-width: 140px; }
-    button {
-      background: var(--accent); color: #06283d; border: none; font-weight: 700;
-      cursor: pointer; white-space: nowrap;
-    }
-    button:hover { filter: brightness(1.08); }
-    button.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--border); font-weight: 600; }
-    button.green { background: var(--green); color: #04220f; }
-    button.red { background: var(--red); color: #2a0606; }
-    button.amber { background: var(--amber); color: #2a1c00; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    .tabs { display: flex; gap: 6px; }
-    .tabs button { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); font-weight: 600; }
-    .tabs button.active { background: var(--accent); color: #06283d; border-color: var(--accent); }
-    .muted { color: var(--muted); font-size: 13px; }
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; }
-    .stat { background: var(--panel2); border-radius: 10px; padding: 14px; }
-    .stat .v { font-size: 24px; font-weight: 800; }
-    .stat .l { color: var(--muted); font-size: 13px; margin-top: 4px; }
-    .ulist { display: flex; flex-direction: column; gap: 8px; }
-    .uitem {
-      background: var(--panel2); border-radius: 10px; padding: 12px 14px; cursor: pointer;
-      display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    }
-    .uitem:hover { outline: 1px solid var(--accent); }
-    .uitem .name { font-weight: 700; }
-    .uitem .id { font-family: monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
-    .bal { text-align: right; white-space: nowrap; }
-    .bal .b { font-weight: 800; color: var(--accent); }
-    .bal .w { font-size: 12px; color: var(--muted); }
-    .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-    .badge.PENDING { background: #422006; color: var(--amber); }
-    .badge.PAID, .badge.APPROVED { background: #052e16; color: var(--green); }
-    .badge.REJECTED { background: #450a0a; color: var(--red); }
-    .badge.ban { background: #450a0a; color: var(--red); }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; }
-    .err { color: var(--red); font-size: 13px; margin-top: 6px; }
-    .ok { color: var(--green); font-size: 13px; margin-top: 6px; }
-    label.chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
-    label.chk input { flex: none; min-width: auto; }
-    .hidden { display: none !important; }
-    .back { cursor: pointer; color: var(--accent); font-size: 14px; }
-    h3 { margin: 0 0 12px; font-size: 16px; }
-    .feed { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
-    .feed-item {
-      background: var(--panel2); border-radius: 10px; padding: 10px 12px;
-      display: flex; gap: 10px; align-items: flex-start;
-    }
-    .feed-item .when { color: var(--muted); font-size: 12px; white-space: nowrap; min-width: 110px; }
-    .feed-item .what { flex: 1; font-size: 13px; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #0c4a6e; color: var(--accent); }
-    .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 16px 0 8px; }
-    .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
-    .mini-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
-    .mini-row { background: var(--panel2); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-  </style>
+  <title>Морской Бой — Штаб</title>
+  <link rel="stylesheet" href="/admin-theme.css" />
 </head>
 <body>
-  <header>
-    <h1>⚓ Naval Clash — Админка</h1>
-    <input id="keyInput" type="password" placeholder="Admin key" style="max-width:220px" />
-    <button id="saveKey" class="ghost">Сохранить ключ</button>
-    <button id="clearKey" class="ghost" type="button">Сбросить ключ</button>
-    <button id="panelLogout" class="ghost" type="button">Выйти</button>
-  </header>
+  <div class="app-shell">
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-icon">⚓</div>
+        <div>
+          <h1>Штаб</h1>
+          <div class="sub">Naval Clash</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="btn ghost" id="panelLogout">Выйти</button>
+      </div>
+    </header>
 
-  <div class="wrap">
-    <div id="gate" class="card">
-      <p class="muted">Введите <b>Admin key</b> вверху — это строка <code>ADMIN_API_KEY</code> из файла <code>.env</code> на сервере (не логин от входа). Скопируй целиком, без кавычек. Если пишет «Bad admin key» — нажми «Сбросить ключ» и вставь заново.</p>
-    </div>
+    <section id="gate" class="key-panel hidden">
+      <h2>🔑 Шаг 2 — API-ключ</h2>
+      <p>На сервере в файле <b>.env</b> найди строку <b>ADMIN_API_KEY</b>. Скопируй только значение после <code>=</code> (это не логин от входа).</p>
+      <div class="key-row">
+        <input id="keyInput" type="password" placeholder="Вставь ADMIN_API_KEY сюда" autocomplete="off" />
+        <button type="button" class="btn" id="saveKey">Сохранить и начать</button>
+        <button type="button" class="btn ghost" id="clearKey">Сбросить</button>
+      </div>
+    </section>
 
-    <div class="tabs card" style="display:flex; flex-wrap:wrap;">
-      <button data-tab="activity" class="active">Сейчас</button>
-      <button data-tab="users">Игроки</button>
-      <button data-tab="withdrawals">Выводы</button>
-      <button data-tab="stats">Статистика</button>
-      <button data-tab="logs">Журнал</button>
-    </div>
+    <nav class="bottom-nav" aria-label="Разделы">
+      <button type="button" class="nav-btn active" data-tab="activity"><span class="ico">📡</span>Сейчас</button>
+      <button type="button" class="nav-btn" data-tab="users"><span class="ico">👥</span>Игроки</button>
+      <button type="button" class="nav-btn" data-tab="withdrawals"><span class="ico">💸</span>Выводы</button>
+      <button type="button" class="nav-btn" data-tab="stats"><span class="ico">📊</span>Цифры</button>
+      <button type="button" class="nav-btn" data-tab="logs"><span class="ico">📜</span>Журнал</button>
+    </nav>
+
+    <div class="layout">
+      <nav class="side-nav" aria-label="Разделы">
+        <button type="button" class="nav-btn active" data-tab="activity"><span class="ico">📡</span> Сейчас в игре</button>
+        <button type="button" class="nav-btn" data-tab="users"><span class="ico">👥</span> Игроки</button>
+        <button type="button" class="nav-btn" data-tab="withdrawals"><span class="ico">💸</span> Выводы</button>
+        <button type="button" class="nav-btn" data-tab="stats"><span class="ico">📊</span> Статистика</button>
+        <button type="button" class="nav-btn" data-tab="logs"><span class="ico">📜</span> Журнал</button>
+      </nav>
+
+      <main class="content">
 
     <!-- LIVE ACTIVITY -->
     <div id="tab-activity">
+      <div class="help-box" id="helpBox">
+        <strong>Как пользоваться</strong>
+        <ol>
+          <li>Сверху вставь <b>ADMIN_API_KEY</b> из .env и нажми «Сохранить».</li>
+          <li>Вкладка <b>Сейчас</b> — кто онлайн и кто в бою (обновляется сама).</li>
+          <li><b>Игроки</b> — поиск, бан, выдача монет.</li>
+          <li><b>Выводы</b> — одобрить или отклонить заявки.</li>
+        </ol>
+        <button type="button" class="btn ghost btn-sm" id="hideHelp">Понятно, скрыть</button>
+      </div>
       <div class="card">
         <div class="row">
-          <button id="activityRefresh">Обновить</button>
-          <label class="chk"><input type="checkbox" id="activityAuto" checked /> авто каждые 10 сек</label>
+          <button type="button" class="btn" id="activityRefresh">🔄 Обновить</button>
+          <label class="chk"><input type="checkbox" id="activityAuto" checked /> Авто (10 сек)</label>
           <span id="activityUpdated" class="muted"></span>
         </div>
         <div id="activityErr" class="err"></div>
@@ -160,8 +100,8 @@
     <div id="tab-users">
       <div class="card">
         <div class="row">
-          <input id="searchInput" placeholder="Поиск: ID, Telegram ID, @username, ник, имя" />
-          <button id="searchBtn">Найти</button>
+          <input id="searchInput" placeholder="Ник, @username, ID или Telegram…" />
+          <button type="button" class="btn" id="searchBtn">🔍 Найти</button>
         </div>
         <div id="usersErr" class="err"></div>
       </div>
@@ -171,7 +111,7 @@
     <!-- USER DETAIL -->
     <div id="tab-user" class="hidden">
       <div class="card">
-        <span class="back" id="backToUsers">← к списку</span>
+        <button type="button" class="back" id="backToUsers">Назад к списку</button>
         <div id="userDetail"></div>
       </div>
     </div>
@@ -186,7 +126,7 @@
             <option value="PAID">Выплачены</option>
             <option value="REJECTED">Отклонены</option>
           </select>
-          <button id="wRefresh">Обновить</button>
+          <button type="button" class="btn" id="wRefresh">Обновить</button>
         </div>
         <div id="wErr" class="err"></div>
       </div>
@@ -214,18 +154,21 @@
             <option value="LOBBY_CREATE">Лобби создано</option>
             <option value="LOBBY_JOIN">Вход в лобби</option>
           </select>
-          <button id="logsRefresh">Обновить журнал</button>
+          <button type="button" class="btn" id="logsRefresh">Обновить журнал</button>
         </div>
         <div id="logsErr" class="err"></div>
       </div>
-      <div class="card" style="overflow-x:auto">
+      <div class="card table-wrap">
         <table>
           <thead><tr><th>Когда</th><th>Действие</th><th>Игрок</th><th>Детали</th></tr></thead>
           <tbody id="logsBody"><tr><td colspan="4" class="muted">Загрузка…</td></tr></tbody>
         </table>
       </div>
     </div>
+      </main>
+    </div>
   </div>
+  <div id="toast" aria-live="polite"></div>
 
   <script>
     const API = '/api/admin';
@@ -233,10 +176,16 @@
     let adminKey = localStorage.getItem(KEY_STORE) || '';
     document.getElementById('keyInput').value = adminKey;
 
+    function updateGate() {
+      const has = !!adminKey.trim();
+      document.getElementById('gate').classList.toggle('hidden', has);
+      document.querySelector('.app-shell').classList.toggle('needs-key', !has);
+    }
     function setKey() {
       adminKey = document.getElementById('keyInput').value.trim();
       localStorage.setItem(KEY_STORE, adminKey);
-      flash('Ключ сохранён');
+      updateGate();
+      flash('Ключ сохранён — можно работать');
       switchTab('activity');
     }
     document.getElementById('saveKey').onclick = setKey;
@@ -244,7 +193,8 @@
       adminKey = '';
       localStorage.removeItem(KEY_STORE);
       document.getElementById('keyInput').value = '';
-      flash('Старый ключ удалён — вставь из .env на сервере');
+      updateGate();
+      flash('Ключ сброшен — вставь новый из .env');
     };
     document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') setKey(); });
     document.getElementById('panelLogout').onclick = async () => {
@@ -253,13 +203,11 @@
     };
 
     let flashTimer;
-    function flash(msg) {
+    function flash(msg, kind = 'ok') {
       clearTimeout(flashTimer);
-      const h = document.querySelector('header');
-      let el = document.getElementById('flash');
-      if (!el) { el = document.createElement('span'); el.id = 'flash'; el.className = 'ok'; el.style.width='100%'; h.appendChild(el); }
-      el.textContent = msg;
-      flashTimer = setTimeout(() => { el.textContent = ''; }, 2500);
+      const box = document.getElementById('toast');
+      box.innerHTML = `<div class="toast-msg ${kind === 'err' ? 'err' : 'ok'}">${esc(msg)}</div>`;
+      flashTimer = setTimeout(() => { box.innerHTML = ''; }, 3200);
     }
 
     /** fetch требует Latin-1 в заголовках — ключ шлём в base64. */
@@ -335,7 +283,7 @@
     const tabs = ['activity','users','withdrawals','stats','logs'];
     let activityTimer = null;
     function switchTab(name) {
-      document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       tabs.forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
       document.getElementById('tab-user').classList.add('hidden');
       clearInterval(activityTimer);
@@ -350,7 +298,7 @@
       if (name === 'withdrawals') loadWithdrawals();
       if (name === 'logs') loadLogs();
     }
-    document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+    document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
     document.getElementById('activityRefresh').onclick = loadActivity;
     document.getElementById('activityAuto').onchange = () => {
       if (document.getElementById('activityAuto').checked && !document.getElementById('tab-activity').classList.contains('hidden')) {
@@ -414,7 +362,7 @@
               </div>
             </div>`).join('')
           : '<span class="muted">Событий пока нет</span>';
-      } catch (e) { errEl.textContent = e.message; }
+      } catch (e) { errEl.textContent = e.message; flash(e.message, 'err'); }
     }
 
     // ---- users ----
@@ -469,20 +417,20 @@
           </div>
           <div class="row" style="margin-top:8px;">
             <label class="chk"><input type="checkbox" id="cWithdraw" /> можно выводить (реальные)</label>
-            <button class="green" id="cBtn">Применить</button>
+            <button type="button" class="btn success" id="cBtn">Применить</button>
           </div>
           <div id="cMsg"></div>
           <div class="row" style="margin-top:14px;">
-            <button class="${u.banned ? 'green' : 'red'}" id="banBtn">${u.banned ? 'Разбанить' : 'Забанить'}</button>
+            <button type="button" class="btn ${u.banned ? 'success' : 'danger'}" id="banBtn">${u.banned ? 'Разбанить' : 'Забанить'}</button>
           </div>
           <h3 style="margin-top:20px;">Последние операции</h3>
-          <table><thead><tr><th>Тип</th><th>Сумма</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
+          <div class="table-wrap"><table><thead><tr><th>Тип</th><th>Сумма</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
             ${transactions.length ? transactions.map(t => `<tr><td>${esc(t.type)}</td><td>${fmt(t.amount)}</td><td>${esc(t.status)}</td><td>${dt(t.createdAt)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">нет</td></tr>'}
-          </tbody></table>
+          </tbody></table></div>
           <h3 style="margin-top:20px;">Заявки на вывод</h3>
-          <table><thead><tr><th>Сумма</th><th>К выплате</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
+          <div class="table-wrap"><table><thead><tr><th>Сумма</th><th>К выплате</th><th>Статус</th><th>Когда</th></tr></thead><tbody>
             ${withdrawals.length ? withdrawals.map(w => `<tr><td>${fmt(w.amount)}</td><td>${fmt(w.net)}</td><td><span class="badge ${esc(w.status)}">${esc(w.status)}</span></td><td>${dt(w.createdAt)}</td></tr>`).join('') : '<tr><td colspan="4" class="muted">нет</td></tr>'}
-          </tbody></table>`;
+          </tbody></table></div>`;
 
         document.getElementById('cBtn').onclick = async () => {
           const msg = document.getElementById('cMsg'); msg.textContent = ''; msg.className = '';
@@ -499,7 +447,7 @@
         };
         document.getElementById('banBtn').onclick = async () => {
           try { await api('/users/' + encodeURIComponent(id) + '/ban', { method: 'POST', body: JSON.stringify({ banned: !u.banned }) }); openUser(id); }
-          catch (e) { flash(e.message); }
+          catch (e) { flash(e.message, 'err'); }
         };
       } catch (e) { d.innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
     }
@@ -531,11 +479,11 @@
               <div class="id">${esc(u.nickname || u.firstName || u.username || u.id || '')} · tg: ${esc(u.telegramId || '')} · ${esc(w.method)} ${esc(w.destination || '')}</div>
               <div class="id">${dt(w.createdAt)} ${w.note ? '· ' + esc(w.note) : ''}</div>
             </div>
-            <div class="row"></div>`;
+            <div class="w-actions"></div>`;
           if (w.status === 'PENDING') {
-            const actions = div.querySelector('.row');
-            const pay = document.createElement('button'); pay.className = 'green'; pay.textContent = 'Выплатить';
-            const rej = document.createElement('button'); rej.className = 'red'; rej.textContent = 'Отклонить';
+            const actions = div.querySelector('.w-actions');
+            const pay = document.createElement('button'); pay.type = 'button'; pay.className = 'btn success'; pay.textContent = '✓ Выплатить';
+            const rej = document.createElement('button'); rej.type = 'button'; rej.className = 'btn danger'; rej.textContent = '✕ Отклонить';
             pay.onclick = () => processW(w.id, 'pay', w.method);
             rej.onclick = () => processW(w.id, 'reject', w.method);
             actions.appendChild(pay); actions.appendChild(rej);
@@ -554,7 +502,7 @@
         if (note.trim().length < 10) { flash('Нужен корректный tx hash'); return; }
       }
       try { await api('/withdrawals/' + encodeURIComponent(id) + '/process', { method: 'POST', body: JSON.stringify({ action, note }) }); flash('Готово'); loadWithdrawals(); }
-      catch (e) { flash(e.message); }
+      catch (e) { flash(e.message, 'err'); }
     }
 
     // ---- stats ----
@@ -597,8 +545,16 @@
       } catch (e) { errEl.textContent = e.message; body.innerHTML = ''; }
     }
 
-    // init
-    if (adminKey) switchTab('activity'); else document.getElementById('gate').classList.remove('hidden');
+    document.getElementById('hideHelp').onclick = () => {
+      document.getElementById('helpBox').classList.add('hidden');
+      try { localStorage.setItem('naval_admin_help_hide', '1'); } catch {}
+    };
+    if (localStorage.getItem('naval_admin_help_hide')) {
+      document.getElementById('helpBox').classList.add('hidden');
+    }
+
+    updateGate();
+    switchTab('activity');
   </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { GameAPI } from '../api/endpoints';
@@ -18,6 +18,7 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     GameAPI.active()
@@ -58,9 +59,16 @@ export default function HomeScreen() {
     navigate('/training');
   };
 
+  const isNewbie = total === 0;
+
   return (
     <div className="max-w-md mx-auto space-y-4">
       <Onboarding />
+
+      {/* ══ Новичок: упрощённый первый экран ══ */}
+      {isNewbie && !activeMatch && (
+        <NewbieBanner onTrain={openTraining} onPlay={() => { tgHaptic('medium'); navigate('/matchmaking'); }} balance={balance} minWager={minWager} />
+      )}
 
       {/* ── Каюта капитана ── */}
       <motion.section
@@ -217,7 +225,88 @@ export default function HomeScreen() {
         <Tile index={3} icon="scroll"  title="Правила"          sub="Флот, ходы, штрафы"      onClick={() => navigate('/rules')} />
       </div>
 
+      {/* ── Кнопка помощи ── */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => { tgHaptic('light'); setShowHelp((v) => !v); }}
+          className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5"
+        >
+          <Icon name="compass" size={14} /> Как это работает?
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showHelp && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="card p-4 space-y-2 border border-line/60"
+          >
+            <p className="font-display text-main text-sm">📖 Коротко о игре</p>
+            <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
+              <li>⚔️ Нажми <b>«В бой»</b> → выбери ставку → найди соперника</li>
+              <li>🚢 Расставь корабли на поле (или нажми «Авто»)</li>
+              <li>🎯 Стреляй по очереди, топи чужой флот</li>
+              <li>🏆 Победитель забирает ставки обоих</li>
+              <li>💰 Нет денег? Начни с бесплатной <b>Тренировки</b></li>
+            </ul>
+            <button type="button" onClick={() => setShowHelp(false)} className="w-full btn-ghost text-xs py-1.5">Закрыть</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
+  );
+}
+
+/* ─── Баннер для новичка ─────────────────────────────────────────────────── */
+function NewbieBanner({
+  onTrain, onPlay, balance, minWager,
+}: {
+  onTrain: () => void;
+  onPlay: () => void;
+  balance: number;
+  minWager: number;
+}) {
+  const canPlay = balance >= minWager;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="card p-5 border-2 border-danger/30 space-y-4"
+    >
+      <div className="text-center">
+        <div className="text-3xl mb-2">👋</div>
+        <h3 className="font-display text-main text-base leading-snug">
+          Первый раз? Начни с тренировки!
+        </h3>
+        <p className="text-muted text-sm mt-1 leading-relaxed">
+          Бесплатный бой без ставок — научись расставлять корабли и стрелять прежде чем играть на деньги.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <button
+          onClick={onTrain}
+          className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2"
+        >
+          🎮 Попробовать бесплатно
+        </button>
+        {canPlay ? (
+          <button
+            onClick={onPlay}
+            className="w-full btn-ghost py-3 text-sm flex items-center justify-center gap-2"
+          >
+            ⚔️ Сразу на ставку
+          </button>
+        ) : (
+          <p className="text-center text-muted text-xs py-1">
+            Для игры на деньги нужен баланс — пополни в разделе <b>Казна</b>
+          </p>
+        )}
+      </div>
+    </motion.div>
   );
 }
 

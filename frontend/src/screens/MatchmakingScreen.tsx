@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
@@ -62,6 +62,7 @@ export default function MatchmakingScreen() {
   const minWager = useGameConfigStore((s) => s.minWager);
   const maxWager = useGameConfigStore((s) => s.maxWager);
   const presets = useMemo(() => wagerPresetsRub(minWager, maxWager), [minWager, maxWager]);
+  const [showHelp, setShowHelp] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const lastWager = useSettingsStore((s) => s.lastWager);
@@ -350,8 +351,36 @@ export default function MatchmakingScreen() {
               {matches.length} {matchesPlural(matches.length)} в эфире
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => { tgHaptic('light'); setShowHelp((v) => !v); }}
+            className="w-7 h-7 rounded-full bg-panel border border-line flex items-center justify-center text-muted hover:text-main text-xs font-display"
+            aria-label="Помощь"
+          >
+            ?
+          </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showHelp && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="card p-4 space-y-2 border border-line/60"
+          >
+            <p className="font-display text-main text-sm">⚔️ Как найти бой</p>
+            <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
+              <li>🚀 <b>Найти соперника</b> — система сама подберёт игрока с той же ставкой</li>
+              <li>📋 <b>Лобби</b> — вступи в чужой открытый бой или создай свой</li>
+              <li>🔒 <b>С другом</b> — создай приватный бой и отправь другу код</li>
+              <li>💡 Минимальная ставка — {fmt(minWager)}</li>
+            </ul>
+            <button type="button" onClick={() => setShowHelp(false)} className="w-full btn-ghost text-xs py-1.5">Понятно</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {balance < minWager && (
         <button
@@ -362,6 +391,50 @@ export default function MatchmakingScreen() {
           <span className="flex-1 text-main text-sm">Баланс {fmt(balance)} — для боя нужно минимум {fmt(minWager)}</span>
           <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
+      )}
+
+      {/* ══ БЫСТРЫЙ БОЙ — главная кнопка ══ */}
+      {!inQueue && !activeMatch && (
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-display text-main text-base leading-snug">Найти соперника</p>
+              <p className="text-muted text-xs mt-0.5">Система сама подберёт игрока со ставкой {fmt(wager)}</p>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              {presets.slice(0, 3).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setWager(p)}
+                  className={[
+                    'px-2 py-1.5 rounded-lg text-xs font-display border transition-colors',
+                    wager === p
+                      ? 'bg-danger text-white border-danger'
+                      : 'bg-panel border-line text-muted',
+                  ].join(' ')}
+                >
+                  {fmt(p)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={startQueue}
+            disabled={overBalance || queueSearching}
+            className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {queueSearching ? (
+              <><Spinner size={18} /> Ищем соперника…</>
+            ) : (
+              <>⚔️ Найти соперника — {fmt(wager)}</>
+            )}
+          </button>
+          {overBalance && (
+            <p className="text-center text-danger text-xs">Недостаточно средств — <button type="button" className="underline" onClick={() => navigate('/wallet')}>пополни баланс</button></p>
+          )}
+        </div>
       )}
 
       <div className="card p-1 flex gap-1">
