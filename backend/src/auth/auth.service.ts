@@ -21,7 +21,6 @@ export class AuthService {
     private readonly bot: TelegramBotService,
     private readonly audit: AuditService,
     private readonly presence: PresenceService,
-    private readonly redis: RedisService,
   ) {}
 
   async loginWithTelegram(initData: string) {
@@ -38,6 +37,7 @@ export class AuthService {
     }
 
     const tg = parsed.user;
+    const telegramId = String(tg.id);
 
     const existing = await this.prisma.user.findUnique({ where: { telegramId } });
     const isNew = !existing;
