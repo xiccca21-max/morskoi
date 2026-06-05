@@ -101,7 +101,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         (client.handshake.auth?.token as string | undefined) ??
         (client.handshake.headers.authorization?.toString().replace('Bearer ', ''));
       if (!token) throw new Error('No token');
+      const initData = (client.handshake.auth?.initData as string | undefined)?.trim();
       const payload = await this.auth.verifyActiveToken(token);
+      await this.auth.assertTelegramInitDataForUser(initData, payload);
       (client as AuthedSocket).data = {
         userId: payload.sub,
         tgId: payload.tgId,

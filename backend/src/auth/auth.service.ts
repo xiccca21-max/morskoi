@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/c
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
-import { validateAndParseInitData } from './telegram-init-data';
+import { validateAndParseInitData, type ParsedInitData } from './telegram-init-data';
 import { DailyBonusService, type DailyBonusResult } from './daily-bonus.service';
 import { AuditService } from '../common/audit.service';
 import { PresenceService } from '../common/presence.service';
@@ -210,5 +210,45 @@ export class AuthService {
       throw new ForbiddenException('Self-exclusion active');
     }
     return payload;
+  }
+
+  /** В production JWT из curl/браузера без Mini App не принимаем. */
+  isTelegramClientEnforced(): boolean {
+    if (process.env.NODE_ENV !== 'production') {
+      return process.env.REQUIRE_TELEGRAM_CLIENT === 'true';
+    }
+    return process.env.REQUIRE_TELEGRAM_CLIENT !== 'false';
+  }
+
+  /**
+   * Проверка initData на каждый запрос (без одноразового replay — та же строка в сессии).
+   * Сверяем telegram user id с JWT.tgId.
+   */
+  async assertTelegramInitDataForUser(
+    initData: string | undefined,
+    payload: JwtPayload,
+  ): Promise<ParsedInitData | null> {
+    if (!this.isTelegramClientEnforced()) return null;
+
+    const raw = initData?.trim();
+    if (!raw) {
+      throw new UnauthorizedException('Откройте игру через Telegram (нет initData)');
+    }
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) throw new UnauthorizedException('Bot token not configured');
+
+    let parsed: ParsedInitData;
+    try {
+      parsed = validateAndParseInitData(raw, botToken);
+    } catch {
+      throw new UnauthorizedException('Недействительные данные Telegram — перезайдите из бота');
+    }
+
+    if (String(parsed.user.id) !== payload.tgId) {
+      throw new UnauthorizedException('Сессия не совпадает с Telegram');
+    }
+
+    return parsed;
   }
 }

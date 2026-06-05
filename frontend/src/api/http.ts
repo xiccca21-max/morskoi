@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getInitData } from '../lib/telegram';
 
 // По умолчанию используем относительный путь — тогда Vite proxy (dev)
 // или nginx (prod) сами перенаправят на backend. Это нужно для Telegram Mini App,
@@ -13,6 +14,11 @@ export const api = axios.create({
 // Telegram WebView агрессивно кэширует GET — список боёв «протухает» и join падает.
 // Заставляем ревалидировать каждый GET (backend отдаёт no-store).
 api.interceptors.request.use((config) => {
+  const initData = getInitData();
+  if (initData) {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>)['X-Telegram-Init-Data'] = initData;
+  }
   if ((config.method ?? 'get').toLowerCase() === 'get') {
     config.headers = config.headers ?? {};
     (config.headers as Record<string, string>)['Cache-Control'] = 'no-cache';

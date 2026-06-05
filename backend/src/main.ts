@@ -95,6 +95,13 @@ async function bootstrap() {
     // В dev разрешаем любой origin (localtunnel/ngrok меняют URL каждый раз)
     origin: isDev ? true : origins,
     credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Cache-Control',
+      'Pragma',
+      'X-Telegram-Init-Data',
+    ],
   });
 
   app.setGlobalPrefix('api', { exclude: ['health'] });

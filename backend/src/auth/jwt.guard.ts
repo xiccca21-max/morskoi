@@ -11,6 +11,10 @@ export class JwtAuthGuard implements CanActivate {
     if (!header?.startsWith('Bearer ')) throw new UnauthorizedException('No token');
     const token = header.slice(7);
     const payload: JwtPayload = await this.auth.verifyActiveToken(token);
+    const initData =
+      (req.headers['x-telegram-init-data'] as string | undefined) ??
+      (req.headers['X-Telegram-Init-Data'] as string | undefined);
+    await this.auth.assertTelegramInitDataForUser(initData, payload);
     req.user = payload;
     return true;
   }
