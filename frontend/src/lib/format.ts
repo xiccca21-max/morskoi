@@ -1,84 +1,58 @@
-/** Форматирование чисел/денег в едином стиле приложения (RU). */
+/** Форматирование чисел/денег в едином стиле приложения (RU). Только рубли (₽). */
 
-import { getActiveCurrency, useCurrencyStore, CURRENCIES } from '../stores/currency-store';
+import { CURRENCIES } from '../stores/currency-store';
 
 const nf0 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
-const nf2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Целое число с разделителями тысяч: 12345 → «12 345». */
 export function formatNumber(value: number): string {
   return nf0.format(Math.round(value || 0));
 }
 
-/**
- * Денежная сумма в выбранной пользователем валюте отображения.
- * На вход всегда базовая единица — рубли (как хранится на сервере).
- * Конвертация и символ берутся из активной валюты (currency-store).
- */
+/** Денежная сумма в рублях: 1500 → «1 500 ₽». */
 export function formatMoney(valueRub: number): string {
-  const c = getActiveCurrency();
-  const converted = (valueRub || 0) / c.rubPerUnit;
-  const num = (c.decimals === 2 ? nf2 : nf0).format(converted);
-  return c.symbolAfter ? `${num}\u00A0${c.symbol}` : `${c.symbol}${num}`;
+  return `${nf0.format(Math.round(valueRub || 0))}\u00A0₽`;
 }
 
-/**
- * Хук-форматтер: возвращает formatMoney и пересобирается при смене валюты,
- * чтобы компоненты, использующие его, перерисовывались мгновенно.
- */
+/** Хук-форматтер (совместимость): возвращает formatMoney. */
 export function useMoney(): (valueRub: number) => string {
-  // подписка на валюту и версию курсов — ре-рендер при переключении/обновлении курса
-  useCurrencyStore((s) => s.currency);
-  useCurrencyStore((s) => s.ratesVersion);
   return formatMoney;
 }
 
-/** Текущий символ активной валюты (для подписей у полей ввода и т.п.). */
+/** Символ валюты — всегда ₽. */
 export function currencySymbol(): string {
-  return getActiveCurrency().symbol;
+  return '₽';
 }
 
-/** Знаков после запятой у активной валюты (0 или 2). */
+/** Знаков после запятой — всегда 0. */
 export function currencyDecimals(): 0 | 2 {
-  return getActiveCurrency().decimals;
+  return 0;
 }
 
-/** Рубли → единицы активной валюты (число для редактируемого поля). */
+/** Рубли → единицы для поля ввода (1:1). */
 export function rubToUnit(valueRub: number): number {
-  const c = getActiveCurrency();
-  const v = (valueRub || 0) / c.rubPerUnit;
-  return c.decimals === 2 ? Math.round(v * 100) / 100 : Math.round(v);
+  return Math.round(valueRub || 0);
 }
 
-/** Единицы активной валюты → рубли (для отправки на сервер). */
+/** Единицы поля ввода → рубли (1:1). */
 export function unitToRub(valueUnit: number): number {
-  const c = getActiveCurrency();
-  return Math.round((valueUnit || 0) * c.rubPerUnit);
+  return Math.round(valueUnit || 0);
 }
 
-/**
- * Готовые «круглые» суммы пополнения для активной валюты.
- * Возвращает пары {unit, rub}: unit — для показа, rub — для расчёта/отправки.
- */
+/** Пресеты пополнения в рублях. */
 export function depositPresets(): { unit: number; rub: number }[] {
-  const c = getActiveCurrency();
-  const units =
-    c.code === 'USDT' ? [1, 5, 10, 50]
-    : c.code === 'STARS' ? [50, 100, 500, 1000]
-    : [100, 500, 1000, 5000];
-  return units.map((unit) => ({ unit, rub: Math.round(unit * c.rubPerUnit) }));
+  return [100, 500, 1000, 5000].map((v) => ({ unit: v, rub: v }));
 }
 
-/** Компактное число для тесных мест: 1500 → «1.5k». */
+/** Компактное число: 1500 → «1.5k». */
 export function formatCompact(value: number): string {
   const v = value || 0;
   return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v));
 }
 
-/** Компактная сумма в активной валюте (без символа) — для тесной навигации. */
+/** Компактная сумма без символа — для тесной навигации. */
 export function formatCompactMoney(valueRub: number): string {
-  const c = getActiveCurrency();
-  return formatCompact((valueRub || 0) / c.rubPerUnit);
+  return formatCompact(valueRub || 0);
 }
 
 /** Пресеты ставок (₽), отфильтрованные по min/max с сервера. */

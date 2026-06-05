@@ -3,10 +3,9 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getInitData, persistInitData, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
-import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
+import { AuthAPI, UsersAPI, WalletAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
 import { useGameConfigStore } from './stores/game-config-store';
 import { MatchFoundOverlay } from './components/MatchFoundOverlay';
-import { useCurrencyStore } from './stores/currency-store';
 import { loadToken, setAuthToken, getApiErrorMessage } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
 import { useAuthStore } from './stores/auth-store';
@@ -150,14 +149,6 @@ export default function App() {
     setHapticsGate(() => readSettings().haptics);
   }, []);
 
-  // Подтягиваем живые курсы валют (USDT→RUB и т.д.) и обновляем раз в 5 минут
-  useEffect(() => {
-    const apply = useCurrencyStore.getState().applyLiveRates;
-    const load = () => RatesAPI.get().then((r) => apply(r)).catch(() => {});
-    load();
-    const t = setInterval(load, 5 * 60 * 1000);
-    return () => clearInterval(t);
-  }, []);
 
   // Глобальный слушатель кликов по кнопкам
   useEffect(() => {
