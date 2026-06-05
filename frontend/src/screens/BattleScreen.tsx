@@ -532,7 +532,7 @@ function SwitchBtn({ active, onClick, icon, children }: any) {
       onClick={onClick}
       className={[
         'flex-1 py-2 rounded-lg text-sm font-display uppercase tracking-wider transition flex items-center justify-center gap-2',
-        active ? 'bg-panel text-main' : 'text-muted hover:text-main',
+        active ? 'bg-danger text-white' : 'text-muted hover:text-main',
       ].join(' ')}
     >
       <Icon name={icon} size={16} /> {children}
