@@ -37,14 +37,7 @@ export class AdminAlertService implements OnModuleInit {
       );
       return;
     }
-    const botName = process.env.TELEGRAM_BOT_USERNAME ?? 'игрового бота';
-    this.logger.log(`Admin alerts ON → ${this.adminIds.join(', ')}`);
-    await this.sendToAll(
-      `🔔 <b>Мониторинг Naval Clash включён</b>\n\n` +
-        `Сюда будут приходить входы, бои и деньги других игроков.\n` +
-        `Бот: <b>@${this.esc(botName)}</b> (не @Naval_pay_manager)\n\n` +
-        `Команда: /admin test — проверка`,
-    );
+    this.logger.log(`Admin alerts ON → ${this.adminIds.join(', ')} (без стартового пинга в TG)`);
   }
 
   status() {
