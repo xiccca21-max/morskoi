@@ -250,7 +250,7 @@ export default function HomeScreen() {
               <li>🚢 Расставь корабли на поле (или нажми «Авто»)</li>
               <li>🎯 Стреляй по очереди, топи чужой флот</li>
               <li>🏆 Победитель забирает ставки обоих</li>
-              <li>💰 Нет денег? Начни с бесплатной <b>Тренировки</b></li>
+              <li>💰 Нет денег? Начни с бесплатной <b>Тренировки</b> или пополни баланс</li>
             </ul>
             <button type="button" onClick={() => setShowHelp(false)} className="w-full btn-ghost text-xs py-1.5">Закрыть</button>
           </motion.div>
@@ -302,7 +302,7 @@ function NewbieBanner({
           </button>
         ) : (
           <p className="text-center text-muted text-xs py-1">
-            Для игры на деньги нужен баланс — пополни в разделе <b>Казна</b>
+            Для игры на деньги нужен баланс — пополни в разделе <b>Баланс</b>
           </p>
         )}
       </div>
