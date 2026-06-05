@@ -262,10 +262,20 @@
       flashTimer = setTimeout(() => { el.textContent = ''; }, 2500);
     }
 
+    /** fetch требует Latin-1 в заголовках — ключ шлём в base64. */
+    function adminKeyHeaders(key) {
+      const k = (key || '').trim();
+      if (!k) return {};
+      const bytes = new TextEncoder().encode(k);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return { 'x-admin-key': btoa(bin), 'x-admin-key-encoding': 'base64' };
+    }
+
     async function api(path, opts = {}) {
       const res = await fetch(API + path, {
         ...opts,
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey, ...(opts.headers || {}) },
+        headers: { 'Content-Type': 'application/json', ...adminKeyHeaders(adminKey), ...(opts.headers || {}) },
       });
       if (!res.ok) {
         let msg = 'Ошибка ' + res.status;
