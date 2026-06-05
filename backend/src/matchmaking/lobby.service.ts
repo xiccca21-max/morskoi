@@ -95,6 +95,10 @@ export class LobbyService {
    * уведомляет инициатора (opponentId), чтобы тот зашёл и принял бой.
    */
   async challenge(callerId: string, opponentId: string, wagerAmount: number) {
+    const rateOk = await this.redis.consumeNonce(callerId, `challenge:${opponentId}`, 120);
+    if (!rateOk) {
+      throw new BadRequestException('Подождите 2 минуты перед повторным вызовом этого игрока');
+    }
     if (callerId === opponentId) throw new BadRequestException('Нельзя вызвать самого себя');
     const opponent = await this.prisma.user.findUnique({ where: { id: opponentId } });
     if (!opponent) throw new NotFoundException('Соперник не найден');
@@ -292,7 +296,7 @@ export class LobbyService {
   }
 
   /** Открытое приватное лобби хоста (для ссылок-приглашений). */
-  async getOpenByHost(hostId: string) {
+  async getOpenByHost(hostId: string, viewerId?: string) {
     const l = await this.prisma.lobby.findFirst({
       where: {
         hostId,
@@ -305,6 +309,9 @@ export class LobbyService {
       include: { host: { select: { id: true, username: true, firstName: true, avatar: true } } },
     });
     if (!l) throw new NotFoundException('Нет активного приглашения — попроси друга отправить новую ссылку');
+    if (viewerId && viewerId !== hostId) {
+      throw new NotFoundException('Нет активного приглашения');
+    }
     return {
       code: l.code,
       wagerAmount: Number(l.wagerAmount),

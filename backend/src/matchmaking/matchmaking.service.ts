@@ -58,13 +58,14 @@ export class MatchmakingService {
         orderBy: { createdAt: 'asc' },
       });
       if (exact) {
-        return this.createMatchFromQueue(userId, exact.userId, Number(exact.wagerAmount));
+        const w = Number(exact.wagerAmount);
+        return this.createMatchFromQueue(userId, exact.userId, w, w);
       }
 
       const flex = await this.findFlexibleCandidate(userId, wagerAmount);
       if (flex) {
         const matchWager = Math.min(wagerAmount, Number(flex.wagerAmount));
-        return this.createMatchFromQueue(userId, flex.userId, matchWager);
+        return this.createMatchFromQueue(userId, flex.userId, matchWager, wagerAmount);
       }
 
       await this.prisma.matchmakingQueue.upsert({
@@ -107,7 +108,7 @@ export class MatchmakingService {
             const stillA = await this.prisma.matchmakingQueue.findUnique({ where: { userId: a.userId } });
             const stillB = await this.prisma.matchmakingQueue.findUnique({ where: { userId: b.userId } });
             if (!stillA || !stillB) return;
-            await this.createMatchFromQueue(a.userId, b.userId, lo);
+            await this.createMatchFromQueue(a.userId, b.userId, lo, wa);
             matched.add(a.userId);
             matched.add(b.userId);
           });
@@ -150,7 +151,12 @@ export class MatchmakingService {
     );
   }
 
-  private async createMatchFromQueue(userId: string, opponentId: string, wagerAmount: number) {
+  private async createMatchFromQueue(
+    userId: string,
+    opponentId: string,
+    wagerAmount: number,
+    requestedWager?: number,
+  ) {
     await assertCanPlay(this.prisma, userId);
     await assertCanPlay(this.prisma, opponentId);
 
@@ -169,7 +175,14 @@ export class MatchmakingService {
     const match = await this.game.createMatch(opponentId, userId, wagerAmount);
     void this.matchEvents.notifyMatchFound(match.id);
     this.audit.log(userId, 'QUEUE_MATCHED', { matchId: match.id, opponentId, wagerAmount });
-    return { matched: true as const, matchId: match.id, opponentId };
+    return {
+      matched: true as const,
+      matchId: match.id,
+      opponentId,
+      wagerAmount,
+      requestedWager: requestedWager ?? wagerAmount,
+      flexMatch: requestedWager != null && requestedWager !== wagerAmount,
+    };
   }
 
   async leave(userId: string) {

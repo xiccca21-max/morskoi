@@ -156,6 +156,8 @@ export class BotsService implements OnModuleInit {
   private trainingBotId: string | null = null;
 
   private readonly enabled = (process.env.BOTS_ENABLED ?? 'true') !== 'false';
+  /** Автоподбор бота в очередь на реальные ставки (по умолчанию выкл — только PvP). */
+  private readonly paidMmEnabled = process.env.BOT_PAID_MM === 'true';
   private readonly targetCount = Number(process.env.BOTS_COUNT ?? 1);
   private readonly winRate = Number(process.env.BOT_WIN_RATE ?? 0.62);
   private readonly waitSec = Number(process.env.BOT_MATCH_WAIT_SEC ?? 10);
@@ -416,7 +418,7 @@ export class BotsService implements OnModuleInit {
   /** Каждые 5 секунд: добираем «зависших» в очереди игроков матчем против бота. */
   @Cron('*/5 * * * * *')
   async botFillTick() {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.paidMmEnabled) return;
     const cutoff = new Date(Date.now() - this.waitSec * 1000);
     const entries = await this.prisma.matchmakingQueue.findMany({
       where: { createdAt: { lte: cutoff } },

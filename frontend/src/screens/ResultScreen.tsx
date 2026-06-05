@@ -104,7 +104,8 @@ export default function ResultScreen() {
   }, [matchState?.winnerId, me?.id, matchState?.matchId, matchId, matchState?.isTraining, patchUser]); // eslint-disable-line
 
   const won = matchState?.winnerId === me?.id;
-  const draw = !matchState?.winnerId;
+  const matchCancelled = matchState?.status === 'CANCELLED';
+  const draw = !matchCancelled && matchState?.status === 'FINISHED' && matchState?.winnerId == null;
   const isTraining = !!matchState?.isTraining;
   const useNative = isTelegram();
   const rankedUp = !isTraining && !!(won && me && getRank(me.wins).title !== getRank(Math.max(0, me.wins - 1)).title);
@@ -203,7 +204,7 @@ export default function ResultScreen() {
           style={{
             background: won
               ? 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(46,196,96,0.20), transparent 65%)'
-              : draw
+              : draw || matchCancelled
               ? 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(120,150,190,0.12), transparent 65%)'
               : 'radial-gradient(ellipse 80% 60% at 50% 22%, rgba(232,50,40,0.16), transparent 65%)',
           }}
@@ -233,24 +234,24 @@ export default function ResultScreen() {
               'relative w-20 h-20 rounded-full flex items-center justify-center border-4',
               won
                 ? 'bg-success/10 text-success border-success'
-                : draw
+                : draw || matchCancelled
                 ? 'bg-panel text-muted border-line'
                 : 'bg-danger/10 text-danger border-danger',
             ].join(' ')}
           >
-            <Icon name={(draw ? 'handshake' : won ? 'trophy' : 'skull') as IconName} size={36} />
+            <Icon name={(draw ? 'handshake' : matchCancelled ? 'anchor' : won ? 'trophy' : 'skull') as IconName} size={36} />
           </motion.div>
         </div>
 
-        <p className={['font-display text-2xl tracking-[0.16em] uppercase', won ? 'text-success' : draw ? 'text-muted' : 'text-danger'].join(' ')}>
-          {draw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}
+        <p className={['font-display text-2xl tracking-[0.16em] uppercase', won ? 'text-success' : draw || matchCancelled ? 'text-muted' : 'text-danger'].join(' ')}>
+          {matchCancelled ? 'Бой отменён' : draw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}
         </p>
 
         {isTraining && (
           <p className="text-muted text-sm mt-2">Тренировка · статистика и баланс не меняются</p>
         )}
 
-        {!draw && !isTraining && (
+        {!draw && !matchCancelled && !isTraining && (
           <motion.p
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -286,7 +287,7 @@ export default function ResultScreen() {
           </motion.div>
         )}
 
-        {!won && !draw && (
+        {!won && !draw && !matchCancelled && (
           <div className="mx-auto mt-3 flex justify-center">
             <div className="animate-sink">
               <Ship kind="cruiser" size={3} orientation="H" sunk />

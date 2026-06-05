@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { TxType, TxStatus } from '../common/enums';
 import { AuditService } from '../common/audit.service';
+import { isPaidMatchBotTelegramId } from '../common/bot-user';
 import { roundRub } from '../common/money';
 import { txMetaMatches } from '../common/transaction-meta';
 import { PrismaService } from '../prisma/prisma.service';
@@ -243,7 +244,27 @@ export class WalletService {
           });
           const usedToday = Number(agg._sum.amount ?? 0);
           if (usedToday + amountRub > depLimit) {
-            throw new BadRequestException(`Превышен дневной лимит пополнения (${depLimit} ₽)`);
+            let meta: Record<string, unknown> = {};
+            try {
+              meta = JSON.parse(String(pending.meta ?? '{}'));
+            } catch {
+              meta = {};
+            }
+            await tx.transaction.update({
+              where: { id: pending.id },
+              data: {
+                status: TxStatus.PENDING,
+                meta: JSON.stringify({
+                  ...meta,
+                  pendingReason: 'daily_deposit_limit',
+                  limitRub: depLimit,
+                  usedTodayRub: usedToday,
+                  paidAt: new Date().toISOString(),
+                }),
+              },
+            });
+            this.audit.log(userId, 'DEPOSIT_LIMIT_HOLD', { invoiceId, amountRub, depLimit, usedToday });
+            return { credited: false as const, pendingReview: true as const, reason: 'daily_limit' as const };
           }
         }
         await tx.transaction.update({ where: { id: pending.id }, data: { status: TxStatus.COMPLETED } });
@@ -434,7 +455,7 @@ export class WalletService {
           // Идемпотентность атомарно: «захватываем» матч одним conditional-апдейтом.
           // Если статус уже FINISHED — claim.count === 0 и повторной выплаты не будет.
           const claim = await tx.match.updateMany({
-            where: { id: matchId, status: { not: 'FINISHED' } },
+            where: { id: matchId, status: 'IN_PROGRESS' },
             data: { status: 'FINISHED', endedAt: new Date() },
           });
           if (claim.count !== 1) {
@@ -449,14 +470,32 @@ export class WalletService {
             };
           }
 
+          const players = await tx.user.findMany({
+            where: { id: { in: [p1Id, p2Id] } },
+            select: { id: true, telegramId: true },
+          });
+          const tid = (id: string) => players.find((p) => p.id === id)?.telegramId ?? '';
+          const withdrawableRefund = (userId: string) =>
+            isPaidMatchBotTelegramId(tid(userId)) ? 0 : wagerAmount;
+
           if (winnerId === null) {
             await tx.user.update({
               where: { id: p1Id },
-              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 }, winStreak: 0 } as any,
+              data: {
+                balance: { increment: wagerAmount },
+                withdrawable: { increment: withdrawableRefund(p1Id) },
+                draws: { increment: 1 },
+                winStreak: 0,
+              } as any,
             });
             await tx.user.update({
               where: { id: p2Id },
-              data: { balance: { increment: wagerAmount }, withdrawable: { increment: wagerAmount }, draws: { increment: 1 }, winStreak: 0 } as any,
+              data: {
+                balance: { increment: wagerAmount },
+                withdrawable: { increment: withdrawableRefund(p2Id) },
+                draws: { increment: 1 },
+                winStreak: 0,
+              } as any,
             });
             await tx.transaction.createMany({
               data: [
@@ -475,12 +514,17 @@ export class WalletService {
           const rake = roundRub(pool * (rakePercent / 100));
           const winnerPayout = roundRub(pool - rake);
           const loserId = winnerId === p1Id ? p2Id : p1Id;
+          const loserIsPaidBot = isPaidMatchBotTelegramId(tid(loserId));
+          // Выигрыш у бота: на баланс — полный приз, на вывод — только возврат своей ставки (без «прибыли с бота»).
+          const winnerWithdrawableInc = loserIsPaidBot
+            ? Math.min(wagerAmount, winnerPayout)
+            : winnerPayout;
 
           const updatedWinner = await tx.user.update({
             where: { id: winnerId },
             data: {
               balance: { increment: winnerPayout },
-              withdrawable: { increment: winnerPayout },
+              withdrawable: { increment: winnerWithdrawableInc },
               wins: { increment: 1 },
               totalWon: { increment: winnerPayout },
               winStreak: { increment: 1 },
@@ -527,7 +571,14 @@ export class WalletService {
    * Без локов по userId — защита строится на guard'е + создании WAGER_REFUND.
    */
   async refundMatchWagers(matchId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.redis.withLock(`wallet:refund:${matchId}`, 8000, async () =>
+      this.prisma.$transaction(async (tx) => {
+      const match = await tx.match.findUnique({
+        where: { id: matchId },
+        select: { status: true },
+      });
+      if (!match || match.status === 'FINISHED') return { refunded: false as const };
+
       const locks = await tx.transaction.findMany({
         where: { matchId, type: TxType.WAGER_LOCK },
       });
@@ -549,7 +600,8 @@ export class WalletService {
         });
       }
       return { refunded: true as const, count: locks.length };
-    }).then((r) => {
+    }),
+    ).then((r) => {
       if (r.refunded) this.audit.log(null, 'MATCH_WAGER_REFUND', { matchId, count: r.count });
       return r;
     });

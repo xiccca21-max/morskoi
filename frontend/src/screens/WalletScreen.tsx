@@ -111,7 +111,7 @@ export default function WalletScreen() {
   }, [awaitingPayment, updateWallet]);
 
   const balance = user?.balance ?? 0;
-  const withdrawable = balance;
+  const withdrawable = user?.withdrawable ?? balance;
 
   const validDeposit = Number.isFinite(amount) && amount >= minDeposit && amount <= maxDeposit;
   const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;

@@ -52,6 +52,13 @@ class FakePrisma {
       const r = this.users.get(where.id);
       return r ? { ...r } : null;
     },
+    findMany: async ({ where }: any) => {
+      const ids: string[] = where?.id?.in ?? [];
+      return ids
+        .map((id) => this.users.get(id))
+        .filter(Boolean)
+        .map((r) => ({ ...r! }));
+    },
     update: async ({ where, data }: any) => {
       const r = this.users.get(where.id);
       if (!r) throw new Error('user not found');
@@ -155,9 +162,9 @@ class FakePrisma {
   }
 
   // helpers
-  seedUser(id: string, balance: number) {
+  seedUser(id: string, balance: number, telegramId = 'human:1') {
     this.users.set(id, {
-      id, balance, withdrawable: balance,
+      id, balance, withdrawable: balance, telegramId,
       wins: 0, losses: 0, draws: 0, totalWagered: 0, totalWon: 0,
     });
   }
@@ -260,6 +267,29 @@ describe('WalletService money flows', () => {
     // Повторное отклонение не возвращает деньги снова.
     await wallet.resolveWithdrawal(wr.id, 'REJECTED', 'test');
     assert.equal(Number(prisma.users.get('p1')!.balance), 2000);
+  });
+
+  it('settleMatch does not pay when match is CANCELLED', async () => {
+    prisma.seedUser('p1', 1000);
+    prisma.seedUser('p2', 1000);
+    prisma.seedMatch('m1', 'CANCELLED');
+
+    const r = await wallet.settleMatch('m1', 'p1', 'p2', 300, 'p1', 5);
+    assert.equal((r as any).alreadySettled, true);
+    assert.equal(Number(prisma.users.get('p1')!.balance), 1000);
+    assert.equal(prisma.matches.get('m1')!.status, 'CANCELLED');
+  });
+
+  it('settleMatch vs bot: only wager returns to withdrawable, profit stays play-only', async () => {
+    prisma.seedUser('human', 700);
+    prisma.seedUser('bot', 5000, 'bot:1');
+    prisma.seedMatch('m1', 'IN_PROGRESS');
+
+    await wallet.settleMatch('m1', 'human', 'bot', 300, 'human', 5);
+    const h = prisma.users.get('human')!;
+    // payout 570 on balance, withdrawable +300 (own stake only)
+    assert.equal(Number(h.balance), 700 + 570);
+    assert.equal(Number(h.withdrawable), 700 + 300);
   });
 
   it('completeDepositByInvoice credits once (idempotent)', async () => {

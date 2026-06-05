@@ -333,10 +333,13 @@ export default function App() {
       }
     };
     // match:turnTimeout обрабатывается только в BattleScreen чтобы избежать дублирования
-    const onWalletUpdate = (b: number) => {
-      updateBalance(b);
-      // Подтягиваем withdrawable (сокет шлёт только баланс)
-      WalletAPI.balance().then(updateWallet).catch(() => {});
+    const onWalletUpdate = (payload: number | { balance: number; withdrawable: number }) => {
+      if (typeof payload === 'number') {
+        updateBalance(payload);
+        WalletAPI.balance().then(updateWallet).catch(() => {});
+        return;
+      }
+      updateWallet({ balance: payload.balance, withdrawable: payload.withdrawable });
     };
     const onRematchReq = (e: any) => { // eslint-disable-line
       const myId = useAuthStore.getState().user?.id;

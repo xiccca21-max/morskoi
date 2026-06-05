@@ -894,7 +894,7 @@ export class TelegramBotService implements OnModuleInit {
         let link: string;
         if (user) {
           try {
-            const open = await this.lobbies.getOpenByHost(user.id);
+            const open = await this.lobbies.getOpenByHost(user.id, user.id);
             link = this.lobbyInviteUrl(open.code);
           } catch {
             link = `https://t.me/${this.botUsername}?start=play`;

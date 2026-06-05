@@ -22,6 +22,7 @@ import { BotsService } from '../bots/bots.service';
 import { PresenceService } from '../common/presence.service';
 import { chooseBotMove, BOT_SKILL_STRONG, BOT_SKILL_WEAK } from '../bots/bot-engine';
 import { normalizeWager } from '../common/wager';
+import { assertCanPlay } from '../common/responsible-gaming';
 
 interface AuthedSocket extends Socket {
   data: {
@@ -106,6 +107,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         tgId: payload.tgId,
         username: payload.username,
       };
+      const prevSocketId = this.userSockets.get(payload.sub);
+      if (prevSocketId && prevSocketId !== client.id) {
+        const prev = this.server.sockets.sockets.get(prevSocketId);
+        if (prev) {
+          this.logger.log(`Disconnect stale socket ${prevSocketId} for ${payload.sub}`);
+          prev.disconnect(true);
+        }
+      }
       this.userSockets.set(payload.sub, client.id);
       client.join(`user:${payload.sub}`);
       void this.presence.touch(payload.sub, {
@@ -156,6 +165,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (u.banned) throw new Error('Аккаунт заблокирован');
     const until = u.selfExcludedUntil ? new Date(u.selfExcludedUntil) : null;
     if (until && until.getTime() > Date.now()) throw new Error('Самоисключение активно');
+  }
+
+  /** Бан/самоисключение + согласие с правилами (могли измениться после connect). */
+  private async assertGameplayAllowed(userId: string) {
+    await this.assertNotBlocked(userId);
+    await assertCanPlay(this.prisma, userId);
   }
 
   private async ensureNonce(userId: string, nonce?: string) {
@@ -360,8 +375,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     });
     if (match) {
       for (const uid of [match.player1Id, match.player2Id].filter(Boolean) as string[]) {
-        const u = await this.prisma.user.findUnique({ where: { id: uid }, select: { balance: true } });
-        if (u) this.server.to(`user:${uid}`).emit('wallet:update', Number(u.balance));
+        const u = await this.prisma.user.findUnique({
+          where: { id: uid },
+          select: { balance: true, withdrawable: true },
+        });
+        if (u) {
+          this.server.to(`user:${uid}`).emit('wallet:update', {
+            balance: Number(u.balance),
+            withdrawable: Number((u as any).withdrawable ?? u.balance),
+          });
+        }
       }
     }
   }
@@ -379,6 +402,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
+      await this.assertGameplayAllowed(s.data.userId);
       const wagerAmount = normalizeWager(body.wagerAmount);
       const r = await this.mm.enqueue(s.data.userId, wagerAmount);
       if (r.matched && r.matchId) {
@@ -455,6 +479,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
+      await this.assertGameplayAllowed(s.data.userId);
       const r = await this.lobbies.join(body.code.toUpperCase(), s.data.userId);
       // если хост — бот, расставляем его флот и фиксируем уровень игры
       await this.bots.prepareBotMatch(r.matchId);
@@ -493,7 +518,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
-      await this.assertNotBlocked(s.data.userId);
+      await this.assertGameplayAllowed(s.data.userId);
       const r = await this.game.submitPlacement(body.matchId, s.data.userId, body.ships);
       // оповещаем обоих о смене состояния
       await this.broadcastStateToBothPlayers(body.matchId);
@@ -529,6 +554,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
+      await this.assertGameplayAllowed(s.data.userId);
       if (body.x < 0 || body.x > 9 || body.y < 0 || body.y > 9 || !Number.isInteger(body.x) || !Number.isInteger(body.y)) {
         return { ok: false, error: 'Invalid coordinates' };
       }
@@ -571,8 +597,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         // Обновить баланс обоих игроков через сокет
         if (match) {
           for (const uid of [match.player1Id, match.player2Id].filter(Boolean) as string[]) {
-            const u = await this.prisma.user.findUnique({ where: { id: uid }, select: { balance: true } });
-            if (u) this.server.to(`user:${uid}`).emit('wallet:update', Number(u.balance));
+            const u = await this.prisma.user.findUnique({
+              where: { id: uid },
+              select: { balance: true, withdrawable: true },
+            });
+            if (u) {
+              this.server.to(`user:${uid}`).emit('wallet:update', {
+                balance: Number(u.balance),
+                withdrawable: Number((u as any).withdrawable ?? u.balance),
+              });
+            }
           }
         }
       }
@@ -595,6 +629,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
     await this.ensureNonce(s.data.userId, body.nonce);
     try {
+      await this.assertGameplayAllowed(s.data.userId);
       const r = await this.game.surrender(body.matchId, s.data.userId);
       if ((r as { cancelled?: boolean }).cancelled) {
         const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
@@ -648,6 +683,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const s = this.requireAuth(client);
     await this.ensureNonce(s.data.userId, body.nonce);
+    try {
+      await this.assertGameplayAllowed(s.data.userId);
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'Cannot play' };
+    }
 
     const match = await this.prisma.match.findUnique({ where: { id: body.matchId } });
     if (!match || match.status !== 'FINISHED') return { ok: false, error: 'Match not finished' };

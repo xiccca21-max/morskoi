@@ -6,6 +6,7 @@ import { validateAndParseInitData } from './telegram-init-data';
 import { DailyBonusService, type DailyBonusResult } from './daily-bonus.service';
 import { AuditService } from '../common/audit.service';
 import { PresenceService } from '../common/presence.service';
+import { RedisService } from '../redis/redis.service';
 
 export interface JwtPayload {
   sub: string;       // userId
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly bot: TelegramBotService,
     private readonly audit: AuditService,
     private readonly presence: PresenceService,
+    private readonly redis: RedisService,
   ) {}
 
   async loginWithTelegram(initData: string) {
@@ -33,6 +35,12 @@ export class AuthService {
       parsed = validateAndParseInitData(initData, botToken);
     } catch {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const replayTtl = Number(process.env.INITDATA_REPLAY_TTL_SEC ?? process.env.INITDATA_MAX_AGE_SEC ?? 3600);
+    const hashOk = await this.redis.consumeInitDataHash(parsed.hash, replayTtl);
+    if (!hashOk) {
+      throw new UnauthorizedException('initData already used');
     }
 
     const tg = parsed.user;

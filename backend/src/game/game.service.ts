@@ -474,23 +474,32 @@ export class GameService {
   // ===== Cancel при ошибках =====
 
   async cancelMatch(matchId: string, reason: string) {
-    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
-    // Возврат заблокированных ставок (no-op, если ставка ещё не списана или матч тренировочный).
-    if (match && !match.isTraining) {
-      await this.wallet.refundMatchWagers(matchId).catch((e) =>
-        this.logger.warn(`refundMatchWagers ${matchId}: ${e?.message}`),
-      );
-    }
-    await this.prisma.match.update({
-      where: { id: matchId },
-      data: { status: MatchStatus.CANCELLED, endedAt: new Date() },
+    return this.redis.withLock(`match:${matchId}`, 8000, async () => {
+      const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+      if (!match) return;
+      if (match.status === MatchStatus.FINISHED || match.status === MatchStatus.CANCELLED) return;
+
+      const claimed = await this.prisma.match.updateMany({
+        where: {
+          id: matchId,
+          status: { in: [MatchStatus.PLACEMENT, MatchStatus.IN_PROGRESS] },
+        },
+        data: { status: MatchStatus.CANCELLED, endedAt: new Date() },
+      });
+      if (claimed.count !== 1) return;
+
+      if (!match.isTraining) {
+        await this.wallet.refundMatchWagers(matchId).catch((e) =>
+          this.logger.warn(`refundMatchWagers ${matchId}: ${e?.message}`),
+        );
+      }
+      await this.prisma.gameState.updateMany({
+        where: { matchId },
+        data: { gameStatus: GameStatus.FINISHED, currentTurn: null, turnDeadline: null },
+      });
+      this.logger.warn(`Match ${matchId} cancelled: ${reason}`);
+      this.audit.log(match.player1Id ?? null, 'MATCH_CANCELLED', { matchId, reason });
     });
-    await this.prisma.gameState.updateMany({
-      where: { matchId },
-      data: { gameStatus: GameStatus.FINISHED, currentTurn: null, turnDeadline: null },
-    });
-    this.logger.warn(`Match ${matchId} cancelled: ${reason}`);
-    this.audit.log(match?.player1Id ?? null, 'MATCH_CANCELLED', { matchId, reason });
   }
 
   // ===== Просмотр состояния для игрока =====

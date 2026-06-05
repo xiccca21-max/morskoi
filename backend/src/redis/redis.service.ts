@@ -120,6 +120,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return ok === 'OK';
   }
 
+  /** Одноразовый initData (защита от replay в окне auth_date). */
+  async consumeInitDataHash(hash: string, ttlSec: number): Promise<boolean> {
+    const k = `initdata:hash:${hash}`;
+    const ok = this.useMemory
+      ? await this.memSet([k, '1', 'EX', ttlSec, 'NX'])
+      : await this.ioredis!.set(k, '1', 'EX', ttlSec, 'NX');
+    return ok === 'OK';
+  }
+
   // ===== in-memory =====
 
   private memCleanup() {
