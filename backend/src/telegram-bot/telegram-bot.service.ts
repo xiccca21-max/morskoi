@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from '../common/presence.service';
 import type { AdminAlertService } from '../common/admin-alert.service';
 import type { LobbyService } from '../matchmaking/lobby.service';
+import { getAdminPanelPublicUrl } from '../admin/admin-panel-session';
 
 /**
  * TelegramBotService — лёгкий бот:
@@ -591,9 +592,7 @@ export class TelegramBotService implements OnModuleInit {
         onlineHumans = users.filter((u) => !u.telegramId.startsWith('bot:')).length;
       }
       const botName = process.env.TELEGRAM_BOT_USERNAME ?? 'игровой бот';
-      const panelUrl = process.env.TELEGRAM_WEBAPP_URL
-        ? `${process.env.TELEGRAM_WEBAPP_URL.replace(/\/+$/, '')}/admin.html`
-        : null;
+      const panelUrl = getAdminPanelPublicUrl();
       await bot.sendMessage(
         msg.chat.id,
         `🛡 <b>Админ-мониторинг</b>\n\n` +

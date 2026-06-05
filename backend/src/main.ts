@@ -8,6 +8,12 @@ import * as express from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import {
+  credentialsConfigured,
+  getAdminPanelPathWithSlash,
+  isBlockedAdminPublicPath,
+  verifyPanelSessionCookie,
+} from './admin/admin-panel-session';
 
 /**
  * Жёсткая проверка критичных секретов перед стартом в production.
@@ -37,6 +43,9 @@ function assertProductionSecrets() {
   }
   if (!process.env.ADMIN_API_KEY) {
     warn.push('ADMIN_API_KEY не задан — админ-API отключён');
+  }
+  if (!process.env.ADMIN_PANEL_USER?.trim() || !(process.env.ADMIN_PANEL_PASSWORD ?? '').trim()) {
+    warn.push('ADMIN_PANEL_USER/PASSWORD не заданы — веб-панель недоступна');
   }
   if (!process.env.CORS_ORIGINS) {
     warn.push('CORS_ORIGINS не задан — используется localhost по умолчанию');
@@ -149,6 +158,9 @@ async function bootstrap() {
       }),
     );
     app.use(assetCors, express.static(join(frontendDist, 'public')));
+    const panelRoute = getAdminPanelPathWithSlash();
+    const adminGateFile = join(frontendDist, 'admin-gate.html');
+    const adminPanelFile = join(frontendDist, 'admin-panel.html');
     app.use((req, res, next) => {
       if (
         req.method !== 'GET' ||
@@ -163,20 +175,24 @@ async function bootstrap() {
       if (req.path.startsWith('/assets/')) {
         return res.status(404).type('text/plain').send('Not found');
       }
-      if (req.path === '/admin.html' && process.env.NODE_ENV === 'production') {
-        const raw = (process.env.ADMIN_PANEL_IPS ?? '').trim();
-        // ADMIN_PANEL_IPS=*  → отдаём страницу с любого IP (защита только секретным
-        // ключом ADMIN_API_KEY на каждый /api/admin запрос). Иначе — allowlist по IP.
-        if (raw !== '*') {
-          const allowIps = raw
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean);
-          const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
-          if (!allowIps.length || !allowIps.includes(ip)) {
+      if (isBlockedAdminPublicPath(req.path)) {
+        return res.status(404).type('text/plain').send('Not found');
+      }
+      if (req.path === panelRoute || req.path === `${panelRoute}/`) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        if (!credentialsConfigured()) {
+          return res.status(503).type('text/plain').send('Admin panel not configured');
+        }
+        if (!verifyPanelSessionCookie(req)) {
+          if (!existsSync(adminGateFile)) {
             return res.status(404).type('text/plain').send('Not found');
           }
+          return res.sendFile(adminGateFile);
         }
+        if (!existsSync(adminPanelFile)) {
+          return res.status(404).type('text/plain').send('Not found');
+        }
+        return res.sendFile(adminPanelFile);
       }
       const staticFile = join(frontendDist, req.path);
       if (req.path.includes('.') && existsSync(staticFile)) {
@@ -187,6 +203,9 @@ async function bootstrap() {
       res.sendFile(join(frontendDist, 'index.html'));
     });
     Logger.log(`Serving frontend from ${frontendDist}`, 'Bootstrap');
+    if (credentialsConfigured()) {
+      Logger.log(`Admin panel: ${panelRoute} (login gate enabled)`, 'Bootstrap');
+    }
   } else {
     Logger.warn(`Frontend dist not found`, 'Bootstrap');
   }

@@ -53,7 +53,9 @@ services:
       CRYPTO_PAY_API: ${CRYPTO_PAY_API:-https://pay.crypt.bot/api}
       # Ключ для админских действий (обработка выводов)
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
-      # IP, с которых доступна веб-админка /admin.html в проде (через запятую)
+      ADMIN_PANEL_PATH: ${ADMIN_PANEL_PATH:-harbor-9k2-mnx-panel}
+      ADMIN_PANEL_USER: ${ADMIN_PANEL_USER:-}
+      ADMIN_PANEL_PASSWORD: ${ADMIN_PANEL_PASSWORD:-}
       ADMIN_PANEL_IPS: ${ADMIN_PANEL_IPS:-}
       # Telegram ID админа — уведомления в личку игрового бота
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}

@@ -104,6 +104,7 @@
     <h1>⚓ Naval Clash — Админка</h1>
     <input id="keyInput" type="password" placeholder="Admin key" style="max-width:220px" />
     <button id="saveKey" class="ghost">Сохранить ключ</button>
+    <button id="panelLogout" class="ghost" type="button">Выйти</button>
   </header>
 
   <div class="wrap">
@@ -239,6 +240,10 @@
     }
     document.getElementById('saveKey').onclick = setKey;
     document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') setKey(); });
+    document.getElementById('panelLogout').onclick = async () => {
+      try { await fetch('/api/admin/panel-logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
+      window.location.replace(window.location.pathname);
+    };
 
     let flashTimer;
     function flash(msg) {

@@ -7,8 +7,11 @@ grep -E '^(ADMIN_API_KEY|ADMIN_PANEL_IPS|ADMIN_TELEGRAM|ADMIN_ALERT)' .env | sed
 KEY=$(grep '^ADMIN_API_KEY=' .env | cut -d= -f2-)
 HOST='176-12-68-39.sslip.io'
 
-echo "=== admin.html ==="
-curl -sk -o /dev/null -w "no IP: %{http_code}\n" "https://127.0.0.1/admin.html" -H "Host: $HOST"
+PANEL_PATH=$(grep '^ADMIN_PANEL_PATH=' .env 2>/dev/null | cut -d= -f2- || echo 'harbor-9k2-mnx-panel')
+echo "=== old /admin.html (expect 404) ==="
+curl -sk -o /dev/null -w "%{http_code}\n" "https://127.0.0.1/admin.html" -H "Host: $HOST"
+echo "=== panel gate $PANEL_PATH (expect 200 login page) ==="
+curl -sk -o /dev/null -w "%{http_code}\n" "https://127.0.0.1/${PANEL_PATH}" -H "Host: $HOST"
 
 echo "=== API without key ==="
 curl -sk -o /dev/null -w "stats: %{http_code}\n" "https://127.0.0.1/api/admin/stats" -H "Host: $HOST"

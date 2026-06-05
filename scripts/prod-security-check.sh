@@ -12,7 +12,7 @@ curl -skL "$GAME/assets/$POLY" -o /tmp/cf.js -w "game %{size_download}\n" 2>/dev
 echo "=== Health ==="
 curl -sk "$ORIGIN/health" | head -c 120; echo
 
-echo "=== admin.html (expect 404 without ADMIN_PANEL_IPS) ==="
+echo "=== admin.html (expect 404) ==="
 curl -sk -o /dev/null -w "%{http_code}\n" "$ORIGIN/admin.html"
 
 echo "=== State API without auth (expect 401) ==="
