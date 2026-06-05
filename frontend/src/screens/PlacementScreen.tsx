@@ -19,6 +19,7 @@ import { Icon } from '../components/Icon';
 import { ConfirmDialog } from '../components/Modal';
 import { playSound } from '../lib/audio';
 import { VintageShip } from '../components/VintageShip';
+import { useGameConfigStore } from '../stores/game-config-store';
 import '../styles/placement-vintage.css';
 
 interface SlotShip {
@@ -68,12 +69,13 @@ export default function PlacementScreen() {
   const [sent, setSent] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [showExit, setShowExit] = useState(false);
+  const placementTimeoutSec = useGameConfigStore((s) => s.placementTimeoutSec);
 
   const deadline = useMemo(() => {
     const fromState = matchState?.placementDeadline;
     if (fromState) return new Date(fromState).getTime();
-    return Date.now() + 60_000;
-  }, [matchState?.placementDeadline]);
+    return Date.now() + placementTimeoutSec * 1000;
+  }, [matchState?.placementDeadline, placementTimeoutSec]);
 
   const totalSec = useMemo(() => {
     const end = matchState?.placementDeadline;
@@ -81,8 +83,8 @@ export default function PlacementScreen() {
     if (end && start) {
       return Math.max(10, Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 1000));
     }
-    return 60;
-  }, [matchState?.placementDeadline, matchState?.placementStartedAt]);
+    return placementTimeoutSec;
+  }, [matchState?.placementDeadline, matchState?.placementStartedAt, placementTimeoutSec]);
 
   const placedShips = useMemo(
     () => fleet.filter((f) => f.placed).map((f) => f.placed!) as ShipPlacement[],

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Board } from '../components/Board';
@@ -435,20 +436,23 @@ export default function BattleScreen() {
         <ReactionBtn icon="wave" disabled={reactionCooldown} onClick={() => sendReaction('wave')} />
       </div>
 
-      {/* Всплывающие анимации реакций поверх поля */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-50">
-        {reactions.map((r) => (
-          <motion.div
-            key={r.id}
-            initial={{ opacity: 0, scale: 0.5, y: 50, x: r.isMine ? -20 : 20 }}
-            animate={{ opacity: 0, scale: 1, y: -200, x: r.isMine ? -50 : 50 }}
-            transition={{ duration: 1.5, ease: 'easeOut' }}
-            className={['absolute bottom-1/3 text-4xl', r.isMine ? 'left-1/2 text-main' : 'right-1/2 text-danger'].join(' ')}
-          >
-            <Icon name={r.icon} size={48} />
-          </motion.div>
-        ))}
-      </div>
+      {/* Всплывающие реакции — портал, иначе fixed ломается из-за transform у .page-enter */}
+      {reactions.length > 0 && createPortal(
+        <div className="pointer-events-none fixed inset-0 overflow-hidden z-[150]">
+          {reactions.map((r) => (
+            <motion.div
+              key={r.id}
+              initial={{ opacity: 0, scale: 0.5, y: 50, x: r.isMine ? -20 : 20 }}
+              animate={{ opacity: 0, scale: 1, y: -200, x: r.isMine ? -50 : 50 }}
+              transition={{ duration: 1.5, ease: 'easeOut' }}
+              className={['absolute bottom-1/3 text-4xl', r.isMine ? 'left-1/2 text-main' : 'right-1/2 text-danger'].join(' ')}
+            >
+              <Icon name={r.icon} size={48} />
+            </motion.div>
+          ))}
+        </div>,
+        document.body,
+      )}
 
       <ConfirmDialog
         open={showSurrender}

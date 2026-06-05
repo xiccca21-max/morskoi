@@ -411,9 +411,9 @@ export default function App() {
   // Диплинки: lobby_CODE, wallet, profile_ID
   useEffect(() => {
     if (!ready || !authenticated || deepLinkHandled.current) return;
-    deepLinkHandled.current = true;
     const sp = getStartParam();
     if (!sp) return;
+    deepLinkHandled.current = true;
     // start_param из initDataUnsafe не подписан на клиенте — строго валидируем формат,
     // чтобы исключить навигацию по произвольным значениям.
     const isLobbyCode = (s: string) => /^[A-Z0-9]{4,12}$/.test(s);

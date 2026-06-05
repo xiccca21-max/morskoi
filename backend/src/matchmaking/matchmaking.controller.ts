@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, Length, Max } from 'class-validator';
 import { MatchmakingService } from './matchmaking.service';
@@ -141,6 +141,9 @@ export class MatchmakingController {
     const lobby = await this.lobbies.get(code.toUpperCase());
     if (!lobby || lobby.host?.id !== u.sub) {
       throw new ForbiddenException('Только хост лобби может отправить карточку');
+    }
+    if (lobby.status !== 'OPEN') {
+      throw new BadRequestException('Лобби уже закрыто — создайте новое приглашение');
     }
     await this.tg.sendLobbyCard(u.sub, code.toUpperCase(), lobby.isTraining ?? false, lobby.wagerAmount);
     return { ok: true };

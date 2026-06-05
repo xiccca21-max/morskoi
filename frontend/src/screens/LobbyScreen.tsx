@@ -39,6 +39,11 @@ export default function LobbyScreen() {
   useEffect(load, [code]);
 
   useEffect(() => {
+    autoPrompted.current = false;
+    setConfirmJoin(false);
+  }, [code]);
+
+  useEffect(() => {
     const mid = lobby?.matchId;
     if (lobby?.status !== 'STARTED' || !mid) return;
     let cancelled = false;
@@ -68,7 +73,7 @@ export default function LobbyScreen() {
     autoPrompted.current = true;
     const t = setTimeout(() => setConfirmJoin(true), 400);
     return () => clearTimeout(t);
-  }, [lobby, user, isHost]);
+  }, [lobby, user, isHost, isTraining]);
 
   const inviteUrl = `https://t.me/${BOT}?start=lobby_${code}`;
 

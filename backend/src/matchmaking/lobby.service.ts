@@ -299,6 +299,7 @@ export class LobbyService {
         status: LobbyStatus.OPEN,
         expiresAt: { gt: new Date() },
         isPublic: false,
+        isTraining: false,
       } as any,
       orderBy: { createdAt: 'desc' },
       include: { host: { select: { id: true, username: true, firstName: true, avatar: true } } },
