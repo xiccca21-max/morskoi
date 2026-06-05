@@ -338,16 +338,6 @@ export default function MatchmakingScreen() {
       <div className="flex items-center justify-between gap-2">
         <h2 className="title text-main text-lg">Поиск боя</h2>
         <div className="flex items-center gap-2 shrink-0">
-          {tab === 'browse' && (
-            <button
-              type="button"
-              className="text-muted hover:text-main p-1"
-              aria-label="Обновить список"
-              onClick={() => { tgHaptic('light'); void fetchList(); }}
-            >
-              <Icon name="wave" size={18} />
-            </button>
-          )}
           {tab === 'browse' && matches && matches.length > 0 && (
             <span className="text-xs font-display text-muted tabular-nums">
               {matches.length} {matchesPlural(matches.length)} в эфире
