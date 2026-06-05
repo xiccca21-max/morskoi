@@ -112,14 +112,6 @@ export default function BattleScreen() {
       tgVibrate(35);
       playSound('splash');
     }
-    // Если стрелял соперник — подсказываем, куда именно (поле само покажется
-    // по смене хода, не дёргаем его на каждый выстрел/попадание).
-    if (lastAttack.by && me?.id && lastAttack.by !== me.id) {
-      const where = coord(lastAttack.x, lastAttack.y);
-      if (lastAttack.sunk) toast(`Соперник потопил ваш корабль (${where})`, 'error', 'skull');
-      else if (lastAttack.hit) toast(`Попадание по вам: ${where}`, 'error', 'target');
-      else toast(`Соперник промахнулся: ${where}`, 'info', 'wave');
-    }
   }, [lastAttack?.ts]); // eslint-disable-line
 
   useEffect(() => {
