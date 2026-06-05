@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Icon, IconName } from './Icon';
 
@@ -10,18 +11,29 @@ interface ModalProps {
   children: ReactNode;
   /** Закрывать по клику на фон. По умолчанию да. */
   dismissable?: boolean;
-  /** Доп. отступ снизу на мобильных — приподнимает модалку над краем экрана. */
-  raised?: boolean;
 }
 
-export function Modal({ open, onClose, title, icon, children, dismissable = true, raised = false }: ModalProps) {
+export function Modal({ open, onClose, title, icon, children, dismissable = true }: ModalProps) {
+  // Блокируем скролл страницы, пока модалка открыта.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   // Без AnimatePresence/exit: при подтверждении мы закрываем модалку и тут же
   // переходим на /placement — exit-анимация на размонтируемом дереве роняла
   // "Failed to execute 'removeChild'" → экран боя падал с error boundary.
   if (!open) return null;
-  return (
+
+  return createPortal(
     <motion.div
-      className={`fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 ${raised ? 'pb-24 sm:pb-4' : ''}`}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+      }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.18 }}
@@ -31,8 +43,8 @@ export function Modal({ open, onClose, title, icon, children, dismissable = true
         onClick={() => dismissable && onClose?.()}
       />
       <motion.div
-        className="relative w-full max-w-sm card p-5 z-10 max-h-[85vh] overflow-y-auto"
-        initial={{ y: 30, scale: 0.96, opacity: 0 }}
+        className="relative w-full max-w-sm card p-5 z-10 max-h-[min(85vh,100%)] overflow-y-auto"
+        initial={{ y: 16, scale: 0.97, opacity: 0 }}
         animate={{ y: 0, scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       >
@@ -44,7 +56,8 @@ export function Modal({ open, onClose, title, icon, children, dismissable = true
         )}
         {children}
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
 
