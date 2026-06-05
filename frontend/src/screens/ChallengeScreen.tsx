@@ -32,12 +32,13 @@ export default function ChallengeScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const wager = Math.max(minWager, Math.min(maxWager, unitToRub(Number(rawInput) || rubToUnit(minWager))));
   const balance = me?.balance ?? 0;
+  const effectiveMax = Math.max(maxWager, balance);
+  const wager = Math.max(minWager, Math.min(effectiveMax, unitToRub(Number(rawInput) || rubToUnit(minWager))));
   const overBalance = wager > balance;
 
   const setWager = (rub: number) => {
-    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(rub)));
+    const clamped = Math.max(minWager, Math.min(effectiveMax, Math.round(rub)));
     setRawInput(String(rubToUnit(clamped)));
     setLastWager(clamped);
   };

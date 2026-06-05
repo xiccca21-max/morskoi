@@ -70,14 +70,16 @@ export default function MatchmakingScreen() {
   const navigate = useNavigate();
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
+  const balance = user?.balance ?? 0;
+  // Верхний предел ставки — максимум из конфига или баланса (чтобы можно было ставить всё)
+  const effectiveMax = Math.max(maxWager, balance);
   // rawInput: то, что юзер видит в поле ввода (строка, может быть пустой при наборе)
   const [rawInput, setRawInput] = useState(String(rubToUnit(Math.max(minWager, lastWager))));
-  const wager = Math.max(minWager, Math.min(maxWager, unitToRub(Number(rawInput) || rubToUnit(minWager))));
-  const balance = user?.balance ?? 0;
+  const wager = Math.max(minWager, Math.min(effectiveMax, unitToRub(Number(rawInput) || rubToUnit(minWager))));
   const overBalance = wager > balance;
 
   const setWager = (rub: number) => {
-    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(rub)));
+    const clamped = Math.max(minWager, Math.min(effectiveMax, Math.round(rub)));
     setRawInput(String(rubToUnit(clamped)));
     setLastWager(clamped);
   };
