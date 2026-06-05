@@ -393,49 +393,6 @@ export default function MatchmakingScreen() {
         </button>
       )}
 
-      {/* ══ БЫСТРЫЙ БОЙ — главная кнопка ══ */}
-      {!inQueue && !activeMatch && (
-        <div className="card p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="font-display text-main text-base leading-snug">Найти соперника</p>
-              <p className="text-muted text-xs mt-0.5">Система сама подберёт игрока со ставкой {fmt(wager)}</p>
-            </div>
-            <div className="flex gap-1 shrink-0">
-              {presets.slice(0, 3).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setWager(p)}
-                  className={[
-                    'px-2 py-1.5 rounded-lg text-xs font-display border transition-colors',
-                    wager === p
-                      ? 'bg-danger text-white border-danger'
-                      : 'bg-panel border-line text-muted',
-                  ].join(' ')}
-                >
-                  {fmt(p)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={startQueue}
-            disabled={overBalance || queueSearching}
-            className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {queueSearching ? (
-              <><Spinner size={18} /> Ищем соперника…</>
-            ) : (
-              <>⚔️ Найти соперника — {fmt(wager)}</>
-            )}
-          </button>
-          {overBalance && (
-            <p className="text-center text-danger text-xs">Недостаточно средств — <button type="button" className="underline" onClick={() => navigate('/wallet')}>пополни баланс</button></p>
-          )}
-        </div>
-      )}
 
       <div className="card p-1 flex gap-1">
         <TabBtn active={tab === 'browse'} onClick={() => { setError(null); setTab('browse'); }} icon="swords">Лобби</TabBtn>
