@@ -81,4 +81,9 @@ export function formatCompactMoney(valueRub: number): string {
   return formatCompact((valueRub || 0) / c.rubPerUnit);
 }
 
+/** Пресеты ставок (₽), отфильтрованные по min/max с сервера. */
+export function wagerPresetsRub(min: number, max: number): number[] {
+  return [100, 250, 500, 1000, 5000].filter((p) => p >= min && p <= max);
+}
+
 export { CURRENCIES };

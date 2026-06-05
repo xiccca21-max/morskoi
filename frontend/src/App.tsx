@@ -204,8 +204,18 @@ export default function App() {
       };
 
       try {
-        // 1. Сохранённый JWT — не ждём initData (Telegram WebView часто сбрасывает sessionStorage).
         const existing = loadToken();
+        // Свежий initData приоритетнее JWT: обрабатывает ref_/start_param и обновляет профиль.
+        const initData = await waitForInitData(initDataTimeout);
+        if (cancelled) return;
+
+        if (initData) {
+          const res = await AuthAPI.login(initData);
+          if (cancelled) return;
+          applyLoginResult(res);
+          return;
+        }
+
         if (existing) {
           try {
             const me = await UsersAPI.me();
@@ -218,15 +228,7 @@ export default function App() {
           }
         }
 
-        // 2. Свежий initData от Telegram.
-        const initData = await waitForInitData(initDataTimeout);
-        if (cancelled) return;
-
-        if (initData) {
-          const res = await AuthAPI.login(initData);
-          if (cancelled) return;
-          applyLoginResult(res);
-        } else if (isTelegramWebView()) {
+        if (isTelegramWebView()) {
           setAuthError('Telegram не передал данные авторизации. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
         } else {
           setAuthError('Откройте приложение через Telegram');
@@ -424,11 +426,9 @@ export default function App() {
       if (isLobbyCode(code)) navigate(`/lobby/${code}`, { replace: true });
     } else if (sp.startsWith('challenge_')) {
       const hostId = sp.slice('challenge_'.length);
-      if (isId(hostId)) {
-        MatchmakingAPI.lobbyByHost(hostId)
-          .then((l) => navigate(`/lobby/${l.code}`, { replace: true }))
-          .catch(() => toast('Приглашение устарело. Попроси друга отправить новую ссылку.', 'error'));
-      }
+      if (isId(hostId)) navigate(`/challenge/${hostId}`, { replace: true });
+    } else if (sp.startsWith('ref_')) {
+      navigate('/home', { replace: true });
     } else if (sp === 'wallet') {
       navigate('/wallet');
     } else if (sp.startsWith('profile_')) {

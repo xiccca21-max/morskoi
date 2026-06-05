@@ -10,6 +10,7 @@ export class ConfigController {
       maxWager: Number(process.env.MAX_WAGER ?? 10000),
       minWithdraw: Number(process.env.MIN_WITHDRAW ?? 1000),
       minDeposit: Number(process.env.MIN_DEPOSIT ?? 0),
+      maxDeposit: Number(process.env.MAX_DEPOSIT ?? 100_000),
       platformRakePercent: Number(process.env.PLATFORM_RAKE_PERCENT ?? 5),
       afkForfeitTimeouts: Number(process.env.AFK_FORFEIT_TIMEOUTS ?? 2),
       placementTimeoutSec: Number(process.env.PLACEMENT_TIMEOUT_SEC ?? 60),

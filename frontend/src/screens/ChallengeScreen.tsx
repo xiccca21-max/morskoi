@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MatchmakingAPI, UsersAPI } from '../api/endpoints';
 import { Avatar } from '../components/Avatar';
@@ -9,34 +9,36 @@ import { getRank } from '../lib/rank';
 import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { useMoney, currencySymbol, rubToUnit, unitToRub, wagerPresetsRub } from '../lib/format';
 import { tgHaptic, tgVibrate } from '../lib/telegram';
-
-const PRESETS = [100, 250, 500, 1000, 5000];
 
 /** Экран принятия вызова по deep-link challenge_<id>. */
 export default function ChallengeScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const me = useAuthStore((s) => s.user);
+  const fmt = useMoney();
+  const sym = currencySymbol();
   const minWager = useGameConfigStore((s) => s.minWager);
   const maxWager = useGameConfigStore((s) => s.maxWager);
   const lastWager = useSettingsStore((s) => s.lastWager);
   const setLastWager = useSettingsStore((s) => s.setLastWager);
+  const presets = useMemo(() => wagerPresetsRub(minWager, maxWager), [minWager, maxWager]);
 
   const [opponent, setOpponent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [raw, setRaw] = useState(String(Math.max(minWager, lastWager)));
+  const [rawInput, setRawInput] = useState(String(rubToUnit(Math.max(minWager, lastWager))));
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const wager = Math.max(minWager, Math.min(maxWager, Number(raw) || minWager));
+  const wager = Math.max(minWager, Math.min(maxWager, unitToRub(Number(rawInput) || rubToUnit(minWager))));
   const balance = me?.balance ?? 0;
   const overBalance = wager > balance;
 
-  const setWager = (v: number) => {
-    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(v)));
-    setRaw(String(clamped));
+  const setWager = (rub: number) => {
+    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(rub)));
+    setRawInput(String(rubToUnit(clamped)));
     setLastWager(clamped);
   };
 
@@ -117,13 +119,17 @@ export default function ChallengeScreen() {
           <div className="flex items-baseline gap-1.5 min-w-0">
             <input
               type="number"
-              inputMode="numeric"
-              value={raw}
-              onChange={(e) => setRaw(e.target.value)}
-              onBlur={() => setWager(Number(raw) || minWager)}
+              inputMode="decimal"
+              value={rawInput}
+              onChange={(e) => {
+                setRawInput(e.target.value);
+                const n = Number(e.target.value);
+                if (!isNaN(n) && n > 0) setLastWager(unitToRub(n));
+              }}
+              onBlur={() => setWager(unitToRub(Number(rawInput) || rubToUnit(minWager)))}
               className={['w-28 text-center bg-transparent outline-none font-display text-4xl tabular-nums', overBalance ? 'text-danger' : 'text-main'].join(' ')}
             />
-            <span className={['text-sm shrink-0', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>₽</span>
+            <span className={['text-sm shrink-0', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>{sym}</span>
           </div>
           <button
             className="shrink-0 w-12 h-12 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
@@ -135,16 +141,18 @@ export default function ChallengeScreen() {
           </button>
         </div>
 
-        <div className="grid grid-cols-5 gap-1.5">
-          {PRESETS.map((p) => (
-            <button key={p} onClick={() => setWager(p)}
-              className={['py-2 rounded-lg text-sm font-display tabular-nums transition border', wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line'].join(' ')}>
-              {p}
-            </button>
-          ))}
-        </div>
+        {presets.length > 0 && (
+          <div className={`grid gap-1.5 ${presets.length <= 3 ? 'grid-cols-3' : 'grid-cols-5'}`}>
+            {presets.map((p) => (
+              <button key={p} onClick={() => setWager(p)}
+                className={['py-2 rounded-lg text-xs font-display tabular-nums transition border', wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line'].join(' ')}>
+                {fmt(p)}
+              </button>
+            ))}
+          </div>
+        )}
 
-        <div className="text-[11px] text-muted text-center tabular-nums">Баланс: {balance.toFixed(0)} ₽</div>
+        <div className="text-[11px] text-muted text-center tabular-nums">Баланс: {fmt(balance)}</div>
 
         {error && <div className="text-danger text-sm text-center">{error}</div>}
 
@@ -154,7 +162,7 @@ export default function ChallengeScreen() {
           </button>
         ) : (
           <button className="btn-primary w-full" onClick={() => { tgHaptic('light'); setConfirm(true); }} disabled={busy}>
-            <Icon name="swords" size={16} /> Принять вызов за {wager} ₽
+            <Icon name="swords" size={16} /> Принять вызов за {fmt(wager)}
           </button>
         )}
         <button className="btn-ghost w-full" onClick={() => navigate('/home')}>Позже</button>
@@ -166,7 +174,7 @@ export default function ChallengeScreen() {
         icon="swords"
         message={
           <>
-            Бой против <strong>{name}</strong>. Ставка <strong>{wager} ₽</strong> спишется
+            Бой против <strong>{name}</strong>. Ставка <strong>{fmt(wager)}</strong> спишется
             при старте боя (когда оба расставят флот). Соперник получит уведомление.
             <span className="block mt-2 text-warning">
               ⚠️ Нужен стабильный интернет: при потере связи и пропуске ходов

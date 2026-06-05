@@ -6,6 +6,7 @@ import { useThemeStore, THEMES } from '../stores/theme-store';
 import { useSettingsStore } from '../stores/settings-store';
 import { useCurrencyStore, CURRENCY_LIST } from '../stores/currency-store';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { formatMoney } from '../lib/format';
 import { tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { useNotifyPrefsStore, saveNotifyPref } from '../stores/notify-prefs-store';
@@ -57,7 +58,7 @@ export default function SettingsScreen() {
       const fresh = await UsersAPI.setLimits({ dailyDepositLimit: v });
       patchUser({ dailyDepositLimit: fresh.dailyDepositLimit ?? v });
       tgHaptic('success');
-      toast(v > 0 ? `Лимит пополнения: ${v} ₽/день` : 'Лимит снят', 'success', 'check');
+      toast(v > 0 ? `Лимит пополнения: ${formatMoney(v)}/день` : 'Лимит снят', 'success', 'check');
     } catch {
       tgHaptic('error');
       toast('Не удалось сохранить лимит', 'error');

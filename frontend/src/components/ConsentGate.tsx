@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { formatMoney } from '../lib/format';
 import { Icon } from './Icon';
 
 /**
@@ -75,7 +76,7 @@ export function ConsentGate() {
             <p>• Каждый бой — ставка двух игроков. Победитель забирает банк за вычетом комиссии {platformRakePercent}%.</p>
             <p>• Все ходы проверяются на сервере, поля соперников скрыты. Читы невозможны.</p>
             <p>• Выход из боя или бездействие засчитывается как поражение, ставка не возвращается.</p>
-            <p>• Минимальная ставка — {minWager} ₽. Вывод USDT — от {minWithdraw} ₽, обработка до 24 часов.</p>
+            <p>• Минимальная ставка — {formatMoney(minWager)}. Вывод USDT — от {formatMoney(minWithdraw)}, обработка до 24 часов.</p>
             <p>• Играйте ответственно: лимиты и перерыв доступны в настройках.</p>
           </div>
         )}

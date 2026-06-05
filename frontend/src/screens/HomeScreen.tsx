@@ -9,6 +9,7 @@ import { Icon, IconName } from '../components/Icon';
 import { Avatar } from '../components/Avatar';
 import { Onboarding } from '../components/Onboarding';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { formatMoney } from '../lib/format';
 
 
 export default function HomeScreen() {
@@ -110,7 +111,7 @@ export default function HomeScreen() {
           className="w-full card card-press p-3 flex items-center gap-3 border-warning/60 text-left"
         >
           <Icon name="coins" size={18} className="text-warning shrink-0" />
-          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {minWager} ₽</span>
+          <span className="flex-1 text-main text-sm">Мало для ставки — минимум {formatMoney(minWager)}</span>
           <Icon name="arrow-right" size={16} className="text-warning shrink-0" />
         </button>
       )}

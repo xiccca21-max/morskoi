@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { GameAPI, MatchmakingAPI } from '../api/endpoints';
@@ -27,7 +27,6 @@ export default function LobbyScreen() {
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmJoin, setConfirmJoin] = useState(false);
-  const autoPrompted = useRef(false);
 
   const load = () => {
     if (!code) return;
@@ -39,7 +38,6 @@ export default function LobbyScreen() {
   useEffect(load, [code]);
 
   useEffect(() => {
-    autoPrompted.current = false;
     setConfirmJoin(false);
   }, [code]);
 
@@ -65,16 +63,6 @@ export default function LobbyScreen() {
   const isTraining = !!lobby?.isTraining;
   const lowFunds = !isTraining && !!user && lobby && user.balance < lobby.wagerAmount;
 
-  // Гость с достаточным балансом — сразу показываем подтверждение (один тап до боя).
-  useEffect(() => {
-    if (!lobby || !user || isHost || autoPrompted.current) return;
-    if (lobby.status !== 'OPEN') return;
-    if (!isTraining && user.balance < lobby.wagerAmount) return;
-    autoPrompted.current = true;
-    const t = setTimeout(() => setConfirmJoin(true), 400);
-    return () => clearTimeout(t);
-  }, [lobby, user, isHost, isTraining]);
-
   const inviteUrl = `https://t.me/${BOT}?start=lobby_${code}`;
 
   const share = async () => {
@@ -94,7 +82,7 @@ export default function LobbyScreen() {
           inviteUrl,
           isTraining
             ? `Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби`
-            : `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
+            : `Вызываю на морской бой ⚓\nСтавка ${formatMoney(lobby.wagerAmount)} — нажми и сразу в лобби`,
         );
       } finally {
         setCardSending(false);
@@ -104,7 +92,7 @@ export default function LobbyScreen() {
         inviteUrl,
         isTraining
           ? `Тренировочный морской бой ⚓\nБез ставки — нажми и зайди в лобби`
-          : `Вызываю на морской бой ⚓\nСтавка ${lobby.wagerAmount} ₽ — нажми и сразу в лобби`,
+          : `Вызываю на морской бой ⚓\nСтавка ${formatMoney(lobby.wagerAmount)} — нажми и сразу в лобби`,
       );
     }
   };

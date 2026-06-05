@@ -36,6 +36,10 @@ export class PaymentsService {
     if (MIN_DEP > 0 && amountRub < MIN_DEP) {
       throw new BadRequestException(`Минимальная сумма пополнения — ${MIN_DEP} ₽`);
     }
+    const MAX_DEP = Number(process.env.MAX_DEPOSIT ?? 100_000);
+    if (MAX_DEP > 0 && amountRub > MAX_DEP) {
+      throw new BadRequestException(`Максимальная сумма пополнения — ${MAX_DEP} ₽`);
+    }
 
     await assertCanPlay(this.prisma, userId);
 

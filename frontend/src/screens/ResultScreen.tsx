@@ -148,7 +148,7 @@ export default function ResultScreen() {
   const shareResult = () => {
     const payout = +(((matchState?.prizePool ?? 0) - (matchState?.rakeAmount ?? 0))).toFixed(0);
     const link = me ? referralBotLink(me.id) : `https://t.me/${import.meta.env.VITE_TG_BOT_USERNAME ?? 'NavalClashBot'}`;
-    tgShare(link, `Только что выиграл ${payout} ₽ в морской дуэли! Сразись со мной 🚢`);
+    tgShare(link, `Только что выиграл ${formatMoney(payout)} в морской дуэли! Сразись со мной 🚢`);
   };
 
   useEffect(() => {
@@ -335,7 +335,7 @@ export default function ResultScreen() {
               </button>
             )}
             {!canAffordRematch && (
-              <p className="text-center text-xs text-warning">Нужно {formatMoney(matchState.wagerAmount)} ₽ для реванша</p>
+              <p className="text-center text-xs text-warning">Нужно {formatMoney(matchState.wagerAmount)} для реванша</p>
             )}
             <button className="btn-secondary w-full" onClick={() => { clearMatch(); navigate('/matchmaking?quick=1'); }}>Новый бой</button>
             {won && (

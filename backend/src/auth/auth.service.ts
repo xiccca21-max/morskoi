@@ -70,14 +70,12 @@ export class AuthService {
       throw new UnauthorizedException(`Самоисключение активно до ${until}`);
     }
 
-    // Реферал: только учёт и уведомление (без денег — анти-абьюз).
-    if (isNew && parsed.startParam?.startsWith('ref_')) {
+    // Реферал: привязка только если referredById ещё пуст (без денег — анти-абьюз).
+    if (parsed.startParam?.startsWith('ref_')) {
       const refId = parsed.startParam.slice(4);
       if (refId && refId !== user.id) {
         const referrer = await this.prisma.user.findUnique({ where: { id: refId } });
         if (referrer) {
-          // Атомарно: привязываем реферера ТОЛЬКО если ещё не привязан.
-          // Защита от гонки параллельных первых логинов (двойной referralCount).
           const linked = await this.prisma.user.updateMany({
             where: { id: user.id, referredById: null } as any,
             data: { referredById: refId } as any,
@@ -87,12 +85,14 @@ export class AuthService {
               where: { id: refId },
               data: { referralCount: { increment: 1 } } as any,
             });
-            const invName = tg.username ?? tg.first_name ?? 'Новый игрок';
-            this.bot.notifyUser(
-              refId,
-              `🎉 <b>Реферал!</b> ${invName} зарегистрировался по твоей ссылке.\nПриглашено: ${((referrer as any).referralCount ?? 0) + 1}`,
-              { pref: 'referral' },
-            ).catch(() => undefined);
+            if (isNew) {
+              const invName = tg.username ?? tg.first_name ?? 'Новый игрок';
+              this.bot.notifyUser(
+                refId,
+                `🎉 <b>Реферал!</b> ${invName} зарегистрировался по твоей ссылке.\nПриглашено: ${((referrer as any).referralCount ?? 0) + 1}`,
+                { pref: 'referral' },
+              ).catch(() => undefined);
+            }
           }
         }
       }

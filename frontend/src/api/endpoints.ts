@@ -144,6 +144,10 @@ export interface PublicGameConfig {
   minWager: number;
   maxWager: number;
   minWithdraw: number;
+  minDeposit: number;
+  maxDeposit: number;
+  platformRakePercent: number;
+  afkForfeitTimeouts: number;
   placementTimeoutSec: number;
   turnTimeoutSec: number;
   mmFlexWaitSec: number;

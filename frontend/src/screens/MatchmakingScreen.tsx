@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
@@ -17,7 +17,7 @@ import { SkeletonList } from '../components/Skeleton';
 import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { useDebounce } from '../lib/hooks';
-import { formatMoney, useMoney, currencySymbol } from '../lib/format';
+import { formatMoney, useMoney, currencySymbol, rubToUnit, unitToRub, wagerPresetsRub } from '../lib/format';
 import { playSound } from '../lib/audio';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { mapApiError } from '../lib/api-errors';
@@ -56,13 +56,12 @@ function RanksModal({ open, onClose, highlightTitle }: { open: boolean; onClose:
   );
 }
 
-const PRESETS = [100, 250, 500, 1000, 5000];
-
 export default function MatchmakingScreen() {
   const fmt = useMoney();
   const sym = currencySymbol();
   const minWager = useGameConfigStore((s) => s.minWager);
   const maxWager = useGameConfigStore((s) => s.maxWager);
+  const presets = useMemo(() => wagerPresetsRub(minWager, maxWager), [minWager, maxWager]);
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const lastWager = useSettingsStore((s) => s.lastWager);
@@ -71,14 +70,14 @@ export default function MatchmakingScreen() {
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
   // rawInput: то, что юзер видит в поле ввода (строка, может быть пустой при наборе)
-  const [rawInput, setRawInput] = useState(String(Math.max(minWager, lastWager)));
-  const wager = Math.max(minWager, Math.min(maxWager, Number(rawInput) || minWager));
+  const [rawInput, setRawInput] = useState(String(rubToUnit(Math.max(minWager, lastWager))));
+  const wager = Math.max(minWager, Math.min(maxWager, unitToRub(Number(rawInput) || rubToUnit(minWager))));
   const balance = user?.balance ?? 0;
   const overBalance = wager > balance;
 
-  const setWager = (v: number) => {
-    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(v)));
-    setRawInput(String(clamped));
+  const setWager = (rub: number) => {
+    const clamped = Math.max(minWager, Math.min(maxWager, Math.round(rub)));
+    setRawInput(String(rubToUnit(clamped)));
     setLastWager(clamped);
   };
 
@@ -431,13 +430,9 @@ export default function MatchmakingScreen() {
                 onChange={(e) => {
                   setRawInput(e.target.value);
                   const n = Number(e.target.value);
-                  if (!isNaN(n) && n > 0) setLastWager(Math.min(maxWager, n));
+                  if (!isNaN(n) && n > 0) setLastWager(unitToRub(n));
                 }}
-                onBlur={() => {
-                  const n = Math.max(minWager, Math.min(maxWager, Number(rawInput) || minWager));
-                  setRawInput(String(n));
-                  setLastWager(n);
-                }}
+                onBlur={() => setWager(unitToRub(Number(rawInput) || rubToUnit(minWager)))}
                 className={['w-28 text-center bg-transparent outline-none font-display text-4xl tabular-nums', overBalance ? 'text-danger' : 'text-main'].join(' ')}
               />
               <span className={['text-sm shrink-0', overBalance ? 'text-danger' : 'text-muted'].join(' ')}>{sym}</span>
@@ -452,14 +447,16 @@ export default function MatchmakingScreen() {
             </button>
           </div>
 
-          <div className="grid grid-cols-5 gap-1.5 mb-4">
-            {PRESETS.map((p) => (
-              <button key={p} onClick={() => setWager(p)}
-                className={['py-2 rounded-lg text-sm font-display tabular-nums transition border', wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line'].join(' ')}>
-                {p}
-              </button>
-            ))}
-          </div>
+          {presets.length > 0 && (
+            <div className={`grid gap-1.5 mb-4 ${presets.length <= 3 ? 'grid-cols-3' : 'grid-cols-5'}`}>
+              {presets.map((p) => (
+                <button key={p} onClick={() => setWager(p)}
+                  className={['py-2 rounded-lg text-xs font-display tabular-nums transition border', wager === p ? 'bg-main text-panel border-main' : 'bg-panel text-main border-line'].join(' ')}>
+                  {fmt(p)}
+                </button>
+              ))}
+            </div>
+          )}
 
           <input type="range" min={minWager} max={Math.max(balance, wager, 200)} step={1}
             value={Math.min(wager, Math.max(balance, wager, 200))}

@@ -26,8 +26,6 @@ function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
 
 const GAME_TYPES = new Set(['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE']);
 
-const MAX_DEPOSIT = 100000;
-
 type Tab = 'deposit' | 'withdraw';
 
 function CopyId({ label, value }: { label: string; value: string }) {
@@ -54,6 +52,7 @@ export default function WalletScreen() {
   const user = useAuthStore((s) => s.user);
   const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
   const minDeposit = useGameConfigStore((s) => s.minDeposit);
+  const maxDeposit = useGameConfigStore((s) => s.maxDeposit);
   const updateWallet = useAuthStore((s) => s.updateWallet);
   const navigate = useNavigate();
   const location = useLocation();
@@ -114,12 +113,12 @@ export default function WalletScreen() {
   const balance = user?.balance ?? 0;
   const withdrawable = balance;
 
-  const validDeposit = Number.isFinite(amount) && amount >= minDeposit && amount <= MAX_DEPOSIT;
+  const validDeposit = Number.isFinite(amount) && amount >= minDeposit && amount <= maxDeposit;
   const addressError = walletAddress.trim() ? validateUsdtAddress(network, walletAddress) : null;
   const validWithdraw = Number.isFinite(amount) && amount >= minWithdraw && amount <= withdrawable && !addressError && walletAddress.trim().length >= 10;
 
   const deposit = async () => {
-    if (!validDeposit) { setError(`Сумма от ${formatMoney(minDeposit)} до ${formatMoney(MAX_DEPOSIT)}`); return; }
+    if (!validDeposit) { setError(`Сумма от ${formatMoney(minDeposit)} до ${formatMoney(maxDeposit)}`); return; }
     setError(null); setBusy(true);
     try {
       const r = await WalletAPI.deposit(amount);
@@ -153,7 +152,7 @@ export default function WalletScreen() {
 
   const openWithdraw = () => {
     if (withdrawable < minWithdraw) {
-      toast(`Минимум для вывода — ${minWithdraw} ₽. Доступно: ${withdrawable.toFixed(0)} ₽`, 'error', 'minus');
+      toast(`Минимум для вывода — ${formatMoney(minWithdraw)}. Доступно: ${formatMoney(withdrawable)}`, 'error', 'minus');
       return;
     }
     setAmount(Math.min(Math.max(minWithdraw, Math.floor(withdrawable)), Math.floor(withdrawable)));
@@ -167,7 +166,7 @@ export default function WalletScreen() {
   const submitWithdraw = async () => {
     if (!validWithdraw) {
       if (addressError) setError(addressError);
-      else setError(`Сумма от ${minWithdraw} до ${withdrawable.toFixed(0)} ₽`);
+      else setError(`Сумма от ${formatMoney(minWithdraw)} до ${formatMoney(withdrawable)}`);
       return;
     }
     if (!confirmWithdraw) {
@@ -285,7 +284,7 @@ export default function WalletScreen() {
           <input
             type="number"
             min={rubToUnit(minDeposit)}
-            max={rubToUnit(MAX_DEPOSIT)}
+            max={rubToUnit(maxDeposit)}
             step={currencyDecimals() === 2 ? 0.01 : 1}
             value={Number.isFinite(amount) ? rubToUnit(amount) : ''}
             onChange={(e) => { setError(null); setAmount(unitToRub(Number(e.target.value))); }}

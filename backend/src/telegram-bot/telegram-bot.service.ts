@@ -897,9 +897,7 @@ export class TelegramBotService implements OnModuleInit {
             const open = await this.lobbies.getOpenByHost(user.id);
             link = this.lobbyInviteUrl(open.code);
           } catch {
-            const min = Number(process.env.MIN_WAGER ?? 100);
-            const lobby = await this.lobbies.create(user.id, min, false);
-            link = this.lobbyInviteUrl(lobby.code);
+            link = `https://t.me/${this.botUsername}?start=play`;
           }
         } else {
           link = `https://t.me/${this.botUsername}?start=play`;
@@ -909,7 +907,7 @@ export class TelegramBotService implements OnModuleInit {
           type: 'article',
           id: `duel-${q.id}`,
           title: '⚓ Вызвать на морской бой',
-          description: 'Отправь вызов — сыграйте дуэль на ставку',
+          description: 'Сначала создай лобби в приложении («В бой» → С другом), затем отправь вызов',
           input_message_content: { message_text: text, disable_web_page_preview: false },
           reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять вызов', url: link }]] },
         };

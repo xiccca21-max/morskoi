@@ -212,7 +212,7 @@ export default function BattleScreen() {
     // Секундная пауза перед сменой поля в обе стороны: успеваем увидеть итог
     // залпа и у обоих игроков плавно переключаются экраны.
     const target = myTurn ? 'enemy' : 'own';
-    const t = setTimeout(() => setView(target), 1000);
+    const t = setTimeout(() => setView(target), 400);
     return () => clearTimeout(t);
   }, [myTurn, state?.gameStatus]);
   const fuse = Math.max(0, Math.min(100, (remaining / turnMaxRef.current) * 100));

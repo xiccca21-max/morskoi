@@ -24,6 +24,11 @@ export class MatchmakingService {
   ) {}
 
   async enqueue(userId: string, wagerAmount: number) {
+    const amount = Math.round(wagerAmount);
+    if (!Number.isFinite(amount) || amount !== wagerAmount) {
+      throw new BadRequestException('Ставка должна быть целым числом');
+    }
+    wagerAmount = amount;
     const min = Number(process.env.MIN_WAGER ?? 100);
     const max = Number(process.env.MAX_WAGER ?? 10000);
     if (wagerAmount < min || wagerAmount > max) {
