@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getInitData, persistInitData, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
+import { lazyWithRetry, prefetchScreens } from './lib/lazy-with-retry';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI, WalletAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
@@ -17,39 +18,44 @@ import { newStreakAchievements } from './lib/achievements';
 import { playSound, unlockAudio } from './lib/audio';
 
 import SplashScreen from './screens/SplashScreen';
+import HomeScreen from './screens/HomeScreen';
 import { Layout } from './components/Layout';
 import { ConsentGate } from './components/ConsentGate';
 import { TelegramAuthError } from './components/TelegramAuthError';
-import { Spinner } from './components/Spinner';
 
-const HomeScreen = lazy(() => import('./screens/HomeScreen'));
-const WalletScreen = lazy(() => import('./screens/WalletScreen'));
-const MatchmakingScreen = lazy(() => import('./screens/MatchmakingScreen'));
-const LobbyScreen = lazy(() => import('./screens/LobbyScreen'));
-const PlacementScreen = lazy(() => import('./screens/PlacementScreen'));
-const BattleScreen = lazy(() => import('./screens/BattleScreen'));
-const ResultScreen = lazy(() => import('./screens/ResultScreen'));
-const HistoryScreen = lazy(() => import('./screens/HistoryScreen'));
-const LeaderboardScreen = lazy(() => import('./screens/LeaderboardScreen'));
-const ProfileScreen = lazy(() => import('./screens/ProfileScreen'));
-const AchievementsScreen = lazy(() => import('./screens/AchievementsScreen'));
-const CosmeticsScreen = lazy(() => import('./screens/CosmeticsScreen'));
-const SettingsScreen = lazy(() => import('./screens/SettingsScreen'));
-const HowItWorksScreen = lazy(() => import('./screens/HowItWorksScreen'));
-const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
-const RulesScreen = lazy(() => import('./screens/RulesScreen'));
-const ChallengeScreen = lazy(() => import('./screens/ChallengeScreen'));
-const TrainingScreen = lazy(() => import('./screens/TrainingScreen'));
+const WalletScreen = lazyWithRetry(() => import('./screens/WalletScreen'));
+const MatchmakingScreen = lazyWithRetry(() => import('./screens/MatchmakingScreen'));
+const LobbyScreen = lazyWithRetry(() => import('./screens/LobbyScreen'));
+const PlacementScreen = lazyWithRetry(() => import('./screens/PlacementScreen'));
+const BattleScreen = lazyWithRetry(() => import('./screens/BattleScreen'));
+const ResultScreen = lazyWithRetry(() => import('./screens/ResultScreen'));
+const HistoryScreen = lazyWithRetry(() => import('./screens/HistoryScreen'));
+const LeaderboardScreen = lazyWithRetry(() => import('./screens/LeaderboardScreen'));
+const ProfileScreen = lazyWithRetry(() => import('./screens/ProfileScreen'));
+const AchievementsScreen = lazyWithRetry(() => import('./screens/AchievementsScreen'));
+const CosmeticsScreen = lazyWithRetry(() => import('./screens/CosmeticsScreen'));
+const SettingsScreen = lazyWithRetry(() => import('./screens/SettingsScreen'));
+const HowItWorksScreen = lazyWithRetry(() => import('./screens/HowItWorksScreen'));
+const PlayerScreen = lazyWithRetry(() => import('./screens/PlayerScreen'));
+const RulesScreen = lazyWithRetry(() => import('./screens/RulesScreen'));
+const ChallengeScreen = lazyWithRetry(() => import('./screens/ChallengeScreen'));
+const TrainingScreen = lazyWithRetry(() => import('./screens/TrainingScreen'));
 
-// Lazy-обёртка без fallback-спиннера: фон страницы виден сразу,
-// содержимое появляется с анимацией page-enter когда чанк загрузился.
+function prefetchGameplayChunks() {
+  prefetchScreens([
+    () => import('./screens/MatchmakingScreen'),
+    () => import('./screens/BattleScreen'),
+    () => import('./screens/PlacementScreen'),
+    () => import('./screens/LobbyScreen'),
+  ]);
+}
+
 function LazyScreen({ children }: { children: JSX.Element }) {
   return <Suspense fallback={null}>{children}</Suspense>;
 }
 
 function Protected({ children }: { children: JSX.Element }) {
   const authenticated = useAuthStore((s) => s.authenticated);
-  // !ready обрабатывается на уровне App (один общий SplashScreen, без мигания роутов).
   if (!authenticated) return <Navigate to="/" replace />;
   return children;
 }
@@ -83,9 +89,6 @@ export default function App() {
     open: false,
   });
 
-  // Авто-закрытие оверлея «Соперник найден» + переход к расстановке.
-  // Таймер привязан к самому состоянию оверлея, поэтому гарантированно
-  // отрабатывает и не зависит от пересоздания сокет-эффекта.
   useEffect(() => {
     if (!matchFound.open || !matchFound.matchId) return;
     const id = matchFound.matchId;
@@ -96,26 +99,21 @@ export default function App() {
       if (!finished && !path.includes('/placement/') && !path.includes('/battle/') && !path.includes('/result/')) {
         navigate(`/placement/${id}`);
       }
-      // Закрываем оверлей СЛЕДУЮЩИМ кадром, а не в один тик с navigate:
-      // одновременный коммит смены роута и снятия оверлея ронял removeChild.
       requestAnimationFrame(() => setMatchFound({ open: false }));
     }, 1800);
     return () => clearTimeout(t);
   }, [matchFound.open, matchFound.matchId, navigate]);
 
-  // Публичные игровые константы с сервера
   useEffect(() => {
     ConfigAPI.get().then(applyGameConfig).catch(() => {});
   }, [applyGameConfig]);
 
-  // Подписка на изменения haptics в настройках → обновляем gate без перезагрузки
   useEffect(() => {
     return useSettingsStore.subscribe((s) => {
       setHapticsGate(() => s.haptics);
     });
   }, []);
 
-  // Разблокировать AudioContext при первом касании (браузер требует user gesture)
   useEffect(() => {
     const unlock = () => { unlockAudio(); };
     document.addEventListener('touchstart', unlock, { once: true, passive: true });
@@ -129,7 +127,6 @@ export default function App() {
   const theme = useThemeStore((s) => s.theme);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    // Синхронизируем цвет шапки/фона Telegram и meta theme-color с темой
     requestAnimationFrame(() => {
       const styles = getComputedStyle(document.documentElement);
       const panel = styles.getPropertyValue('--c-panel').trim();
@@ -144,13 +141,10 @@ export default function App() {
     });
   }, [theme]);
 
-  // Вибрация подчиняется пользовательской настройке
   useEffect(() => {
     setHapticsGate(() => readSettings().haptics);
   }, []);
 
-
-  // Глобальный слушатель кликов по кнопкам
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -186,6 +180,7 @@ export default function App() {
         setAuthToken(res.token);
         setUser({ ...res.user, balance: Number(res.user.balance) });
         syncNotifyFromServer(res.user);
+        prefetchGameplayChunks();
         if (res.dailyBonus?.claimed) {
           const prevStreak = Math.max(0, (res.dailyBonus.streak ?? 1) - 1);
           const nextStreak = res.dailyBonus.streak ?? 1;
@@ -201,21 +196,27 @@ export default function App() {
         }
       };
 
+      const applyMe = (me: Awaited<ReturnType<typeof UsersAPI.me>>) => {
+        setUser({ ...me, balance: Number(me.balance) });
+        syncNotifyFromServer(me);
+        prefetchGameplayChunks();
+      };
+
       try {
         const existing = loadToken();
-        const initData = await waitForInitData(initDataTimeout);
+        // JWT-проверка параллельно с ожиданием initData — быстрее повторное открытие.
+        const [initData, meEarly] = await Promise.all([
+          waitForInitData(initDataTimeout),
+          existing
+            ? UsersAPI.me().catch(() => null as Awaited<ReturnType<typeof UsersAPI.me>> | null)
+            : Promise.resolve(null),
+        ]);
         if (cancelled) return;
 
-        const applyMe = (me: Awaited<ReturnType<typeof UsersAPI.me>>) => {
-          setUser({ ...me, balance: Number(me.balance) });
-          syncNotifyFromServer(me);
-        };
-
-        // Повторное открытие Mini App: JWT + initData в заголовке, без лишнего /auth/telegram.
         if (existing && initData) {
           persistInitData(initData);
           try {
-            const me = await UsersAPI.me();
+            const me = meEarly ?? (await UsersAPI.me());
             if (cancelled) return;
             applyMe(me);
             return;
@@ -230,6 +231,19 @@ export default function App() {
           if (cancelled) return;
           applyLoginResult(res);
           return;
+        }
+
+        if (existing) {
+          try {
+            const me = meEarly ?? (await UsersAPI.me());
+            if (cancelled) return;
+            if (me) {
+              applyMe(me);
+              return;
+            }
+          } catch {
+            setAuthToken(null);
+          }
         }
 
         if (existing && getInitData()) {
@@ -273,7 +287,6 @@ export default function App() {
     };
   }, [setReady, setUser, patchUser, authAttempt]);
 
-  // Подключение к сокету после логина + глобальные обработчики (регистрируем один раз)
   const authenticated = useAuthStore((s) => s.authenticated);
   useEffect(() => {
     if (!authenticated) return;
@@ -301,7 +314,12 @@ export default function App() {
     const onDisconnect = (reason: string) => {
       if (reason !== 'io client disconnect') showOnce('Соединение потеряно. Переподключаемся…', 'error', undefined, 'disconnected');
     };
-    const onAuthError = () => { setAuthToken(null); window.location.reload(); };
+    const onAuthError = () => {
+      setAuthToken(null);
+      closeSocket();
+      setReady(false);
+      setAuthAttempt((a) => a + 1);
+    };
     const patchFinished = (matchId: string, winnerId?: string | null) => {
       const cur = useMatchStore.getState().state;
       if (!cur || cur.matchId !== matchId) return;
@@ -350,7 +368,6 @@ export default function App() {
         else toast('Соперник покинул бой — победа за вами!', 'success', 'trophy');
       }
     };
-    // match:turnTimeout обрабатывается только в BattleScreen чтобы избежать дублирования
     const onWalletUpdate = (payload: number | { balance: number; withdrawable: number }) => {
       if (typeof payload === 'number') {
         updateBalance(payload);
@@ -393,9 +410,6 @@ export default function App() {
       if (path.includes('/result/') || path.includes('/battle/')) return;
       if (cur && (cur.gameStatus === 'FINISHED' || cur.status === 'FINISHED')) return;
       playSound('win');
-      // Только показываем оверлей. Авто-закрытие и переход к расстановке
-      // живут в отдельном эффекте (ниже), чтобы их таймер не сбрасывался
-      // при пересоздании сокет-эффекта — иначе оверлей «зависает».
       setMatchFound((prev) =>
         prev.open && prev.matchId === e.matchId
           ? prev
@@ -427,18 +441,15 @@ export default function App() {
       if (toastTimer) clearTimeout(toastTimer);
       closeSocket();
     };
-  }, [authenticated, setMatchState, setLastAttack, updateBalance, updateWallet, clearMatch, navigate]);
+  }, [authenticated, setMatchState, setLastAttack, updateBalance, updateWallet, clearMatch, navigate, setReady]);
 
   const ready = useAuthStore((s) => s.ready);
 
-  // Диплинки: lobby_CODE, wallet, profile_ID
   useEffect(() => {
     if (!ready || !authenticated || deepLinkHandled.current) return;
     const sp = getStartParam();
     if (!sp) return;
     deepLinkHandled.current = true;
-    // start_param из initDataUnsafe не подписан на клиенте — строго валидируем формат,
-    // чтобы исключить навигацию по произвольным значениям.
     const isLobbyCode = (s: string) => /^[A-Z0-9]{4,12}$/.test(s);
     const isId = (s: string) => /^[A-Za-z0-9_-]{6,40}$/.test(s);
     clearStartParam();
@@ -458,12 +469,9 @@ export default function App() {
     }
   }, [ready, authenticated, navigate]);
 
-  // Авто-возврат в активный бой после перезапуска мини-аппа.
-  // Не активируем, если пришли по deep-link в лобби — пусть лобби имеет приоритет.
   useEffect(() => {
     if (!ready || !authenticated || resumeHandled.current) return;
     resumeHandled.current = true;
-    // Если есть pending start_param (лобби-ссылка) — deep-link хэндлер разберётся сам.
     if (getStartParam()) return;
     GameAPI.active()
       .then((m) => {
@@ -478,8 +486,6 @@ export default function App() {
       .catch(() => {});
   }, [ready, authenticated, navigate, setMatchState]);
 
-  // Пока авторизация не завершена — единый экран загрузки, до рендера роутов.
-  // Это гарантирует, что «палуба» не мелькнёт между загрузкой и готовностью.
   if (!ready) {
     return <SplashScreen />;
   }
@@ -513,7 +519,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route element={<Protected><Layout /></Protected>}>
-        <Route path="/home" element={<LazyScreen><HomeScreen /></LazyScreen>} />
+        <Route path="/home" element={<HomeScreen />} />
         <Route path="/wallet" element={<LazyScreen><WalletScreen /></LazyScreen>} />
         <Route path="/matchmaking" element={<LazyScreen><MatchmakingScreen /></LazyScreen>} />
         <Route path="/lobby/:code" element={<LazyScreen><LobbyScreen /></LazyScreen>} />

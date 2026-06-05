@@ -178,11 +178,14 @@
         // экрана с текстом ошибки молча перезагружаемся один раз, чтобы получить
         // свежий index.html и новые чанки. Защита от зацикливания — не чаще раза в 15с.
         var RELOAD_KEY = 'chunkReloadAt';
+        var BOOT_GRACE_MS = 8000;
+        var bootStartedAt = Date.now();
         function recoverFromStaleChunk() {
           try {
+            if (Date.now() - bootStartedAt < BOOT_GRACE_MS) return;
             var now = Date.now();
             var last = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
-            if (now - last > 15000) {
+            if (now - last > 30000) {
               sessionStorage.setItem(RELOAD_KEY, String(now));
               location.reload();
               return;
