@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/auth-store';
 import { useMatchStore } from '../stores/match-store';
 import { GameAPI } from '../api/endpoints';
@@ -18,7 +18,6 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
-  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     GameAPI.active()
@@ -225,37 +224,6 @@ export default function HomeScreen() {
         <Tile index={3} icon="scroll"  title="Правила"          sub="Флот, ходы, штрафы"      onClick={() => navigate('/rules')} />
       </div>
 
-      {/* ── Кнопка помощи ── */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => { tgHaptic('light'); setShowHelp((v) => !v); }}
-          className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5"
-        >
-          <Icon name="compass" size={14} /> Как это работает?
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {showHelp && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="card p-4 space-y-2 border border-line/60"
-          >
-            <p className="font-display text-main text-sm">📖 Коротко о игре</p>
-            <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
-              <li>⚔️ Нажми <b>«В бой»</b> → выбери ставку → найди соперника</li>
-              <li>🚢 Расставь корабли на поле (или нажми «Авто»)</li>
-              <li>🎯 Стреляй по очереди, топи чужой флот</li>
-              <li>🏆 Победитель забирает ставки обоих</li>
-              <li>💰 Нет денег? Начни с бесплатной <b>Тренировки</b> или пополни баланс</li>
-            </ul>
-            <button type="button" onClick={() => setShowHelp(false)} className="w-full btn-ghost text-xs py-1.5">Закрыть</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </div>
   );
