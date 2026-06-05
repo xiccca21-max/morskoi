@@ -9,7 +9,7 @@ GIT_SHA="$(git rev-parse --short HEAD)"
 echo "Deploying commit ${GIT_SHA}"
 export GIT_SHA
 docker compose -f docker-compose.prod.yml build --build-arg GIT_SHA="${GIT_SHA}" app
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans app
 
 # Ждём backend внутри контейнера (порт 4000 не проброшен на хост)
 health_ok() {

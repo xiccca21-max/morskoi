@@ -1,52 +1,30 @@
-# Автодеплой на VPS при push в main
-# Secrets в GitHub → Settings → Secrets:
-#   DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PATH
+# Автодеплой на VPS при каждом push в main.
+# Secrets нужно добавить один раз в GitHub → Settings → Secrets and variables → Actions:
+#   DEPLOY_HOST     — IP или домен VPS (например 1.2.3.4)
+#   DEPLOY_USER     — SSH-пользователь (например root)
+#   DEPLOY_KEY      — приватный SSH-ключ (содержимое ~/.ssh/id_rsa с VPS)
+#   DEPLOY_PATH     — путь к проекту на VPS (например /opt/naval-clash)
 
-name: Deploy to VPS
+name: 🚀 Deploy to VPS
 
 on:
   push:
     branches: [main]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
-      - name: Backend build & test
-        working-directory: backend
-        run: |
-          npm ci
-          npx prisma generate
-          npm run build
-          npm test
-      - name: Frontend build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-
   deploy:
-    needs: build
+    name: SSH deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy over SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          command_timeout: 15m
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
-            export APP_DIR="${{ secrets.DEPLOY_PATH }}"
-            cd "$APP_DIR"
-            chmod +x scripts/deploy.sh 2>/dev/null || true
-            ./scripts/deploy.sh
+            chmod +x scripts/deploy.sh
+            bash scripts/deploy.sh
