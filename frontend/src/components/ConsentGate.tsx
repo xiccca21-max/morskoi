@@ -7,7 +7,7 @@ import { tgHaptic } from '../lib/telegram';
 import { toast } from '../stores/toast-store';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { formatMoney } from '../lib/format';
-import { Icon } from './Icon';
+import { Icon, IconName } from './Icon';
 
 /**
  * Экран согласия: возраст 18+ и правила. Показывается один раз после регистрации,
@@ -58,16 +58,16 @@ export function ConsentGate() {
       >
         {/* Заголовок */}
         <div className="text-center">
-          <div className="text-4xl mb-2">⚓</div>
+          <div className="mb-2 flex justify-center"><Icon name="anchor" size={40} className="text-danger" /></div>
           <h2 className="font-display text-main text-xl leading-tight">Добро пожаловать!</h2>
           <p className="text-muted text-sm mt-1">Морской Бой — PvP на ставку в Telegram</p>
         </div>
 
         {/* Как играть — 3 шага */}
         <div className="space-y-3 py-1">
-          <HowStep n={1} emoji="⚔️" title="Найди соперника" text="Выбери ставку — система подберёт игрока с такой же суммой за секунды." />
-          <HowStep n={2} emoji="🚢" title="Расставь корабли" text="Тапни на поле, чтобы поставить. Тапни дважды — повернёт. Потом топи врага по очереди." />
-          <HowStep n={3} emoji="🏆" title={`Забирай ${winPct}% от банка`} text="Победитель забирает ставки обоих игроков за вычетом комиссии. Проиграл — ставка уходит сопернику." />
+          <HowStep n={1} icon="swords" title="Найди соперника" text="Выбери ставку — система подберёт игрока с такой же суммой за секунды." />
+          <HowStep n={2} icon="ship" title="Расставь корабли" text="Тапни на поле, чтобы поставить. Тапни дважды — повернёт. Потом топи врага по очереди." />
+          <HowStep n={3} icon="trophy" title={`Забирай ${winPct}% от банка`} text="Победитель забирает ставки обоих игроков за вычетом комиссии. Проиграл — ставка уходит сопернику." />
         </div>
 
         {/* Разделитель */}
@@ -103,8 +103,8 @@ export function ConsentGate() {
           </div>
         )}
 
-        <button className="btn-primary w-full text-base py-4" onClick={accept} disabled={!checked || busy}>
-          {busy ? 'Подтверждаем…' : '🚀 Поднять якорь и играть!'}
+        <button className="btn-primary w-full text-base py-4 flex items-center justify-center gap-2" onClick={accept} disabled={!checked || busy}>
+          {busy ? 'Подтверждаем…' : <><Icon name="anchor" size={18} /> Поднять якорь и играть!</>}
         </button>
         <p className="text-[10px] text-muted text-center leading-relaxed">
           Лимиты депозита и самоисключение — в настройках профиля.
@@ -114,11 +114,11 @@ export function ConsentGate() {
   );
 }
 
-function HowStep({ n, emoji, title, text }: { n: number; emoji: string; title: string; text: string }) {
+function HowStep({ n, icon, title, text }: { n: number; icon: IconName; title: string; text: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-full bg-danger/10 border border-danger/40 flex items-center justify-center shrink-0 text-base">
-        {emoji}
+      <div className="w-8 h-8 rounded-full bg-danger/10 border border-danger/40 flex items-center justify-center shrink-0">
+        <Icon name={icon} size={16} className="text-danger" />
       </div>
       <div>
         <p className="font-display text-main text-sm leading-tight">{n}. {title}</p>

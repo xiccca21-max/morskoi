@@ -345,12 +345,12 @@ export default function PlacementScreen() {
             exit={{ opacity: 0, y: -8 }}
             className="card p-4 border-2 border-danger/40 space-y-2"
           >
-            <p className="font-display text-main text-sm">📋 Как расставить флот</p>
+            <p className="font-display text-main text-sm flex items-center gap-1.5"><Icon name="scroll" size={14} className="text-danger shrink-0" /> Как расставить флот</p>
             <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
-              <li>👆 <b>Тапни на поле</b> — корабль поставится туда</li>
-              <li>🔄 <b>Двойной тап по клетке</b> — повернёт корабль</li>
-              <li>✨ <b>«Авто»</b> — расставит всё за тебя за секунду</li>
-              <li>🚫 Корабли <b>не должны касаться</b> друг друга</li>
+              <li className="flex items-start gap-1.5"><Icon name="target" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>Тапни на поле</b> — корабль поставится туда</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="rotate" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>Двойной тап по клетке</b> — повернёт корабль</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="dice" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>«Авто»</b> — расставит всё за тебя за секунду</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="shield" size={13} className="text-danger shrink-0 mt-0.5" /> <span>Корабли <b>не должны касаться</b> друг друга</span></li>
             </ul>
             <button
               type="button"

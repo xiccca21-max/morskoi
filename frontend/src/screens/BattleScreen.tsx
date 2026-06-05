@@ -282,12 +282,12 @@ export default function BattleScreen() {
             exit={{ opacity: 0, y: -8 }}
             className="card p-4 border-2 border-danger/40 space-y-2"
           >
-            <p className="font-display text-main text-sm">⚔️ Первый бой — правила за 10 сек</p>
+            <p className="font-display text-main text-sm flex items-center gap-1.5"><Icon name="swords" size={14} className="text-danger shrink-0" /> Первый бой — правила за 10 сек</p>
             <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
-              <li>🎯 <b>Жми по клеткам врага</b> — ищи его корабли. Попал — ходишь ещё раз!</li>
-              <li>👁 Кнопки <b>«Враг / Мои»</b> — переключают вид поля</li>
-              <li>⏱ Красный таймер — не прозевай ход, иначе он пропустится</li>
-              <li>🏳 Кнопка «Сдаться» — только если совсем плохо</li>
+              <li className="flex items-start gap-1.5"><Icon name="target" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>Жми по клеткам врага</b> — ищи его корабли. Попал — ходишь ещё раз!</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="compass" size={13} className="text-danger shrink-0 mt-0.5" /> <span>Кнопки <b>«Атака / Мой флот»</b> — переключают вид поля</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="clock" size={13} className="text-danger shrink-0 mt-0.5" /> <span>Красный таймер — не прозевай ход, иначе он пропустится</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="flag" size={13} className="text-danger shrink-0 mt-0.5" /> <span>Кнопка «Сдаться» — только если совсем плохо</span></li>
             </ul>
             <button
               type="button"

@@ -362,12 +362,12 @@ export default function MatchmakingScreen() {
             exit={{ opacity: 0, y: -6 }}
             className="card p-4 space-y-2 border border-line/60"
           >
-            <p className="font-display text-main text-sm">⚔️ Как найти бой</p>
+            <p className="font-display text-main text-sm flex items-center gap-1.5"><Icon name="swords" size={14} className="text-danger shrink-0" /> Как найти бой</p>
             <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
-              <li>🚀 <b>Найти соперника</b> — система сама подберёт игрока с той же ставкой</li>
-              <li>📋 <b>Лобби</b> — вступи в чужой открытый бой или создай свой</li>
-              <li>🔒 <b>С другом</b> — создай приватный бой и отправь другу код</li>
-              <li>💡 Минимальная ставка — {fmt(minWager)}</li>
+              <li className="flex items-start gap-1.5"><Icon name="bolt" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>Найти соперника</b> — система сама подберёт игрока с той же ставкой</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="scroll" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>Лобби</b> — вступи в чужой открытый бой или создай свой</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="lock" size={13} className="text-danger shrink-0 mt-0.5" /> <span><b>С другом</b> — создай приватный бой и отправь другу код</span></li>
+              <li className="flex items-start gap-1.5"><Icon name="coins" size={13} className="text-danger shrink-0 mt-0.5" /> <span>Минимальная ставка — {fmt(minWager)}</span></li>
             </ul>
             <button type="button" onClick={() => setShowHelp(false)} className="w-full btn-ghost text-xs py-1.5">Понятно</button>
           </motion.div>
@@ -526,9 +526,8 @@ export default function MatchmakingScreen() {
               Бой против <strong>{pendingMatch.host.firstName || pendingMatch.host.username || 'соперника'}</strong>.
               Ставка <strong>{fmt(pendingMatch.wagerAmount)}</strong> спишется при старте боя
               (когда оба расставят флот).
-              <span className="block mt-2 text-warning">
-                ⚠️ Нужен стабильный интернет: при потере связи и пропуске ходов
-                можно проиграть бой и потерять ставку.
+              <span className="flex items-start gap-1.5 mt-2 text-warning">
+                <Icon name="info" size={13} className="shrink-0 mt-0.5" /> <span>Нужен стабильный интернет: при потере связи и пропуске ходов можно проиграть бой и потерять ставку.</span>
               </span>
               Вы точно согласны?
             </>

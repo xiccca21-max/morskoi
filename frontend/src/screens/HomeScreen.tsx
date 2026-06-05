@@ -246,27 +246,27 @@ function NewbieBanner({
       className="card p-5 border-2 border-danger/30 space-y-4"
     >
       <div className="text-center">
-        <div className="text-3xl mb-2">👋</div>
-        <h3 className="font-display text-main text-base leading-snug">
-          Первый раз? Начни с тренировки!
-        </h3>
-        <p className="text-muted text-sm mt-1 leading-relaxed">
-          Бесплатный бой без ставок — научись расставлять корабли и стрелять прежде чем играть на деньги.
-        </p>
-      </div>
-      <div className="space-y-2">
+          <div className="mb-2 flex justify-center"><Icon name="anchor" size={36} className="text-danger" /></div>
+          <h3 className="font-display text-main text-base leading-snug">
+            Первый раз? Начни с тренировки!
+          </h3>
+          <p className="text-muted text-sm mt-1 leading-relaxed">
+            Бесплатный бой без ставок — научись расставлять корабли и стрелять прежде чем играть на деньги.
+          </p>
+        </div>
+        <div className="space-y-2">
         <button
           onClick={onTrain}
           className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2"
         >
-          🎮 Попробовать бесплатно
+          <Icon name="target" size={18} /> Попробовать бесплатно
         </button>
         {canPlay ? (
           <button
             onClick={onPlay}
             className="w-full btn-ghost py-3 text-sm flex items-center justify-center gap-2"
           >
-            ⚔️ Сразу на ставку
+            <Icon name="swords" size={16} /> Сразу на ставку
           </button>
         ) : (
           <p className="text-center text-muted text-xs py-1">

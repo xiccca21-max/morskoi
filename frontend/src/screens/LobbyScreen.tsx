@@ -265,8 +265,8 @@ export default function LobbyScreen() {
               Ставка <span className="text-main font-display">{formatMoney(lobby.wagerAmount)}</span> спишется
               при старте боя. Победителю —{' '}
               <span className="text-main font-display">{formatMoney(win)}</span>.
-              <span className="block mt-2 text-warning">
-                ⚠️ Нужен стабильный интернет — при обрыве связи можно проиграть ставку.
+              <span className="flex items-center gap-1.5 mt-2 text-warning">
+                <Icon name="info" size={13} className="shrink-0" /> Нужен стабильный интернет — при обрыве связи можно проиграть ставку.
               </span>
             </>
           )

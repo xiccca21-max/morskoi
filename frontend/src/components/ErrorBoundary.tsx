@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { Icon } from './Icon';
 import { Sentry, sentryEnabled } from '../sentry';
 
 interface Props { children: ReactNode }
@@ -38,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-base text-center">
         <div className="card p-6 max-w-sm w-full space-y-4">
-          <div className="text-4xl">⚓</div>
+          <div className="flex justify-center"><Icon name="anchor" size={40} className="text-danger" /></div>
           <h2 className="font-display text-main text-lg">Что-то пошло не так</h2>
           <p className="text-muted text-sm leading-relaxed">
             Произошла ошибка интерфейса. Перезагрузите приложение — данные не потеряются.
