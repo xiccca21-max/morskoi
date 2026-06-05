@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AuthAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
@@ -19,6 +19,13 @@ export function ConsentGate() {
   const minWithdraw = useGameConfigStore((s) => s.minWithdraw);
   const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
   const winPct = 100 - platformRakePercent;
+
+  // Блокируем скролл страницы под оверлеем и гарантированно восстанавливаем при закрытии
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -43,11 +50,11 @@ export function ConsentGate() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-base flex items-center justify-center p-5">
+    <div className="fixed inset-0 z-50 bg-base overflow-y-auto flex items-start justify-center p-5 pb-8">
       <motion.div
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="card p-6 max-w-sm w-full space-y-4"
+        className="card p-6 max-w-sm w-full space-y-4 my-auto"
       >
         {/* Заголовок */}
         <div className="text-center">
