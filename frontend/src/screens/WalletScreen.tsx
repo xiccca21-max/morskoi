@@ -252,7 +252,7 @@ export default function WalletScreen() {
             <p className="text-[11px] font-display uppercase tracking-[0.22em] text-white/75">Баланс</p>
           </div>
           <p
-            className="font-display text-[2.6rem] text-white mt-2 tabular-nums leading-none"
+            className="font-display font-normal text-[2.6rem] text-white mt-2 tabular-nums leading-none"
             style={{ textShadow: '0 2px 14px rgba(0,0,0,0.28)' }}
           >
             <AnimatedNumber value={balance} formatter={formatMoney} />

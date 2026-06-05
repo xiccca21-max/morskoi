@@ -126,7 +126,7 @@ export function Layout() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
           >
-            <span className="font-display text-sm tabular-nums">
+            <span className="font-display font-normal text-sm tabular-nums">
               <AnimatedNumber value={user?.balance ?? 0} formatter={formatMoney} />
             </span>
             <span
