@@ -6,8 +6,6 @@ import { validateAndParseInitData, type ParsedInitData } from './telegram-init-d
 import { DailyBonusService, type DailyBonusResult } from './daily-bonus.service';
 import { AuditService } from '../common/audit.service';
 import { PresenceService } from '../common/presence.service';
-import { RedisService } from '../redis/redis.service';
-
 export interface JwtPayload {
   sub: string;       // userId
   tgId: string;
@@ -34,17 +32,12 @@ export class AuthService {
     try {
       parsed = validateAndParseInitData(initData, botToken);
     } catch {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const replayTtl = Number(process.env.INITDATA_REPLAY_TTL_SEC ?? process.env.INITDATA_MAX_AGE_SEC ?? 3600);
-    const hashOk = await this.redis.consumeInitDataHash(parsed.hash, replayTtl);
-    if (!hashOk) {
-      throw new UnauthorizedException('initData already used');
+      throw new UnauthorizedException(
+        'Данные Telegram не прошли проверку. Откройте игру через «⚔️ В бой» в боте. Если не помогает — проверьте TELEGRAM_BOT_TOKEN на сервере.',
+      );
     }
 
     const tg = parsed.user;
-    const telegramId = String(tg.id);
 
     const existing = await this.prisma.user.findUnique({ where: { telegramId } });
     const isNew = !existing;

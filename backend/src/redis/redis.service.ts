@@ -120,12 +120,36 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return ok === 'OK';
   }
 
-  /** Одноразовый initData (защита от replay в окне auth_date). */
-  async consumeInitDataHash(hash: string, ttlSec: number): Promise<boolean> {
+  /**
+   * Защита от replay: один hash initData нельзя привязать к другому telegram id.
+   * Повторный вход того же пользователя (закрыл/открыл Mini App) — разрешён.
+   */
+  async consumeInitDataHash(hash: string, telegramId: string, ttlSec: number): Promise<boolean> {
     const k = `initdata:hash:${hash}`;
-    const ok = this.useMemory
-      ? await this.memSet([k, '1', 'EX', ttlSec, 'NX'])
-      : await this.ioredis!.set(k, '1', 'EX', ttlSec, 'NX');
+    if (this.useMemory) {
+      const existing = this.memGet(k);
+      if (existing === telegramId || existing === '1') {
+        if (existing !== telegramId) {
+          this.store.set(k, { value: telegramId, expiresAt: Date.now() + ttlSec * 1000 });
+        } else {
+          this.memExpire(k, ttlSec);
+        }
+        return true;
+      }
+      if (existing) return false;
+      return (await this.memSet([k, telegramId, 'EX', ttlSec, 'NX'])) === 'OK';
+    }
+    const existing = await this.ioredis!.get(k);
+    if (existing === telegramId || existing === '1') {
+      if (existing !== telegramId) {
+        await this.ioredis!.set(k, telegramId, 'EX', ttlSec);
+      } else {
+        await this.ioredis!.expire(k, ttlSec);
+      }
+      return true;
+    }
+    if (existing) return false;
+    const ok = await this.ioredis!.set(k, telegramId, 'EX', ttlSec, 'NX');
     return ok === 'OK';
   }
 

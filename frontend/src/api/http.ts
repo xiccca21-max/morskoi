@@ -98,6 +98,16 @@ export function getToken() {
   return _token;
 }
 
+/** Текст ошибки из ответа Nest (message может быть строкой или массивом). */
+export function getApiErrorMessage(err: unknown): string {
+  const e = err as { response?: { data?: { message?: string | string[] } }; message?: string };
+  const m = e?.response?.data?.message;
+  if (Array.isArray(m)) return m.join(', ');
+  if (typeof m === 'string' && m) return m;
+  if (typeof e?.message === 'string') return e.message;
+  return '';
+}
+
 // При 401 сбрасываем токен. Без window.location.reload(): в Telegram Mini App
 // reload часто не отдаёт initData повторно → бесконечный «Загрузка».
 // Стартовая проверка /users/me обрабатывается в App.tsx (catch → fresh login).

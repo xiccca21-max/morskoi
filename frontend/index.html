@@ -21,11 +21,17 @@
           if (h && h.indexOf('tgWebAppData=') !== -1) {
             var p = new URLSearchParams(h);
             var d = p.get('tgWebAppData');
-            if (d) sessionStorage.setItem('tg_init_data', d);
+            if (d) {
+              sessionStorage.setItem('tg_init_data', d);
+              try { localStorage.setItem('tg_init_data', d); } catch (e2) {}
+            }
           }
           var q = new URLSearchParams(location.search);
           var qd = q.get('tgWebAppData');
-          if (qd) sessionStorage.setItem('tg_init_data', qd);
+          if (qd) {
+            sessionStorage.setItem('tg_init_data', qd);
+            try { localStorage.setItem('tg_init_data', qd); } catch (e2) {}
+          }
         } catch (e) {}
         function signalReady() {
           try {

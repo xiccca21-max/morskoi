@@ -2,10 +2,23 @@
 
 const TG_INIT_KEY = 'tg_init_data';
 
+function isInitDataFresh(raw: string): boolean {
+  try {
+    const authDate = Number(new URLSearchParams(raw).get('auth_date') ?? '0');
+    if (!authDate) return false;
+    const maxAgeSec = 3600;
+    return Date.now() / 1000 - authDate <= maxAgeSec;
+  } catch {
+    return false;
+  }
+}
+
 function storeInitData(raw: string | null | undefined): void {
-  if (!raw) return;
+  if (!raw || !isInitDataFresh(raw)) return;
   try {
     sessionStorage.setItem(TG_INIT_KEY, raw);
+    // WebView Telegram часто чистит sessionStorage — дублируем в localStorage.
+    localStorage.setItem(TG_INIT_KEY, raw);
   } catch {
     /* ignore */
   }
@@ -137,10 +150,17 @@ export function tgMainButton(opts: MainButtonOpts | null) {
 
 export function getInitData(): string {
   const tg = getTelegramWebApp();
-  if (tg?.initData) return tg.initData as string;
+  if (tg?.initData) {
+    storeInitData(tg.initData as string);
+    return tg.initData as string;
+  }
   try {
-    const stored = sessionStorage.getItem(TG_INIT_KEY);
-    if (stored) return stored;
+    const stored = sessionStorage.getItem(TG_INIT_KEY) ?? localStorage.getItem(TG_INIT_KEY);
+    if (stored && isInitDataFresh(stored)) return stored;
+    if (stored) {
+      sessionStorage.removeItem(TG_INIT_KEY);
+      localStorage.removeItem(TG_INIT_KEY);
+    }
   } catch {
     /* ignore */
   }

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { tgReady, waitForInitData, isTelegramWebView, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
+import { tgReady, waitForInitData, isTelegramWebView, getInitData, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
 import { useGameConfigStore } from './stores/game-config-store';
 import { MatchFoundOverlay } from './components/MatchFoundOverlay';
 import { useCurrencyStore } from './stores/currency-store';
-import { loadToken, setAuthToken } from './api/http';
+import { loadToken, setAuthToken, getApiErrorMessage } from './api/http';
 import { getSocket, closeSocket } from './api/socket';
 import { useAuthStore } from './stores/auth-store';
 import { useMatchStore } from './stores/match-store';
@@ -205,9 +205,25 @@ export default function App() {
 
       try {
         const existing = loadToken();
-        // Свежий initData приоритетнее JWT: обрабатывает ref_/start_param и обновляет профиль.
         const initData = await waitForInitData(initDataTimeout);
         if (cancelled) return;
+
+        const applyMe = (me: Awaited<ReturnType<typeof UsersAPI.me>>) => {
+          setUser({ ...me, balance: Number(me.balance) });
+          syncNotifyFromServer(me);
+        };
+
+        // Повторное открытие Mini App: JWT + initData в заголовке, без лишнего /auth/telegram.
+        if (existing && initData) {
+          try {
+            const me = await UsersAPI.me();
+            if (cancelled) return;
+            applyMe(me);
+            return;
+          } catch {
+            setAuthToken(null);
+          }
+        }
 
         if (initData) {
           const res = await AuthAPI.login(initData);
@@ -216,12 +232,11 @@ export default function App() {
           return;
         }
 
-        if (existing) {
+        if (existing && getInitData()) {
           try {
             const me = await UsersAPI.me();
             if (cancelled) return;
-            setUser({ ...me, balance: Number(me.balance) });
-            syncNotifyFromServer(me);
+            applyMe(me);
             return;
           } catch {
             setAuthToken(null);
@@ -236,15 +251,18 @@ export default function App() {
       } catch (e: any) {
         if (cancelled) return;
         const status = e?.response?.status;
-        const msg = e?.response?.data?.message ?? e?.message;
+        const msg = getApiErrorMessage(e);
         if (!e?.response) {
           setAuthError('Сервер недоступен. Проверьте интернет и нажмите «Повторить».');
         } else if (status >= 500) {
           setAuthError('Сервер временно недоступен. Попробуйте через минуту.');
         } else if (status === 401 && isTelegramWebView()) {
-          setAuthError('Сессия истекла. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
+          setAuthError(
+            msg ||
+              'Сессия истекла. Закройте приложение и откройте снова через «⚔️ В бой» в боте.',
+          );
         } else {
-          setAuthError(typeof msg === 'string' ? msg : 'Не удалось авторизоваться');
+          setAuthError(msg || 'Не удалось авторизоваться');
         }
       } finally {
         if (!cancelled) setReady(true);
