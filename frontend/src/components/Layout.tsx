@@ -8,7 +8,6 @@ import { Toaster } from './Toaster';
 import { OfflineBanner } from './OfflineBanner';
 import { SoundToggle } from './SoundToggle';
 import { formatCompactMoney, formatMoney } from '../lib/format';
-import { useCurrencyStore } from '../stores/currency-store';
 import { tgBackButtonHide, tgClosingConfirmation, tgVerticalSwipes, tgOpenLink, tgHaptic } from '../lib/telegram';
 
 const SUPPORT_URL = (import.meta.env.VITE_SUPPORT_URL as string) || 'https://t.me/Naval_pay_manager';
@@ -21,9 +20,6 @@ export function Layout() {
   const match = useMatchStore((s) => s.state);
   const navigate = useNavigate();
   const loc = useLocation();
-  useCurrencyStore((s) => s.currency);
-  useCurrencyStore((s) => s.ratesVersion);
-
   const [scrolled, setScrolled] = useState(false);
   const lastAutoNav = useRef<string | null>(null);
 
@@ -210,18 +206,20 @@ function Tab({ to, icon, label }: { to: string; icon: IconName; label: string })
         to={to}
         className={({ isActive }) =>
           [
-            'relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-colors text-[10px] font-display uppercase tracking-wider',
-            isActive ? 'text-main bg-danger/10' : 'text-muted',
+            'relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all duration-200 text-[10px] font-display uppercase tracking-wider',
+            isActive ? 'text-danger' : 'text-muted',
           ].join(' ')
         }
       >
         {({ isActive }) => (
           <>
-            <Icon name={icon} size={20} />
+            <span className={[
+              'w-10 h-7 rounded-full flex items-center justify-center transition-all duration-200',
+              isActive ? 'bg-danger/15' : '',
+            ].join(' ')}>
+              <Icon name={icon} size={20} />
+            </span>
             <span>{label}</span>
-            {isActive && (
-              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-4 rounded-full bg-danger" />
-            )}
           </>
         )}
       </NavLink>

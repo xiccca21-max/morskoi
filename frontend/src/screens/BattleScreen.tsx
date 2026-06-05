@@ -19,6 +19,7 @@ import { useSettingsStore } from '../stores/settings-store';
 import { toast } from '../stores/toast-store';
 import { formatMoney } from '../lib/format';
 import { AnimatePresence, motion as motionLib } from 'framer-motion';
+import { getRank } from '../lib/rank';
 
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const coord = (x: number, y: number) => `${LETTERS[x] ?? '?'}${y + 1}`;
@@ -313,10 +314,19 @@ export default function BattleScreen() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-sm text-main truncate">{opponent?.name ?? 'Соперник'}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-display text-sm text-main truncate">{opponent?.name ?? 'Соперник'}</p>
+            {opponent && (
+              <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-display uppercase tracking-wider"
+                style={{ background: 'rgba(var(--c-line-rgb)/0.4)', color: 'var(--c-muted)' }}>
+                <Icon name={getRank(opponent.wins).icon} size={9} />
+                {getRank(opponent.wins).title}
+              </span>
+            )}
+          </div>
           {!state.isTraining && (
             <p className="text-[10px] text-muted tabular-nums">
-              {opponent ? `${opponent.wins} побед · ${opponent.losses} поражений` : 'загрузка…'}
+              {opponent ? `${opponent.wins}W · ${opponent.losses}L` : 'загрузка…'}
             </p>
           )}
         </div>

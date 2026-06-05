@@ -409,18 +409,48 @@ export default function MatchmakingScreen() {
       {error && <div className="card p-3 text-danger text-sm border-danger">{error}</div>}
 
       {inQueue && (
-        <div className="card p-4 flex items-center gap-3 border-warning">
-          <Spinner />
-          <div className="flex-1">
-            <p className="text-main text-sm font-display">В очереди на бой…</p>
-            <p className="text-muted text-xs">
-              {queueSince ? `${Math.floor((queueTick - queueSince) / 1000)} сек` : 'ожидание соперника'}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card p-5 text-center space-y-3 relative overflow-hidden"
+        >
+          {/* Фоновая пульсация */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(232,50,40,0.08), transparent 70%)' }}
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="relative">
+            {/* Пульсирующий круг */}
+            <div className="mx-auto w-16 h-16 relative mb-3">
+              <motion.div
+                className="absolute inset-0 rounded-full border-2 border-danger"
+                animate={{ scale: [1, 1.5, 1.5], opacity: [0.6, 0, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+              />
+              <motion.div
+                className="absolute inset-0 rounded-full border-2 border-danger"
+                animate={{ scale: [1, 1.5, 1.5], opacity: [0.6, 0, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0.8 }}
+              />
+              <div className="w-16 h-16 rounded-full bg-danger/10 border-2 border-danger flex items-center justify-center">
+                <Icon name="swords" size={26} className="text-danger" />
+              </div>
+            </div>
+            <p className="font-display text-main text-base">Ищем соперника…</p>
+            <p className="text-muted text-xs mt-1">
+              Ставка {fmt(wager)} · {queueSince ? `${Math.floor((queueTick - queueSince) / 1000)} сек` : 'подключаемся'}
             </p>
           </div>
-          <button className="btn-ghost text-sm shrink-0" onClick={cancelQueue} disabled={queueSearching}>
-            Отмена
+          <button
+            className="btn-ghost text-sm py-2 w-full"
+            onClick={cancelQueue}
+            disabled={queueSearching}
+          >
+            Отменить поиск
           </button>
-        </div>
+        </motion.div>
       )}
 
       {/* Bottom-sheet: выбор ставки */}

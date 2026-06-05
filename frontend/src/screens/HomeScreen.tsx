@@ -93,9 +93,9 @@ export default function HomeScreen() {
 
         {/* Статы */}
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <StatCard icon="trophy" label="Победы" value={wins} color="success" />
-          <StatCard icon="skull" label="Поражения" value={losses} color="danger" />
-          <StatCard icon="target" label="Побед" value={`${wr}%`} color="accent" />
+          <StatCard label="Победы" value={wins} color="success" />
+          <StatCard label="Поражения" value={losses} color="danger" />
+          <StatCard label="Побед %" value={`${wr}%`} color="neutral" />
         </div>
       </motion.section>
 
@@ -280,19 +280,43 @@ function NewbieBanner({
 
 /* ─── Stat карточка ──────────────────────────────────────────────────────── */
 function StatCard({
-  label, value,
+  label, value, color,
 }: {
-  icon: IconName; label: string; value: any; color: 'success' | 'danger' | 'accent';
+  label: string; value: number | string; color: 'success' | 'danger' | 'neutral';
 }) {
+  const colorMap = {
+    success: { text: 'text-success', bg: 'rgba(46,196,96,0.08)', border: 'rgba(46,196,96,0.25)' },
+    danger:  { text: 'text-danger',  bg: 'rgba(232,50,40,0.08)',  border: 'rgba(232,50,40,0.25)' },
+    neutral: { text: 'text-main',    bg: 'rgba(var(--c-panel-rgb)/0.7)', border: 'rgba(var(--c-line-rgb)/0.5)' },
+  }[color];
+
+  const numVal = typeof value === 'number' ? value : null;
+  const [displayed, setDisplayed] = useState(0);
+
+  useEffect(() => {
+    if (numVal === null) return;
+    let start = 0;
+    const end = numVal;
+    if (end === 0) return;
+    const dur = 600;
+    const step = 16;
+    const inc = end / (dur / step);
+    const t = setInterval(() => {
+      start += inc;
+      if (start >= end) { setDisplayed(end); clearInterval(t); }
+      else setDisplayed(Math.round(start));
+    }, step);
+    return () => clearInterval(t);
+  }, [numVal]);
+
   return (
     <div
       className="rounded-xl py-3 px-2 flex flex-col items-center gap-1 text-center"
-      style={{
-        background: 'rgba(var(--c-panel-rgb) / 0.7)',
-        border: '1px solid rgba(var(--c-line-rgb) / 0.5)',
-      }}
+      style={{ background: colorMap.bg, border: `1px solid ${colorMap.border}` }}
     >
-      <div className="font-display text-2xl tabular-nums leading-none text-main">{value}</div>
+      <div className={`font-display text-2xl tabular-nums leading-none ${colorMap.text}`}>
+        {numVal !== null ? displayed : value}
+      </div>
       <div className="eyebrow text-[9px]">{label}</div>
     </div>
   );
