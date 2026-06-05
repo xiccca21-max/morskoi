@@ -309,9 +309,11 @@ export default function BattleScreen() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm text-main truncate">{opponent?.name ?? 'Соперник'}</p>
-          <p className="text-[10px] text-muted tabular-nums">
-            {opponent ? `${opponent.wins} побед · ${opponent.losses} поражений` : 'загрузка…'}
-          </p>
+          {!state.isTraining && (
+            <p className="text-[10px] text-muted tabular-nums">
+              {opponent ? `${opponent.wins} побед · ${opponent.losses} поражений` : 'загрузка…'}
+            </p>
+          )}
         </div>
         <span
           className={[
