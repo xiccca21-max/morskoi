@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useSettingsStore } from '../stores/settings-store';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { Modal } from './Modal';
-import { Icon, IconName } from './Icon';
+import { Icon } from './Icon';
 import { tgHaptic } from '../lib/telegram';
 
 export function Onboarding() {
@@ -11,76 +11,68 @@ export function Onboarding() {
   const setDone = useSettingsStore((s) => s.setOnboardingDone);
   const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
   const winPct = 100 - platformRakePercent;
+  const [checked, setChecked] = useState(false);
 
-  const STEPS: { icon: IconName; title: string; text: string }[] = [
-    { icon: 'swords', title: 'Дуэль на ставку', text: 'Найдите соперника, поставьте равную сумму — победитель забирает банк.' },
-    { icon: 'grid', title: 'Расставьте флот', text: 'Разместите корабли вручную или авто-расстановкой, затем топите врага по очереди.' },
-    { icon: 'trophy', title: 'Забирайте выигрыш', text: `Победителю — ${winPct}% банка. Комиссия платформы всего ${platformRakePercent}%, вывод — на ваш крипто кошелек.` },
-  ];
-  const [step, setStep] = useState(0);
-
-  const last = step === STEPS.length - 1;
-  const next = () => {
-    tgHaptic('light');
-    if (last) setDone(true);
-    else setStep((s) => s + 1);
+  const accept = () => {
+    if (!checked) {
+      tgHaptic('error');
+      return;
+    }
+    tgHaptic('success');
+    setDone(true);
   };
-  const go = (i: number) => { if (i >= 0 && i < STEPS.length) setStep(i); };
 
   return (
     <Modal open={!done} dismissable={false} icon="anchor" title="Добро пожаловать на борт!">
-      <div className="relative overflow-hidden min-h-[150px]">
-        {/* Без AnimatePresence/exit: keyed-слайд просто перемонтируется при смене
-            шага (обычный React unmount), без анимации выхода framer-motion,
-            которая роняла removeChild в Telegram WebView. */}
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.22 }}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.18}
-          onDragEnd={(_, info) => {
-            if (info.offset.x < -60) go(step + 1);
-            else if (info.offset.x > 60) go(step - 1);
-          }}
-          className="flex flex-col items-center text-center px-2 cursor-grab active:cursor-grabbing"
-        >
-          <span className="w-16 h-16 rounded-2xl bg-danger/10 border border-danger flex items-center justify-center text-danger mb-4">
-            <Icon name={STEPS[step].icon} size={30} />
-          </span>
-          <p className="font-display text-lg text-main">{STEPS[step].title}</p>
-          <p className="text-muted text-sm mt-1.5 leading-relaxed">{STEPS[step].text}</p>
-        </motion.div>
+      {/* Три шага в одном экране — без листания */}
+      <div className="space-y-3 mb-5">
+        <Step n={1} icon="swords" title="Найди соперника" text="Выбери ставку и нажми «Найти соперника» — система подберёт игрока с такой же суммой." />
+        <Step n={2} icon="grid" title="Расставь корабли" text="Ставь корабли на поле. Тапни ещё раз — повернёт. Потом топи врага по очереди." />
+        <Step n={3} icon="trophy" title="Забирай выигрыш" text={`Победитель забирает ${winPct}% от ставки обоих. Проиграл — ставка уходит сопернику.`} />
       </div>
 
-      {/* Точки-индикаторы */}
-      <div className="flex items-center justify-center gap-2 my-4">
-        {STEPS.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => go(i)}
-            aria-label={`Слайд ${i + 1}`}
-            className={['h-1.5 rounded-full transition-all', i === step ? 'w-6 bg-danger' : 'w-1.5 bg-line'].join(' ')}
-          />
-        ))}
-      </div>
+      <label className="flex items-start gap-3 cursor-pointer select-none bg-panel rounded-lg p-3 mb-4">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => { setChecked(e.target.checked); tgHaptic('light'); }}
+          className="mt-0.5 w-5 h-5 accent-danger shrink-0"
+        />
+        <span className="text-xs text-muted leading-relaxed">
+          Мне есть 18 лет. Я понимаю, что игра на деньги — это риск. Принимаю правила.
+        </span>
+      </label>
 
-      {last && (
-        <p className="text-[11px] text-muted mb-4 leading-relaxed">
-          Нажимая «Поднять якорь», вы подтверждаете, что вам есть 18 лет, и принимаете правила игры.
-        </p>
+      {!checked && (
+        <p className="text-[11px] text-muted text-center mb-3">↑ Поставь галочку, чтобы продолжить</p>
       )}
 
-      <div className="flex gap-2">
-        {!last && (
-          <button className="btn-ghost flex-1" onClick={() => setDone(true)}>Пропустить</button>
-        )}
-        <button className="btn-primary flex-1" onClick={next}>
-          {last ? <><Icon name="anchor" size={16} /> Поднять якорь</> : 'Далее'}
-        </button>
-      </div>
+      <button
+        className="btn-primary w-full"
+        onClick={accept}
+        disabled={!checked}
+      >
+        <Icon name="anchor" size={16} /> Поднять якорь
+      </button>
     </Modal>
+  );
+}
+
+function Step({ n, icon, title, text }: { n: number; icon: string; title: string; text: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: (n - 1) * 0.08 }}
+      className="flex items-start gap-3"
+    >
+      <div className="w-8 h-8 rounded-full bg-danger/10 border border-danger/40 flex items-center justify-center shrink-0 mt-0.5">
+        <Icon name={icon as any} size={16} className="text-danger" />
+      </div>
+      <div>
+        <p className="font-display text-main text-sm leading-tight">{title}</p>
+        <p className="text-muted text-xs mt-0.5 leading-relaxed">{text}</p>
+      </div>
+    </motion.div>
   );
 }
