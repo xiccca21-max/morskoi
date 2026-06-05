@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { motion } from 'framer-motion';
@@ -37,11 +36,10 @@ export default function BattleScreen() {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [shake, setShake] = useState(false);
   const [view, setView] = useState<'enemy' | 'own'>('enemy');
-  const [reactions, setReactions] = useState<Array<{ id: number; icon: IconName; isMine: boolean }>>([]);
+
 
   const [showSurrender, setShowSurrender] = useState(false);
   const [connected, setConnected] = useState(true);
-  const [reactionCooldown, setReactionCooldown] = useState(false);
   const hintDone = useSettingsStore((s) => s.battleHintDone);
   const setHintDone = useSettingsStore((s) => s.setBattleHintDone);
   const [showHint, setShowHint] = useState(!hintDone);
@@ -149,22 +147,6 @@ export default function BattleScreen() {
     return () => { sock.off('match:finished', onFinished); };
   }, [matchId, navigate, setMatchState]);
 
-  // Глобальный слушатель реакций
-  useEffect(() => {
-    const sock = getSocket();
-    const ALLOWED_REACTIONS = new Set<IconName>(['skull', 'crown', 'flag', 'wave']);
-    const onReaction = (data: any) => {
-      const icon = data?.reaction as IconName;
-      if (!ALLOWED_REACTIONS.has(icon)) return; // игнорируем произвольные значения с сокета
-      playSound('click');
-      setReactions((prev) => [...prev, { id: Date.now(), icon, isMine: data.by === me?.id }]);
-      setTimeout(() => {
-        setReactions((prev) => prev.slice(1));
-      }, 3000);
-    };
-    sock.on('match:reaction', onReaction);
-    return () => { sock.off('match:reaction', onReaction); };
-  }, [me?.id]);
 
   // Авто-передача хода по таймауту
   useEffect(() => {
@@ -291,12 +273,6 @@ export default function BattleScreen() {
     setShowSurrender(false);
   };
 
-  const sendReaction = (icon: IconName) => {
-    if (!matchId || reactionCooldown) return;
-    getSocket().emit('match:reaction', { matchId, reaction: icon, nonce: newNonce() });
-    setReactionCooldown(true);
-    setTimeout(() => setReactionCooldown(false), 1200);
-  };
 
   if (!stateOk || !state || state.matchId !== matchId) return <div className="card p-6 text-center text-muted max-w-md mx-auto">Выходим на позицию…</div>;
 
@@ -464,31 +440,6 @@ export default function BattleScreen() {
         {myTurn ? 'Наведись на клетку врага и дай залп. Попал — стреляй снова.' : 'Ход соперника. Ожидайте.'}
       </motion.p>
 
-      {/* Дразнилки (Реакции) */}
-      <div className="flex items-center justify-center gap-2 pt-2">
-        <ReactionBtn icon="skull" disabled={reactionCooldown} onClick={() => sendReaction('skull')} />
-        <ReactionBtn icon="crown" disabled={reactionCooldown} onClick={() => sendReaction('crown')} />
-        <ReactionBtn icon="flag" disabled={reactionCooldown} onClick={() => sendReaction('flag')} />
-        <ReactionBtn icon="wave" disabled={reactionCooldown} onClick={() => sendReaction('wave')} />
-      </div>
-
-      {/* Всплывающие реакции — портал, иначе fixed ломается из-за transform у .page-enter */}
-      {reactions.length > 0 && createPortal(
-        <div className="pointer-events-none fixed inset-0 overflow-hidden z-[150]">
-          {reactions.map((r) => (
-            <motion.div
-              key={r.id}
-              initial={{ opacity: 0, scale: 0.5, y: 50, x: r.isMine ? -20 : 20 }}
-              animate={{ opacity: 0, scale: 1, y: -200, x: r.isMine ? -50 : 50 }}
-              transition={{ duration: 1.5, ease: 'easeOut' }}
-              className={['absolute bottom-1/3 text-4xl', r.isMine ? 'left-1/2 text-main' : 'right-1/2 text-danger'].join(' ')}
-            >
-              <Icon name={r.icon} size={48} />
-            </motion.div>
-          ))}
-        </div>,
-        document.body,
-      )}
 
       <ConfirmDialog
         open={showSurrender}
@@ -514,17 +465,6 @@ export default function BattleScreen() {
   );
 }
 
-function ReactionBtn({ icon, onClick, disabled }: { icon: IconName; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-muted hover:text-main hover:border-main transition disabled:opacity-40 active:scale-90"
-    >
-      <Icon name={icon} size={20} />
-    </button>
-  );
-}
 
 function SwitchBtn({ active, onClick, icon, children }: any) {
   return (
