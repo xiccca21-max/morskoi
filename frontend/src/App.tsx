@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { tgReady, waitForInitData, isTelegramWebView, getInitData, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
+import { tgReady, waitForInitData, isTelegramWebView, getInitData, persistInitData, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI, WalletAPI, RatesAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
@@ -176,7 +176,7 @@ export default function App() {
     setReady(false);
     setAuthError(null);
     (async () => {
-      const initDataTimeout = authAttempt > 0 ? 15000 : 10000;
+      const initDataTimeout = authAttempt > 0 ? 20000 : 15000;
 
       if (!isTelegramWebView()) {
         setAuthError('Откройте приложение через Telegram');
@@ -215,6 +215,7 @@ export default function App() {
 
         // Повторное открытие Mini App: JWT + initData в заголовке, без лишнего /auth/telegram.
         if (existing && initData) {
+          persistInitData(initData);
           try {
             const me = await UsersAPI.me();
             if (cancelled) return;
@@ -226,6 +227,7 @@ export default function App() {
         }
 
         if (initData) {
+          persistInitData(initData);
           const res = await AuthAPI.login(initData);
           if (cancelled) return;
           applyLoginResult(res);

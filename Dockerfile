@@ -5,12 +5,10 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 
-# GIT_SHA объявляем ДО COPY frontend/ — так Docker инвалидирует кэш
-# при каждом новом коммите и пересобирает фронтенд.
+COPY frontend/ ./
+# После COPY — иначе слой npm run build кэшируется и Telegram видит старый JS.
 ARG GIT_SHA=dev
 ENV VITE_BUILD_SHA=$GIT_SHA
-
-COPY frontend/ ./
 ENV VITE_API_URL=
 ENV VITE_SOCKET_URL=
 ARG VITE_TG_BOT_USERNAME=MyNavalClashBot

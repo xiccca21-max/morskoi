@@ -29,6 +29,7 @@ export class HealthController {
       ok: db,
       db,
       redis: memOnly ? 'memory' : redis,
+      release: process.env.APP_RELEASE || process.env.GIT_SHA || null,
       ts: Date.now(),
       uptime: Math.floor(process.uptime()),
     };

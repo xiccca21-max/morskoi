@@ -13,6 +13,11 @@ function isInitDataFresh(raw: string): boolean {
   }
 }
 
+/** Сохранить initData для заголовков API (после логина и при открытии из бота). */
+export function persistInitData(raw: string | null | undefined): void {
+  storeInitData(raw);
+}
+
 function storeInitData(raw: string | null | undefined): void {
   if (!raw || !isInitDataFresh(raw)) return;
   try {
