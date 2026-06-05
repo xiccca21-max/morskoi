@@ -301,82 +301,95 @@ export default function BattleScreen() {
         )}
       </AnimatePresence>
 
-      {/* Соперник */}
-      <div className="card p-2.5 flex items-center gap-3">
-        <div className="relative">
-          <Avatar name={opponent?.name} src={opponent?.avatar} size={38} />
-          {!myTurn && state.gameStatus === 'IN_PROGRESS' && (
-            <motion.span
-              className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-danger border-2 border-panel"
-              animate={{ scale: [1, 1.35, 1], opacity: [1, 0.5, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className="font-display text-sm text-main truncate">{opponent?.name ?? 'Соперник'}</p>
-            {opponent && (
-              <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-display uppercase tracking-wider"
-                style={{ background: 'rgba(var(--c-line-rgb)/0.4)', color: 'var(--c-muted)' }}>
-                <Icon name={getRank(opponent.wins).icon} size={9} />
-                {getRank(opponent.wins).title}
-              </span>
-            )}
-          </div>
-          {!state.isTraining && (
-            <p className="text-[10px] text-muted tabular-nums">
-              {opponent ? `${opponent.wins}W · ${opponent.losses}L` : 'загрузка…'}
-            </p>
-          )}
-        </div>
-        <span
-          className={[
-            'text-[10px] font-display uppercase tracking-wider px-2 py-1 rounded',
-            !myTurn && state.gameStatus === 'IN_PROGRESS' ? 'bg-danger/15 text-danger' : 'text-muted',
-          ].join(' ')}
-        >
-          {!myTurn && state.gameStatus === 'IN_PROGRESS' ? 'целится…' : 'соперник'}
-        </span>
-      </div>
-
-      {/* HUD */}
-      <div className="card p-3 flex items-center justify-between">
-        <div>
-          <p className="eyebrow">{state.isTraining ? 'Режим' : 'Банк'}</p>
-          <p className="font-display text-main text-lg leading-none tabular-nums">
-            {state.isTraining ? 'Тренировка' : formatMoney(state.prizePool)}
-          </p>
-          {matchId && <p className="text-[9px] text-muted font-mono mt-0.5">#{matchId.slice(-8).toUpperCase()}</p>}
-        </div>
-        <div className="text-center flex-1 px-3">
-          <p className={['eyebrow flex items-center justify-center gap-1.5', myTurn ? 'text-main' : 'text-muted'].join(' ')}>
-            {myTurn && (
+      {/* Соперник + HUD */}
+      <div className="card overflow-hidden">
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="relative shrink-0">
+            <Avatar name={opponent?.name} src={opponent?.avatar} size={38} />
+            {!myTurn && state.gameStatus === 'IN_PROGRESS' && (
               <motion.span
-                className="inline-block w-1.5 h-1.5 rounded-full bg-danger"
-                animate={{ scale: [1, 1.6, 1], opacity: [1, 0.4, 1] }}
-                transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-danger border-2 border-panel"
+                animate={{ scale: [1, 1.35, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
               />
             )}
-            {myTurn ? 'Твой залп' : 'Ход соперника'}
-          </p>
-          <div className="h-1 rounded-full bg-panel overflow-hidden mt-1.5">
-            <div
-              className={['h-full transition-all', myTurn ? (lowTime ? 'bg-danger animate-pulse' : 'bg-danger') : 'bg-muted'].join(' ')}
-              style={{ width: `${fuse}%` }}
-            />
           </div>
-          <p className={['font-display text-xl mt-0.5 tabular-nums transition-colors', lowTime ? 'text-danger animate-pulse' : 'text-main'].join(' ')}>{remaining}c</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="font-display text-sm text-main truncate">{opponent?.name ?? 'Соперник'}</p>
+              {opponent && (
+                <span
+                  className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-display uppercase tracking-wider"
+                  style={{ background: 'rgba(var(--c-line-rgb)/0.4)', color: 'var(--c-muted)' }}
+                >
+                  <Icon name={getRank(opponent.wins).icon} size={9} />
+                  {getRank(opponent.wins).title}
+                </span>
+              )}
+            </div>
+            {!state.isTraining && (
+              <p className="text-[10px] text-muted tabular-nums">
+                {opponent ? `${opponent.wins}W · ${opponent.losses}L` : 'загрузка…'}
+              </p>
+            )}
+          </div>
+          <span
+            className={[
+              'shrink-0 text-[10px] font-display uppercase tracking-wider px-2 py-1 rounded',
+              !myTurn && state.gameStatus === 'IN_PROGRESS' ? 'bg-danger/15 text-danger' : 'text-muted',
+            ].join(' ')}
+          >
+            {!myTurn && state.gameStatus === 'IN_PROGRESS' ? 'целится…' : 'соперник'}
+          </span>
         </div>
-        <button
-          onClick={() => setShowSurrender(true)}
-          className="flex items-center justify-center rounded-lg bg-danger text-white py-2 px-3 transition active:scale-95"
-          title="Сдаться"
-        >
-          <Icon name="flag" size={24} />
-        </button>
-      </div>
 
+        <div className="border-t border-line" />
+
+        <div className="flex items-center gap-2.5 px-3 py-2">
+          <div className="shrink-0 min-w-[72px]">
+            <p className="eyebrow text-[10px] leading-none">{state.isTraining ? 'Режим' : 'Банк'}</p>
+            <p className="font-display text-sm text-main leading-tight tabular-nums mt-0.5">
+              {state.isTraining ? 'Тренировка' : formatMoney(state.prizePool)}
+            </p>
+            {matchId && !state.isTraining && (
+              <p className="text-[9px] text-muted font-mono mt-0.5">#{matchId.slice(-8).toUpperCase()}</p>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className={['eyebrow text-[10px] leading-none flex items-center gap-1', myTurn ? 'text-main' : 'text-muted'].join(' ')}>
+                {myTurn && (
+                  <motion.span
+                    className="inline-block w-1.5 h-1.5 rounded-full bg-danger"
+                    animate={{ scale: [1, 1.6, 1], opacity: [1, 0.4, 1] }}
+                    transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
+                {myTurn ? 'Твой залп' : 'Ход соперника'}
+              </p>
+              <span className={['font-display text-sm tabular-nums leading-none', lowTime ? 'text-danger animate-pulse' : 'text-main'].join(' ')}>
+                {remaining}с
+              </span>
+            </div>
+            <div className="h-1 rounded-full bg-panel overflow-hidden">
+              <div
+                className={['h-full transition-all', myTurn ? (lowTime ? 'bg-danger animate-pulse' : 'bg-danger') : 'bg-muted'].join(' ')}
+                style={{ width: `${fuse}%` }}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowSurrender(true)}
+            className="shrink-0 flex items-center justify-center rounded-lg bg-danger text-white w-9 h-9 transition active:scale-95"
+            title="Сдаться"
+            aria-label="Сдаться"
+          >
+            <Icon name="flag" size={18} />
+          </button>
+        </div>
+      </div>
       {/* Переключатель полей */}
       <div className="card p-1 flex gap-1">
         <SwitchBtn active={view === 'enemy'} onClick={() => setView('enemy')} icon="target">Атака</SwitchBtn>
