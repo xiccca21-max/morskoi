@@ -8,14 +8,16 @@ import { timingSafeEqual } from 'crypto';
 @Injectable()
 export class AdminKeyGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
-    const expected = process.env.ADMIN_API_KEY;
-    if (!expected) throw new UnauthorizedException('Admin API disabled');
+    const expected = (process.env.ADMIN_API_KEY ?? '').trim();
+    if (!expected) throw new UnauthorizedException('Admin API disabled — задай ADMIN_API_KEY в .env на сервере');
     const req = ctx.switchToHttp().getRequest();
-    const provided = String(req.headers['x-admin-key'] ?? '');
+    const provided = String(req.headers['x-admin-key'] ?? '').trim();
     const a = Buffer.from(provided);
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      throw new UnauthorizedException('Bad admin key');
+      throw new UnauthorizedException(
+        'Bad admin key — скопируй ADMIN_API_KEY из .env на сервере (без пробелов и кавычек)',
+      );
     }
     return true;
   }

@@ -104,12 +104,13 @@
     <h1>⚓ Naval Clash — Админка</h1>
     <input id="keyInput" type="password" placeholder="Admin key" style="max-width:220px" />
     <button id="saveKey" class="ghost">Сохранить ключ</button>
+    <button id="clearKey" class="ghost" type="button">Сбросить ключ</button>
     <button id="panelLogout" class="ghost" type="button">Выйти</button>
   </header>
 
   <div class="wrap">
-    <div id="gate" class="card hidden">
-      <p class="muted">Введите <b>Admin key</b> вверху, чтобы начать работу. Ключ хранится только в этом браузере.</p>
+    <div id="gate" class="card">
+      <p class="muted">Введите <b>Admin key</b> вверху — это строка <code>ADMIN_API_KEY</code> из файла <code>.env</code> на сервере (не логин от входа). Скопируй целиком, без кавычек. Если пишет «Bad admin key» — нажми «Сбросить ключ» и вставь заново.</p>
     </div>
 
     <div class="tabs card" style="display:flex; flex-wrap:wrap;">
@@ -239,6 +240,12 @@
       switchTab('activity');
     }
     document.getElementById('saveKey').onclick = setKey;
+    document.getElementById('clearKey').onclick = () => {
+      adminKey = '';
+      localStorage.removeItem(KEY_STORE);
+      document.getElementById('keyInput').value = '';
+      flash('Старый ключ удалён — вставь из .env на сервере');
+    };
     document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') setKey(); });
     document.getElementById('panelLogout').onclick = async () => {
       try { await fetch('/api/admin/panel-logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
