@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DOMAIN="176-12-68-39.sslip.io"
+DOMAIN="185-246-217-2.sslip.io"
 WEBROOT="$ROOT/certbot-www"
 CERT_DIR="$ROOT/nginx/certs"
 NGINX_MAIN="$ROOT/nginx/nginx.prod.conf"

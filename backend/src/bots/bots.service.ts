@@ -104,7 +104,7 @@ function buildBotProfile(index: number): BotProfile {
   const female = index % 3 === 0;
   const first = female ? pick(FEMALE_NAMES) : pick(MALE_NAMES);
   const portraitN = index % 100;
-  const avatar = `https://randomuser.me/api/portraits/${female ? 'women' : 'men'}/${portraitN}.jpg`;
+  const avatar = `https://api.dicebear.com/7.x/personas/png?seed=navalbot${index}_${portraitN}&backgroundColor=1a1a2e`;
 
   // Имя/ник в стиле живых игроков: иногда тег, иногда имя с цифрами.
   const style = index % 3;
@@ -329,29 +329,29 @@ export class BotsService implements OnModuleInit {
     const surplus = all.slice(this.targetCount);
     keep.forEach((u) => this.botIds.add(u.id));
 
-    // Первый бот (bot:1) — всегда «Рокки» с фото Рокки Бальбо.
-    // Обновляем личность существующей записи, чтобы переименование применялось
-    // на деплое без ручных команд в БД.
-    const firstBot = all[0];
-    if (firstBot) {
-      const r = buildBotProfile(0);
+    for (let i = 0; i < keep.length; i++) {
+      const p = buildBotProfile(i);
       try {
         await this.prisma.user.update({
-          where: { id: firstBot.id },
+          where: { id: keep[i].id },
           data: {
-            username: r.username,
-            firstName: r.firstName,
-            nickname: r.nickname,
-            avatar: r.avatar,
-            wins: r.wins,
-            losses: r.losses,
-            draws: r.draws,
-            totalWon: r.totalWon,
-            totalWagered: r.totalWagered,
+            username: p.username,
+            firstName: p.firstName,
+            nickname: p.nickname,
+            avatar: p.avatar,
+            ...(i === 0
+              ? {
+                  wins: p.wins,
+                  losses: p.losses,
+                  draws: p.draws,
+                  totalWon: p.totalWon,
+                  totalWagered: p.totalWagered,
+                }
+              : {}),
           } as any,
         });
       } catch (e: any) {
-        this.logger.warn(`rename bot:1 to Рокки failed: ${e?.message}`);
+        this.logger.warn(`refresh bot:${i + 1} profile failed: ${e?.message}`);
       }
     }
 

@@ -13,6 +13,14 @@
     <meta property="og:title" content="Морской Бой · Дуэль капитанов" />
     <meta property="og:description" content="PvP-дуэль на ставку прямо в Telegram." />
     <meta property="og:type" content="website" />
+    <script>
+      /* iOS Telegram WebView: клиент вызывает receiveEvent до загрузки бандла */
+      window.TelegramGameProxy = window.TelegramGameProxy || { receiveEvent: function () {} };
+      /* iOS 15.x: Object.hasOwn отсутствует — ломает часть полифиллов */
+      if (!Object.hasOwn) {
+        Object.hasOwn = function (o, p) { return Object.prototype.hasOwnProperty.call(o, p); };
+      }
+    </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
       (function () {

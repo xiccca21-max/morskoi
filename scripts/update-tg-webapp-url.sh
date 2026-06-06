@@ -2,7 +2,7 @@
 # Меняет URL мини-аппа в боте на sslip (минуя CF и 302 без hash).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-NEW_URL="${1:-https://176-12-68-39.sslip.io}"
+NEW_URL="${1:-https://185-246-217-2.sslip.io}"
 source .env
 sed -i "s|^TELEGRAM_WEBAPP_URL=.*|TELEGRAM_WEBAPP_URL=${NEW_URL}|" .env
 export TELEGRAM_WEBAPP_URL="$NEW_URL"
