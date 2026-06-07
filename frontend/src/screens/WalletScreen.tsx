@@ -9,7 +9,7 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
 import { Modal } from '../components/Modal';
 import { toast } from '../stores/toast-store';
-import { formatMoney, currencySymbol, currencyDecimals, rubToUnit, unitToRub, depositPresets } from '../lib/format';
+import { formatMoney, formatNumber, currencySymbol, currencyDecimals, rubToUnit, unitToRub, depositPresets } from '../lib/format';
 import { playSound } from '../lib/audio';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { useCurrencyStore } from '../stores/currency-store';
@@ -209,57 +209,48 @@ export default function WalletScreen() {
         className="relative overflow-hidden"
         style={{
           borderRadius: 'var(--radius-card)',
-          border: 'var(--border-w) solid var(--c-line)',
-          boxShadow: 'var(--shadow-card)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 4px 24px rgba(220,40,30,0.35)',
         }}
       >
         {celebrate && <VictoryBurst />}
-        {/* Красный градиент */}
+        {/* Фон */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #c8201a 0%, #e83228 45%, #d42820 100%)' }} />
+        {/* Сетка-узор */}
         <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(145deg, #e83228 0%, #ff5548 50%, #c42820 100%)' }}
-        />
-        {/* Радиальное свечение в правом верхнем углу — объём */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(120% 90% at 88% 8%, rgba(255,255,255,0.22) 0%, transparent 55%)' }}
-        />
-        {/* Диагональная штриховка (текстура) */}
-        <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
-            backgroundImage: 'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',
-            backgroundSize: '10px 10px',
+            backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
           }}
         />
-        {/* Белая линия сверху */}
-        <div
-          className="absolute inset-x-0 top-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%)' }}
-        />
+        {/* Боковое свечение */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 15% 50%, rgba(255,255,255,0.12) 0%, transparent 70%)' }} />
         {/* Мерцающий блик */}
         <motion.div
-          className="absolute inset-y-0 w-2/5 pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }}
-          animate={{ x: ['-120%', '320%'] }}
-          transition={{ duration: 3.2, repeat: Infinity, ease: 'linear', repeatDelay: 2.2 }}
+          className="absolute inset-y-0 w-1/3 pointer-events-none"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }}
+          animate={{ x: ['-150%', '400%'] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'linear', repeatDelay: 3 }}
         />
         {/* Содержимое */}
-        <div className="relative p-6">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-white/80" />
-            <p className="text-[11px] font-display uppercase tracking-[0.22em] text-white/75">Баланс</p>
+        <div className="relative px-6 pt-5 pb-5">
+          {/* Лейбл */}
+          <p className="text-[10px] font-display uppercase tracking-[0.3em] text-white/55 mb-3">Баланс</p>
+          {/* Сумма: число + знак ₽ разделены чтобы шрифт был единым */}
+          <div className="flex items-baseline gap-2 leading-none" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+            <span className="font-display text-[2.8rem] tabular-nums text-white font-normal leading-none">
+              <AnimatedNumber value={balance} formatter={formatNumber} />
+            </span>
+            <span className="text-[1.6rem] text-white/80 font-normal leading-none" style={{ fontFamily: 'inherit' }}>₽</span>
           </div>
-          <p
-            className="font-display font-normal text-[2.6rem] text-white mt-2 tabular-nums leading-none"
-            style={{ textShadow: '0 2px 14px rgba(0,0,0,0.28)' }}
-          >
-            <AnimatedNumber value={balance} formatter={formatMoney} />
-          </p>
-          <div
-            className="mt-4 h-px w-16"
-            style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.55), transparent)' }}
-          />
+          {/* Доступно к выводу */}
+          {withdrawable < balance && (
+            <p className="text-white/50 text-[11px] mt-2.5">
+              к выводу: {formatNumber(withdrawable)} ₽
+            </p>
+          )}
+          <div className="mt-4 h-px w-14" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.4), transparent)' }} />
         </div>
       </section>
 
