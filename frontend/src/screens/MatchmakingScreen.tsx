@@ -121,6 +121,8 @@ export default function MatchmakingScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [joiningLobby, setJoiningLobby] = useState(false);
   const [pendingMatch, setPendingMatch] = useState<OpenMatch | null>(null);
+  // Показываем по 5 боёв, остальное — по кнопке «Показать ещё».
+  const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
     const sock = getSocket();
@@ -248,6 +250,11 @@ export default function MatchmakingScreen() {
     if (tab !== 'browse') return;
     void fetchList();
   }, [tab, debouncedQuery, debouncedMin, debouncedMax, fetchList]);
+
+  // При смене фильтров/поиска снова показываем первые 5.
+  useEffect(() => {
+    setVisibleCount(5);
+  }, [debouncedQuery, debouncedMin, debouncedMax, sortAsc]);
 
   // Открываем выбор ставки (browse)
   const openCreateModal = () => { setShowCreateModal(true); tgHaptic('light'); };
@@ -697,13 +704,28 @@ export default function MatchmakingScreen() {
                   )}
                 />
               ) : (
-                <div className="space-y-2">
-                  {[...matches]
-                    .sort((a, b) => sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount)
-                    .map((m) => (
-                      <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
-                    ))}
-                </div>
+                (() => {
+                  const sorted = [...matches].sort((a, b) =>
+                    sortAsc ? a.wagerAmount - b.wagerAmount : b.wagerAmount - a.wagerAmount,
+                  );
+                  const shown = sorted.slice(0, visibleCount);
+                  const rest = sorted.length - shown.length;
+                  return (
+                    <div className="space-y-2">
+                      {shown.map((m) => (
+                        <MatchRow key={m.id} m={m} busy={busyId === m.id} onAccept={() => acceptMatch(m)} onCancel={cancelPublic} onShowRank={() => setRanksForPlayer(getRank(m.host.wins).title)} />
+                      ))}
+                      {rest > 0 && (
+                        <button
+                          className="btn-ghost w-full text-sm py-2.5 flex items-center justify-center gap-1.5"
+                          onClick={() => { tgHaptic('light'); setVisibleCount((v) => v + 5); }}
+                        >
+                          Показать ещё <span className="text-muted tabular-nums">({rest})</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </div>
           )}

@@ -163,7 +163,9 @@ function buildBotProfile(index: number): BotProfile {
   let nickname: string;
   let avatar: string;
   if (fromPool) {
-    first = fromPool.firstName;
+    // Показываем ИМЕННО заданный ник (лобби/рейтинг используют firstName),
+    // чтобы соперник назывался так же, как в списке боёв.
+    first = fromPool.nickname;
     nickname = fromPool.nickname;
     avatar = fromPool.avatar; // '' = без аватара (фронт нарисует кружок с буквой)
   } else {
@@ -557,8 +559,8 @@ export class BotsService implements OnModuleInit {
     const now = Date.now();
     let s = this.botSessions.get(botId);
     if (!s) {
-      const startOnline = Math.random() < 0.55;
-      const dur = startOnline ? rnd(20, 90) : rnd(30, 60);
+      const startOnline = Math.random() < 0.7;
+      const dur = startOnline ? rnd(30, 120) : rnd(20, 45);
       const elapsed = Math.floor(Math.random() * dur); // уже «внутри» периода
       s = { online: startOnline, nextToggle: now + (dur - elapsed) * 60_000 };
       this.botSessions.set(botId, s);
@@ -566,7 +568,7 @@ export class BotsService implements OnModuleInit {
     }
     if (now >= s.nextToggle) {
       s.online = !s.online;
-      const dur = s.online ? rnd(20, 90) : rnd(30, 60);
+      const dur = s.online ? rnd(30, 120) : rnd(20, 45);
       s.nextToggle = now + dur * 60_000;
     }
     return s.online;
@@ -620,9 +622,11 @@ export class BotsService implements OnModuleInit {
     }
     const stillOpen = openBot.filter((l) => this.isBotOnline(l.hostId));
 
-    // Сколько лобби держать сейчас — с дневным ритмом и лёгким разбросом.
+    // Держим список «живым»: всегда минимум 10 открытых боёв, до openLobbies сверху.
+    // Дневной ритм лишь слегка играет числом в этом коридоре (не опускаемся ниже 10).
+    const floor = Math.min(10, this.openLobbies);
     const target = Math.max(
-      1,
+      floor,
       Math.min(this.openLobbies, Math.round(this.openLobbies * this.onlineFactor(now)) + rnd(-1, 1)),
     );
     const need = target - stillOpen.length;

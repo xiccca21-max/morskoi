@@ -7,23 +7,13 @@ export interface SeasonInfo {
   end: string;
 }
 
-/** Бот-витрина «Рокки» (bot:1) — единственный бот, допущенный в публичный рейтинг. */
-const SHOWCASE_BOT_TID = 'bot:1';
-
 /**
- * Боты и забаненные не участвуют в публичном рейтинге — кроме витринного «Рокки»,
- * который специально показывается в топе (у него больше всех побед).
+ * В публичный рейтинг попадают живые игроки И лобби-боты (bot:*), чтобы топ был
+ * консистентен с лобби: соперник с 200 победами, которого видно в списке боёв,
+ * виден и в «Рейтинге капитанов». Исключаются только тренировочный бот и забаненные.
  */
 const PUBLIC_PLAYER = {
-  AND: [
-    { telegramId: { not: { startsWith: 'trainbot:' } } },
-    {
-      OR: [
-        { telegramId: { not: { startsWith: 'bot:' } } },
-        { telegramId: SHOWCASE_BOT_TID },
-      ],
-    },
-  ],
+  telegramId: { not: { startsWith: 'trainbot:' } },
   banned: false,
 };
 
@@ -185,7 +175,7 @@ export class LeaderboardService {
       return {
         rank: i + 1,
         id,
-        name: u?.username ?? u?.firstName ?? `Player-${id.slice(0, 4)}`,
+        name: u?.firstName ?? u?.username ?? `Player-${id.slice(0, 4)}`,
         avatar: u?.avatar ?? null,
         wins: s.wins,
         losses: u?.losses ?? 0,
@@ -198,7 +188,7 @@ export class LeaderboardService {
     return {
       rank,
       id: u.id,
-      name: u.username ?? u.firstName ?? `Player-${u.id.slice(0, 4)}`,
+      name: u.firstName ?? u.username ?? `Player-${u.id.slice(0, 4)}`,
       avatar: u.avatar,
       wins: u.wins,
       losses: u.losses,
