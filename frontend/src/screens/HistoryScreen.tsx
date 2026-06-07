@@ -115,7 +115,7 @@ export default function HistoryScreen() {
             >
               <div className={[
                 'w-9 h-9 rounded-lg flex items-center justify-center border shrink-0',
-                win ? 'text-main border-line'
+                win ? 'text-success border-success'
                   : loss ? 'text-danger border-danger'
                     : 'text-muted border-line',
               ].join(' ')}>
@@ -123,7 +123,7 @@ export default function HistoryScreen() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={['text-xs font-display uppercase tracking-wide', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
+                  <span className={['text-xs font-display uppercase tracking-wide', win ? 'text-success' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
                     {resultLabel}
                   </span>
                   <CopyId id={m.id} />
@@ -139,7 +139,7 @@ export default function HistoryScreen() {
                 </div>
                 <div className="eyebrow mt-0.5">{m.endedAt ? new Date(m.endedAt).toLocaleString('ru-RU') : '—'}</div>
               </div>
-              <div className={['font-display tabular-nums shrink-0', win ? 'text-main' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
+              <div className={['font-display tabular-nums shrink-0', win ? 'text-success' : loss ? 'text-danger' : 'text-muted'].join(' ')}>
                 {win ? `+${formatMoney(m.prizePool - m.rakeAmount)}`
                   : loss ? `−${formatMoney(m.wagerAmount)}`
                     : formatMoney(m.wagerAmount)}
