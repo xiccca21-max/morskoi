@@ -244,12 +244,6 @@ export default function WalletScreen() {
             </span>
             <span className="text-[1.6rem] text-white/80 font-normal leading-none" style={{ fontFamily: 'inherit' }}>₽</span>
           </div>
-          {/* Доступно к выводу */}
-          {withdrawable < balance && (
-            <p className="text-white/50 text-[11px] mt-2.5">
-              к выводу: {formatNumber(withdrawable)} ₽
-            </p>
-          )}
           <div className="mt-4 h-px w-14" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.4), transparent)' }} />
         </div>
       </section>

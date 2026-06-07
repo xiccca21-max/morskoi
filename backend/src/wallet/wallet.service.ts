@@ -515,10 +515,7 @@ export class WalletService {
           const winnerPayout = roundRub(pool - rake);
           const loserId = winnerId === p1Id ? p2Id : p1Id;
           const loserIsPaidBot = isPaidMatchBotTelegramId(tid(loserId));
-          // Выигрыш у бота: на баланс — полный приз, на вывод — только возврат своей ставки (без «прибыли с бота»).
-          const winnerWithdrawableInc = loserIsPaidBot
-            ? Math.min(wagerAmount, winnerPayout)
-            : winnerPayout;
+          const winnerWithdrawableInc = winnerPayout;
 
           const updatedWinner = await tx.user.update({
             where: { id: winnerId },
