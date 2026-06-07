@@ -93,9 +93,9 @@ export default function HomeScreen() {
 
         {/* Статы */}
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <StatCard label="Победы" value={wins} color="success" />
-          <StatCard label="Поражения" value={losses} color="danger" />
-          <StatCard label="Побед %" value={`${wr}%`} color="neutral" />
+          <StatCard label="Победы" value={wins} />
+          <StatCard label="Поражения" value={losses} />
+          <StatCard label="Побед %" value={`${wr}%`} />
         </div>
       </motion.section>
 
@@ -280,16 +280,10 @@ function NewbieBanner({
 
 /* ─── Stat карточка ──────────────────────────────────────────────────────── */
 function StatCard({
-  label, value, color,
+  label, value,
 }: {
-  label: string; value: number | string; color: 'success' | 'danger' | 'neutral';
+  label: string; value: number | string;
 }) {
-  const colorMap = {
-    success: { text: 'text-success', bg: 'rgba(46,196,96,0.08)', border: 'rgba(46,196,96,0.25)' },
-    danger:  { text: 'text-danger',  bg: 'rgba(232,50,40,0.08)',  border: 'rgba(232,50,40,0.25)' },
-    neutral: { text: 'text-main',    bg: 'rgba(var(--c-panel-rgb)/0.7)', border: 'rgba(var(--c-line-rgb)/0.5)' },
-  }[color];
-
   const numVal = typeof value === 'number' ? value : null;
   const [displayed, setDisplayed] = useState(0);
 
@@ -312,9 +306,9 @@ function StatCard({
   return (
     <div
       className="rounded-xl py-3 px-2 flex flex-col items-center gap-1 text-center"
-      style={{ background: colorMap.bg, border: `1px solid ${colorMap.border}` }}
+      style={{ background: 'rgba(var(--c-panel-rgb) / 0.7)', border: '1px solid rgba(var(--c-line-rgb) / 0.5)' }}
     >
-      <div className={`font-display text-2xl tabular-nums leading-none ${colorMap.text}`}>
+      <div className="font-display text-2xl tabular-nums leading-none text-main">
         {numVal !== null ? displayed : value}
       </div>
       <div className="eyebrow text-[9px]">{label}</div>
