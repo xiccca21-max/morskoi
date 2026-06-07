@@ -9,12 +9,12 @@ export interface Rank {
 }
 
 export const ALL_RANKS: Rank[] = [
-  { title: 'Юнга', icon: 'anchor', min: 0, next: 3 },
-  { title: 'Матрос', icon: 'ship', min: 3, next: 8 },
-  { title: 'Боцман', icon: 'compass', min: 8, next: 15 },
-  { title: 'Штурман', icon: 'wheel', min: 15, next: 30 },
-  { title: 'Капитан', icon: 'medal', min: 30, next: 60 },
-  { title: 'Адмирал', icon: 'crown', min: 60 },
+  { title: 'Юнга', icon: 'anchor', min: 0, next: 10 },
+  { title: 'Матрос', icon: 'ship', min: 10, next: 30 },
+  { title: 'Боцман', icon: 'compass', min: 30, next: 50 },
+  { title: 'Штурман', icon: 'wheel', min: 50, next: 100 },
+  { title: 'Капитан', icon: 'medal', min: 100, next: 200 },
+  { title: 'Адмирал', icon: 'crown', min: 200 },
 ];
 
 const RANKS = ALL_RANKS;

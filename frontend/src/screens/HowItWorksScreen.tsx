@@ -5,11 +5,11 @@ import { useGameConfigStore } from '../stores/game-config-store';
 
 const RANKS = [
   { title: 'Юнга', min: 0 },
-  { title: 'Матрос', min: 3 },
-  { title: 'Боцман', min: 8 },
-  { title: 'Штурман', min: 15 },
-  { title: 'Капитан', min: 30 },
-  { title: 'Адмирал', min: 60 },
+  { title: 'Матрос', min: 10 },
+  { title: 'Боцман', min: 30 },
+  { title: 'Штурман', min: 50 },
+  { title: 'Капитан', min: 100 },
+  { title: 'Адмирал', min: 200 },
 ];
 
 export default function HowItWorksScreen() {
