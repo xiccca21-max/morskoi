@@ -574,16 +574,37 @@ export class BotsService implements OnModuleInit {
     return 0.5;                          // 00:00–02:00
   }
 
-  /** «Абсолютно разные» ставки: чаще круглые пресеты, иногда произвольная сумма. */
+  /**
+   * «Абсолютно разные» ставки с широким разбросом и редкими совпадениями.
+   * Тиры с весами: чаще мелкие/средние, реже крупные, изредка очень крупные (>5000).
+   * Внутри тира — мелкий случайный шаг и иногда «некруглая» сумма, чтобы значения
+   * почти не повторялись между ботами.
+   */
   private randomBotWager(balance: number): number {
     const min = Number(process.env.MIN_WAGER ?? 100);
-    const presets = [100, 150, 200, 250, 300, 400, 500, 700, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
-    const affordable = presets.filter((w) => w >= min && w <= balance);
-    if (affordable.length && Math.random() < 0.7) return pick(affordable);
-    const hi = Math.min(balance, 5000);
-    if (hi <= min) return affordable.length ? pick(affordable) : min;
-    const raw = min + Math.floor(Math.random() * (hi - min));
-    return Math.max(min, Math.round(raw / 50) * 50); // кратно 50 — выглядит «по-человечески»
+    const r = Math.random();
+    let lo: number;
+    let hi: number;
+    let step: number;
+    if (r < 0.4) { lo = min; hi = 1000; step = 50; }            // мелкие
+    else if (r < 0.7) { lo = 1000; hi = 5000; step = 100; }     // средние
+    else if (r < 0.88) { lo = 5000; hi = 15000; step = 250; }   // крупные
+    else if (r < 0.97) { lo = 15000; hi = 35000; step = 500; }  // очень крупные
+    else { lo = 35000; hi = 75000; step = 1000; }               // топовые
+
+    lo = Math.max(min, lo);
+    hi = Math.min(hi, Math.floor(balance));
+    if (hi <= lo) {
+      // Баланс не дотягивает до выбранного тира — отдаём максимум, что по карману.
+      const v = Math.round(Math.floor(balance) / step) * step;
+      return Math.max(min, Math.min(v, Math.floor(balance)));
+    }
+
+    const raw = lo + Math.floor(Math.random() * (hi - lo));
+    // В ~20% случаев суммы «некруглые» (шаг 10/25) — добавляет разнообразия.
+    const effStep = Math.random() < 0.2 ? pick([10, 25]) : step;
+    const val = Math.round(raw / effStep) * effStep;
+    return Math.max(min, Math.min(val, Math.floor(balance)));
   }
 
   /** Каждые 10 секунд поддерживаем живой список лобби: онлайн-боты заходят, ушедшие — пропадают. */
