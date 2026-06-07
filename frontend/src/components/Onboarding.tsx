@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSettingsStore } from '../stores/settings-store';
 import { useGameConfigStore } from '../stores/game-config-store';
+import { useAuthStore } from '../stores/auth-store';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { tgHaptic } from '../lib/telegram';
@@ -9,6 +10,8 @@ import { tgHaptic } from '../lib/telegram';
 export function Onboarding() {
   const done = useSettingsStore((s) => s.onboardingDone);
   const setDone = useSettingsStore((s) => s.setOnboardingDone);
+  // Если пользователь уже принял условия через ConsentGate (server-side), не показываем снова.
+  const agreedToTerms = useAuthStore((s) => s.user?.agreedToTerms);
   const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
   const winPct = 100 - platformRakePercent;
   const [checked, setChecked] = useState(false);
@@ -23,7 +26,7 @@ export function Onboarding() {
   };
 
   return (
-    <Modal open={!done} dismissable={false} icon="anchor" title="Добро пожаловать на борт!">
+    <Modal open={!done && !agreedToTerms} dismissable={false} icon="anchor" title="Добро пожаловать на борт!">
       {/* Три шага в одном экране — без листания */}
       <div className="space-y-3 mb-5">
         <Step n={1} icon="swords" title="Найди соперника" text="Выбери ставку и нажми «Найти соперника» — система подберёт игрока с такой же суммой." />
