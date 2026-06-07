@@ -42,11 +42,10 @@ const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max 
 const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 
 /**
- * Курируемый пул из 30 «живых» соперников с заданными никами.
- * Аватарки максимально разные: часть — реальные фото, часть — генеративные
- * (разные стили DiceBear, в т.ч. на чёрном фоне), а ~1/4 ботов вообще БЕЗ аватара
- * (avatar=''), и фронт рисует им цветной кружок с первой буквой имени.
- * Индекс 0 (bot:1) занят «Рокки», поэтому это пул для bot:2 … bot:31.
+ * Курируемый пул из 80 «живых» соперников с заданными никами.
+ * Аватарки максимально разные (загруженные фото в public/bots), а у кого «не хватило»
+ * картинки — avatar='', и фронт рисует кружок с первой буквой имени на красном фоне.
+ * Индекс 0 (bot:1) занят «Рокки», поэтому это пул для bot:2 … bot:81.
  */
 interface BotIdentity {
   nickname: string;
@@ -60,40 +59,31 @@ interface BotIdentity {
  */
 const botImg = (file: string) => selfAsset(`bots/${file}`);
 
-// 25 загруженных аватарок раздаём первым 25 ботам; последним 5 картинок «не хватило» —
-// у них avatar='' и фронт рисует первую букву имени на нашем красном фоне.
-const BOT_IDENTITIES: BotIdentity[] = [
-  { nickname: 'Aydar',       firstName: 'Aydar',       avatar: botImg('bot01.png') },
-  { nickname: 'Panda Crew',  firstName: 'Panda Crew',  avatar: botImg('bot02.png') },
-  { nickname: 'Skyroom',     firstName: 'Skyroom',     avatar: botImg('bot03.png') },
-  { nickname: 'mk91',        firstName: 'mk91',        avatar: botImg('bot04.png') },
-  { nickname: 'Dolmatix',    firstName: 'Dolmatix',    avatar: botImg('bot05.png') },
-  { nickname: 'n17club',     firstName: 'n17club',     avatar: botImg('bot06.png') },
-  { nickname: 'whoptnova',   firstName: 'whoptnova',   avatar: botImg('bot07.png') },
-  { nickname: 'Макс',        firstName: 'Макс',        avatar: botImg('bot08.png') },
-  { nickname: 'Am1r',        firstName: 'Am1r',        avatar: botImg('bot09.png') },
-  { nickname: 'Skynex',      firstName: 'Skynex',      avatar: botImg('bot10.png') },
-  { nickname: 'Panda Unit',  firstName: 'Panda Unit',  avatar: botImg('bot11.png') },
-  { nickname: 'd14room',     firstName: 'd14room',     avatar: botImg('bot12.png') },
-  { nickname: 'Клим',        firstName: 'Клим',        avatar: botImg('bot13.png') },
-  { nickname: 'mkr77',       firstName: 'mkr77',       avatar: botImg('bot14.png') },
-  { nickname: 'Dolman',      firstName: 'Dolman',      avatar: botImg('bot15.png') },
-  { nickname: '@whoptbase',  firstName: '@whoptbase',  avatar: botImg('bot16.png') },
-  { nickname: 'Sky Support', firstName: 'Sky Support', avatar: botImg('bot17.png') },
-  { nickname: 'Роман',       firstName: 'Роман',       avatar: botImg('bot18.png') },
-  { nickname: 'n9room',      firstName: 'n9room',      avatar: botImg('bot19.png') },
-  { nickname: 'Makarov',     firstName: 'Makarov',     avatar: botImg('bot20.png') },
-  { nickname: 'Panda Labs',  firstName: 'Panda Labs',  avatar: botImg('bot21.png') },
-  { nickname: 'skyness77',   firstName: 'skyness77',   avatar: botImg('bot22.png') },
-  { nickname: 'whoptzone',   firstName: 'whoptzone',   avatar: botImg('bot23.png') },
-  { nickname: 'Арсен',       firstName: 'Арсен',       avatar: botImg('bot24.png') },
-  { nickname: 'mk14',        firstName: 'mk14',        avatar: botImg('bot25.png') },
-  { nickname: 'Dolmat',      firstName: 'Dolmat',      avatar: '' },
-  { nickname: 'Sky Panda',   firstName: 'Sky Panda',   avatar: '' },
-  { nickname: 'n22room',     firstName: 'n22room',     avatar: '' },
-  { nickname: 'Тимур',       firstName: 'Тимур',       avatar: '' },
-  { nickname: 'Whopt Corp',  firstName: 'Whopt Corp',  avatar: '' },
+// 80 «живых» соперников. В public/bots лежат 62 аватарки (bot01…bot62.png):
+// первые 62 ника получают картинку, остальным «не хватило» — avatar='' и фронт
+// рисует первую букву имени на нашем красном фоне.
+const BOT_NICKS: string[] = [
+  // первая партия (30)
+  'Aydar', 'Panda Crew', 'Skyroom', 'mk91', 'Dolmatix', 'n17club', 'whoptnova', 'Макс',
+  'Am1r', 'Skynex', 'Panda Unit', 'd14room', 'Клим', 'mkr77', 'Dolman', '@whoptbase',
+  'Sky Support', 'Роман', 'n9room', 'Makarov', 'Panda Labs', 'skyness77', 'whoptzone',
+  'Арсен', 'mk14', 'Dolmat', 'Sky Panda', 'n22room', 'Тимур', 'Whopt Corp',
+  // вторая партия (50)
+  'Ve111or', 'Krymson', 'Nordex', 'blackunit', 'Тимон', 'Axelon', 'Redline', '@coldbase',
+  'Varnix', 'Глеб', 'NeonFox1111', '@quietnode', 'Kravell232', 'Zentro', 'Леван65',
+  'darkorbit', 'Mirrox97', 'ByteWolf', 'Ronex', '@ghostsector', 'Феликс', 'Alviro',
+  'Traceon', 'nullcrew', 'Kairox0', 'Вадимыч', 'IronDesk', 'Nexora', 'softgate', 'Lorian',
+  'Bramix', 'zeroport', 'Артём', 'Crypton', '1156', 'grayline', 'Sektor', 'Dorian',
+  'nightdesk', 'Кирилл', 'Ravion', 'Lunex', 'corehub', 'Maksen', 'Frostel12', 'voidteam',
+  'Oskarix', 'Даня', 'Terrox', 'silentcorp',
 ];
+
+const BOT_AVATAR_COUNT = 62;
+const BOT_IDENTITIES: BotIdentity[] = BOT_NICKS.map((nick, i) => ({
+  nickname: nick,
+  firstName: nick,
+  avatar: i < BOT_AVATAR_COUNT ? botImg(`bot${String(i + 1).padStart(2, '0')}.png`) : '',
+}));
 
 /**
  * Выделенный тренировочный бот. Живёт в отдельном неймспейсе `trainbot:`,
@@ -557,9 +547,11 @@ export class BotsService implements OnModuleInit {
   private isBotOnline(botId: string): boolean {
     const now = Date.now();
     let s = this.botSessions.get(botId);
+    // Доля онлайна ~0.36 от пула (≈80 ботов) даёт «в сети» обычно 20–40 человек,
+    // число всё время плавает, а конкретные боты постоянно меняются (ротация).
     if (!s) {
-      const startOnline = Math.random() < 0.7;
-      const dur = startOnline ? rnd(30, 120) : rnd(20, 45);
+      const startOnline = Math.random() < 0.36;
+      const dur = startOnline ? rnd(30, 90) : rnd(60, 150);
       const elapsed = Math.floor(Math.random() * dur); // уже «внутри» периода
       s = { online: startOnline, nextToggle: now + (dur - elapsed) * 60_000 };
       this.botSessions.set(botId, s);
@@ -567,7 +559,7 @@ export class BotsService implements OnModuleInit {
     }
     if (now >= s.nextToggle) {
       s.online = !s.online;
-      const dur = s.online ? rnd(30, 120) : rnd(20, 45);
+      const dur = s.online ? rnd(30, 90) : rnd(60, 150);
       s.nextToggle = now + dur * 60_000;
     }
     return s.online;

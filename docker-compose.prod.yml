@@ -68,7 +68,7 @@ services:
       # Значения захардкожены литералами, чтобы устаревший серверный .env
       # (где было BOTS_COUNT=1 / BOT_OPEN_LOBBIES=1) их НЕ перебивал.
       BOTS_ENABLED: "true"
-      BOTS_COUNT: "31"
+      BOTS_COUNT: "81"
       BOT_WIN_RATE: "0.6"
       BOT_MATCH_WAIT_SEC: ${BOT_MATCH_WAIT_SEC:-10}
       BOT_OPEN_LOBBIES: "12"
