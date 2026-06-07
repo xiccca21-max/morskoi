@@ -7,26 +7,28 @@ const inB = (x: number, y: number) => x >= 0 && y >= 0 && x < SIZE && y < SIZE;
 export interface BotSkill {
   /** Вероятность «добивать» подбитый корабль вместо случайного выстрела (0..1). */
   targetFollow: number;
-  /** Использовать «шахматную» эвристику при поиске (бьёт эффективнее). */
+  /** Использовать «шахматную» эвристику при поиске (находит корабли быстрее). */
   useParity: boolean;
+  /**
+   * Вероятность оптимально продолжить ЛИНИЮ из 2+ попаданий (0..1).
+   * У слабого бота иногда тыкает соседей вразнобой — выглядит по-человечески,
+   * но тратит лишние выстрелы и снижает винрейт.
+   */
+  smartLine: number;
 }
 
-/** Сильный бот: всегда добивает, ищет по чётным клеткам — высокий винрейт. */
-export const BOT_SKILL_STRONG: BotSkill = { targetFollow: 1, useParity: true };
-/** Слабый бот: часто «мажет» по логике — даёт игроку шанс победить. */
-export const BOT_SKILL_WEAK: BotSkill = { targetFollow: 0.4, useParity: false };
-
 /**
- * Выбор хода бота по истории атак, прилетевших во вражеский борд.
- * `attacks` — это attacksReceived доски соперника (= все выстрелы бота по нему).
- * Гарантированно возвращает не атакованную ранее клетку в пределах поля.
+ * Сильный бот: добивает всегда, ищет по чётным клеткам, оптимально достраивает линию.
+ * Слабый бот: тоже добивает всегда (живой игрок никогда не бросает подбитый корабль),
+ * но ищет случайно и иногда тыкает соседей не по линии — даёт игроку реальный шанс.
+ * Оба ведут себя как люди: после попадания ищут продолжение слева/справа/сверху/снизу.
  */
-export function chooseBotMove(attacks: AttackCell[], skill: BotSkill): { x: number; y: number } {
-  const shot = new Set(attacks.map((a) => key(a.x, a.y)));
-  const hitSet = new Set(attacks.filter((a) => a.hit).map((a) => key(a.x, a.y)));
+export const BOT_SKILL_STRONG: BotSkill = { targetFollow: 1, useParity: true, smartLine: 1 };
+export const BOT_SKILL_WEAK: BotSkill = { targetFollow: 1, useParity: false, smartLine: 0.6 };
 
-  // Помечаем попадания по уже потопленным кораблям как «закрытые»:
-  // от клетки с sunkShipId обходим связные попадания.
+/** Попадания, которые ещё не закрыты (корабль не потоплен) — их нужно добивать. */
+function unresolvedHits(attacks: AttackCell[]): AttackCell[] {
+  const hitSet = new Set(attacks.filter((a) => a.hit).map((a) => key(a.x, a.y)));
   const resolved = new Set<string>();
   const floodSunk = (sx: number, sy: number) => {
     const stack: Array<[number, number]> = [[sx, sy]];
@@ -39,13 +41,32 @@ export function chooseBotMove(attacks: AttackCell[], skill: BotSkill): { x: numb
     }
   };
   for (const a of attacks) if (a.hit && a.sunkShipId) floodSunk(a.x, a.y);
+  return attacks.filter((a) => a.hit && !resolved.has(key(a.x, a.y)));
+}
 
-  const activeHits = attacks.filter((a) => a.hit && !resolved.has(key(a.x, a.y)));
+/** Есть ли сейчас подбитый, но не добитый корабль (бот в режиме «охоты»). */
+export function hasUnresolvedHits(attacks: AttackCell[]): boolean {
+  return unresolvedHits(attacks).length > 0;
+}
 
-  // ----- Режим добивания -----
+/**
+ * Выбор хода бота по истории атак, прилетевших во вражеский борд.
+ * `attacks` — это attacksReceived доски соперника (= все выстрелы бота по нему).
+ * Гарантированно возвращает не атакованную ранее клетку в пределах поля.
+ */
+export function chooseBotMove(attacks: AttackCell[], skill: BotSkill): { x: number; y: number } {
+  const shot = new Set(attacks.map((a) => key(a.x, a.y)));
+  const activeHits = unresolvedHits(attacks);
+
+  // ----- Режим добивания (как живой игрок: ищем продолжение корабля) -----
   if (activeHits.length && Math.random() < skill.targetFollow) {
-    const cand = targetCandidates(activeHits, shot);
-    if (cand.length) return pick(cand);
+    const line = lineCandidates(activeHits, shot);
+    const neighbours = neighbourCandidates(activeHits, shot);
+    // Сильный игрок: если уже видна линия из 2+ попаданий — бьём строго по её концам.
+    if (line.length && Math.random() < skill.smartLine) return pick(line);
+    // Иначе пробуем соседей подбитой клетки (слева/справа/сверху/снизу).
+    if (neighbours.length) return pick(neighbours);
+    if (line.length) return pick(line);
   }
 
   // ----- Режим поиска -----
@@ -64,11 +85,10 @@ export function chooseBotMove(attacks: AttackCell[], skill: BotSkill): { x: numb
   return { x: 0, y: 0 };
 }
 
-function targetCandidates(activeHits: AttackCell[], shot: Set<string>) {
+/** Концы линии из 2+ попаданий — наиболее вероятное продолжение корабля. */
+function lineCandidates(activeHits: AttackCell[], shot: Set<string>) {
   const hitKeys = new Set(activeHits.map((a) => key(a.x, a.y)));
   const cells: Array<{ x: number; y: number }> = [];
-
-  // 2+ попадания на линии — продолжаем линию в обе стороны.
   for (const h of activeHits) {
     if (hitKeys.has(key(h.x + 1, h.y)) || hitKeys.has(key(h.x - 1, h.y))) {
       for (const dx of [1, -1]) {
@@ -85,9 +105,12 @@ function targetCandidates(activeHits: AttackCell[], shot: Set<string>) {
       }
     }
   }
-  if (cells.length) return cells;
+  return cells;
+}
 
-  // Одиночное попадание — пробуем 4 соседей.
+/** Соседи подбитой клетки по 4 сторонам — куда бьёт человек, нащупав корабль. */
+function neighbourCandidates(activeHits: AttackCell[], shot: Set<string>) {
+  const cells: Array<{ x: number; y: number }> = [];
   for (const h of activeHits) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
       const nx = h.x + dx;

@@ -8,6 +8,7 @@ import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { RedisService } from '../redis/redis.service';
 import { assertCanPlay } from '../common/responsible-gaming';
 import { AuditService } from '../common/audit.service';
+import { maxWagerCap } from '../common/wager';
 
 function genCode(len = 8) {
   const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -33,7 +34,7 @@ export class LobbyService {
 
   async create(hostId: string, wagerAmount: number, isPublic = false) {
     const min = Number(process.env.MIN_WAGER ?? 100);
-    const max = Number(process.env.MAX_WAGER ?? 10000);
+    const max = maxWagerCap();
     // Number.isFinite/Integer обязателен: NaN из недоверенного ввода (callback бота)
     // проходит сравнения < и > как false и иначе создал бы лобби с некорректной ставкой.
     if (!Number.isFinite(wagerAmount) || !Number.isInteger(wagerAmount) || wagerAmount < min || wagerAmount > max) {

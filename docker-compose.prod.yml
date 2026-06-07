@@ -35,7 +35,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
       PLATFORM_RAKE_PERCENT: ${PLATFORM_RAKE_PERCENT:-5}
       MIN_WAGER: ${MIN_WAGER:-100}
-      MAX_WAGER: ${MAX_WAGER:-10000}
+      # 0 = без фиксированного лимита: ставка ограничена балансом игрока (потолок 1 000 000)
+      MAX_WAGER: ${MAX_WAGER:-0}
       PLACEMENT_TIMEOUT_SEC: ${PLACEMENT_TIMEOUT_SEC:-60}
       TURN_TIMEOUT_SEC: ${TURN_TIMEOUT_SEC:-20}
       MIN_WITHDRAW: ${MIN_WITHDRAW:-1000}
@@ -64,12 +65,12 @@ services:
       DAILY_BONUS_MAX_STREAK: ${DAILY_BONUS_MAX_STREAK:-7}
       # Боты-соперники (пока мало живых игроков)
       BOTS_ENABLED: ${BOTS_ENABLED:-true}
-      BOTS_COUNT: ${BOTS_COUNT:-1}
-      BOT_WIN_RATE: ${BOT_WIN_RATE:-0.62}
+      BOTS_COUNT: ${BOTS_COUNT:-31}
+      BOT_WIN_RATE: ${BOT_WIN_RATE:-0.6}
       BOT_MATCH_WAIT_SEC: ${BOT_MATCH_WAIT_SEC:-10}
-      BOT_OPEN_LOBBIES: ${BOT_OPEN_LOBBIES:-1}
-      BOT_MIN_DELAY_MS: ${BOT_MIN_DELAY_MS:-1000}
-      BOT_MAX_DELAY_MS: ${BOT_MAX_DELAY_MS:-3000}
+      BOT_OPEN_LOBBIES: ${BOT_OPEN_LOBBIES:-8}
+      BOT_MIN_DELAY_MS: ${BOT_MIN_DELAY_MS:-400}
+      BOT_MAX_DELAY_MS: ${BOT_MAX_DELAY_MS:-9000}
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
       # Sentry (мониторинг ошибок, опционально)
       SENTRY_DSN: ${SENTRY_DSN:-}

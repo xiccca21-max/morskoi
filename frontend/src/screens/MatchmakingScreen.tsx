@@ -61,7 +61,6 @@ export default function MatchmakingScreen() {
   const sym = currencySymbol();
   const minWager = useGameConfigStore((s) => s.minWager);
   const maxWager = useGameConfigStore((s) => s.maxWager);
-  const presets = useMemo(() => wagerPresetsRub(minWager, maxWager), [minWager, maxWager]);
   const [showHelp, setShowHelp] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
@@ -71,8 +70,10 @@ export default function MatchmakingScreen() {
   const match = useMatchStore((s) => s.state);
   const setMatchState = useMatchStore((s) => s.setState);
   const balance = user?.balance ?? 0;
-  // Верхний предел ставки — максимум из конфига или баланса (чтобы можно было ставить всё)
-  const effectiveMax = Math.max(maxWager, balance);
+  // Верхний предел ставки: если в конфиге задан фикс. лимит (maxWager>0) — берём минимум
+  // из лимита и баланса; иначе (maxWager=0 = без лимита) ограничиваем только балансом.
+  const effectiveMax = maxWager > 0 ? Math.min(maxWager, Math.max(minWager, balance)) : Math.max(minWager, balance);
+  const presets = useMemo(() => wagerPresetsRub(minWager, effectiveMax), [minWager, effectiveMax]);
   // rawInput: то, что юзер видит в поле ввода (строка, может быть пустой при наборе)
   const [rawInput, setRawInput] = useState(String(rubToUnit(Math.max(minWager, lastWager))));
   const wager = Math.max(minWager, Math.min(effectiveMax, unitToRub(Number(rawInput) || rubToUnit(minWager))));
@@ -492,7 +493,7 @@ export default function MatchmakingScreen() {
             <button
               className="shrink-0 w-14 h-14 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
               onClick={() => setWager(wager + 25)}
-              disabled={wager >= maxWager}
+              disabled={wager >= effectiveMax}
               aria-label="+25"
             >
               <Icon name="plus" size={26} />

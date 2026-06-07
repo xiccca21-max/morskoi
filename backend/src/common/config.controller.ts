@@ -7,7 +7,8 @@ export class ConfigController {
   get() {
     return {
       minWager: Number(process.env.MIN_WAGER ?? 100),
-      maxWager: Number(process.env.MAX_WAGER ?? 10000),
+      // 0 = без фиксированного потолка: клиент ограничивает ставку балансом игрока.
+      maxWager: Number(process.env.MAX_WAGER ?? 0),
       minWithdraw: Number(process.env.MIN_WITHDRAW ?? 1000),
       minDeposit: Number(process.env.MIN_DEPOSIT ?? 0),
       maxDeposit: Number(process.env.MAX_DEPOSIT ?? 100_000),

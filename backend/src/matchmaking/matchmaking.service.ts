@@ -6,6 +6,7 @@ import { GameService } from '../game/game.service';
 import { MatchEventsService } from '../common/match-events.service';
 import { assertCanPlay } from '../common/responsible-gaming';
 import { AuditService } from '../common/audit.service';
+import { maxWagerCap } from '../common/wager';
 
 /**
  * Matchmaking — ищем второго игрока с той же (или близкой) ставкой.
@@ -30,7 +31,7 @@ export class MatchmakingService {
     }
     wagerAmount = amount;
     const min = Number(process.env.MIN_WAGER ?? 100);
-    const max = Number(process.env.MAX_WAGER ?? 10000);
+    const max = maxWagerCap();
     if (wagerAmount < min || wagerAmount > max) {
       throw new BadRequestException(`Wager must be between ${min} and ${max}`);
     }

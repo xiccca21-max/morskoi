@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Морской Бой — план раскрутки за 7 дней</title>
+<style>
+  :root{
+    --bg:#100d0b; --panel:#1b1714; --panel2:#241f1b;
+    --ink:#f3ede2; --muted:#a89e90; --line:#39322c;
+    --red:#e1574b; --red2:#ff6a5c; --green:#2ec460; --gold:#e8b13a;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{ -webkit-text-size-adjust:100% }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+    line-height:1.55; padding:env(safe-area-inset-top) 0 64px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:760px; margin:0 auto; padding:0 16px }
+  h1,h2,h3{ line-height:1.2; letter-spacing:-0.01em }
+
+  /* HERO */
+  .hero{
+    text-align:center; padding:34px 18px 30px; margin:18px 0 10px;
+    background:radial-gradient(120% 90% at 50% 0%, rgba(225,87,75,.22), transparent 60%), var(--panel);
+    border:1px solid var(--line); border-radius:24px;
+  }
+  .hero .badge{
+    display:inline-block; font-size:12px; font-weight:700; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--red2);
+    background:rgba(225,87,75,.12); border:1px solid rgba(225,87,75,.4);
+    padding:6px 12px; border-radius:999px; margin-bottom:14px;
+  }
+  .hero h1{ font-size:30px; font-weight:800 }
+  .hero p{ color:var(--muted); margin-top:10px; font-size:15px }
+  .goals{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:18px }
+  .goal{
+    background:var(--panel2); border:1px solid var(--line); border-radius:14px;
+    padding:12px 16px; min-width:96px;
+  }
+  .goal b{ display:block; font-size:22px; color:var(--red2) }
+  .goal span{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em }
+
+  /* PROGRESS */
+  .progress-card{
+    position:sticky; top:8px; z-index:5; margin:14px 0;
+    background:rgba(27,23,20,.92); backdrop-filter:blur(10px);
+    border:1px solid var(--line); border-radius:14px; padding:12px 14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .bar{ flex:1; height:10px; background:var(--panel2); border-radius:999px; overflow:hidden }
+  .bar > i{ display:block; height:100%; width:0; background:linear-gradient(90deg,var(--red),var(--gold)); transition:width .3s }
+  .progress-card b{ font-size:13px; color:var(--muted); white-space:nowrap }
+
+  /* SECTION */
+  section{ margin:26px 0 }
+  .eyebrow{ font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--red2); margin-bottom:6px }
+  section > h2{ font-size:22px; font-weight:800; margin-bottom:6px }
+  .lead{ color:var(--muted); font-size:14.5px; margin-bottom:14px }
+
+  /* CARD */
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:12px }
+  .day-tag{
+    display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:13px;
+    color:var(--bg); background:var(--red); padding:5px 12px; border-radius:999px; margin-bottom:12px;
+  }
+  .day-tag .free{ background:var(--green) }
+  .meta{ display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 12px }
+  .chip{ font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid var(--line); padding:4px 10px; border-radius:999px }
+  .chip.cost{ color:var(--gold) }
+  .chip.time{ color:var(--ink) }
+
+  /* CHECKLIST */
+  ul.check{ list-style:none; display:flex; flex-direction:column; gap:8px }
+  ul.check li{ display:flex; gap:11px; align-items:flex-start; font-size:15px }
+  ul.check input{ appearance:none; -webkit-appearance:none; flex:0 0 22px; width:22px; height:22px; margin-top:1px;
+    border:2px solid var(--line); border-radius:7px; background:var(--panel2); cursor:pointer; position:relative; transition:.15s }
+  ul.check input:checked{ background:var(--green); border-color:var(--green) }
+  ul.check input:checked::after{ content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#06210f; font-weight:900; font-size:14px }
+  ul.check input:checked + span{ color:var(--muted); text-decoration:line-through; text-decoration-color:rgba(168,158,144,.5) }
+  ul.check span b{ color:var(--ink) }
+
+  .note{ font-size:13.5px; color:var(--muted); background:var(--panel2); border-left:3px solid var(--red); border-radius:0 10px 10px 0; padding:10px 12px; margin-top:12px }
+  .note.green{ border-left-color:var(--green) }
+  .note.gold{ border-left-color:var(--gold) }
+  .note b{ color:var(--ink) }
+
+  /* TABLE */
+  .tbl{ width:100%; border-collapse:collapse; font-size:14px; overflow:hidden; border-radius:12px }
+  .tbl th,.tbl td{ text-align:left; padding:11px 12px; border-bottom:1px solid var(--line) }
+  .tbl th{ background:var(--panel2); color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em }
+  .tbl td.num{ text-align:right; color:var(--gold); white-space:nowrap; font-variant-numeric:tabular-nums }
+  .tbl tr:last-child td{ border-bottom:none }
+  .tbl .total td{ font-weight:800; background:rgba(225,87,75,.08) }
+  .tbl .total td.num{ color:var(--red2) }
+  .scroll{ overflow-x:auto; border:1px solid var(--line); border-radius:12px }
+
+  /* TEMPLATE */
+  .tpl{ background:#0c0a09; border:1px dashed var(--line); border-radius:12px; padding:13px 14px; margin-top:10px; position:relative }
+  .tpl h4{ font-size:13px; color:var(--gold); margin-bottom:7px; text-transform:uppercase; letter-spacing:.06em }
+  .tpl p{ font-size:14px; color:var(--ink); white-space:pre-wrap }
+  .copy{ position:absolute; top:10px; right:10px; font-size:11px; font-weight:700; color:var(--ink);
+    background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:5px 9px; cursor:pointer }
+  .copy:active{ transform:scale(.94) }
+
+  /* PROB */
+  .prob{ display:flex; flex-direction:column; gap:10px }
+  .prob-row{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px }
+  .prob-row .top{ display:flex; justify-content:space-between; align-items:center; font-size:14px; font-weight:700 }
+  .prob-row .pct{ font-size:18px; font-weight:800 }
+  .p-hi{ color:var(--green) } .p-mid{ color:var(--gold) } .p-lo{ color:var(--red2) }
+  .pbar{ height:8px; background:#0c0a09; border-radius:999px; margin-top:9px; overflow:hidden }
+  .pbar > i{ display:block; height:100% }
+
+  details{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:4px 16px; margin-bottom:10px }
+  summary{ cursor:pointer; padding:14px 0; font-weight:700; font-size:15.5px; list-style:none; display:flex; justify-content:space-between; align-items:center }
+  summary::-webkit-details-marker{ display:none }
+  summary::after{ content:"+"; color:var(--red2); font-size:22px; font-weight:400 }
+  details[open] summary::after{ content:"−" }
+  details .inner{ padding:0 0 16px; color:var(--muted); font-size:14.5px }
+  details .inner b{ color:var(--ink) }
+
+  footer{ text-align:center; color:var(--muted); font-size:12.5px; margin-top:30px; padding-top:18px; border-top:1px solid var(--line) }
+
+  @media (max-width:480px){
+    .hero h1{ font-size:25px } .hero{ padding:26px 14px }
+    section > h2{ font-size:20px }
+    .goal{ min-width:84px; padding:10px 12px } .goal b{ font-size:19px }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="badge">Морской Бой · план на 7 дней</span>
+    <h1>Из нуля → 200 живых игроков</h1>
+    <p>Без рекламы за миллионы. Просто, по шагам, как инструкция к конструктору. Делай по галочке в день — и к концу недели у тебя есть аудитория.</p>
+    <div class="goals">
+      <div class="goal"><b>200</b><span>игроков</span></div>
+      <div class="goal"><b>7</b><span>дней</span></div>
+      <div class="goal"><b>~20к ₽</b><span>бюджет</span></div>
+    </div>
+  </div>
+
+  <div class="progress-card">
+    <div class="bar"><i id="barFill"></i></div>
+    <b id="barText">0 / 0 ✓</b>
+  </div>
+
+  <section>
+    <div class="eyebrow">Сначала прочитай это</div>
+    <h2>Главное правило</h2>
+    <p class="lead">Привлечь 200 человек — легко. Удержать — вот где умирают почти все. Поэтому половина плана — про доверие и «чтобы хотелось вернуться», а не только про рекламу.</p>
+    <div class="card">
+      <ul class="check" data-group="base">
+        <li><input type="checkbox"><span><b>Выплаты работают мгновенно.</b> Если хоть раз задержишь вывод — в чатах напишут «развод», и всё. Это важнее любой рекламы.</span></li>
+        <li><input type="checkbox"><span><b>Позиционируй как игру на скилл,</b> а не казино. «Морской бой — кто умнее, тот и выиграл». Так меньше банят и больше доверия.</span></li>
+        <li><input type="checkbox"><span><b>Каждую ссылку помечай.</b> Используй разные start-параметры (?startapp=chat1, chat2…), чтобы видеть, какой чат привёл людей.</span></li>
+        <li><input type="checkbox"><span><b>Считай не регистрации, а тех, кто сыграл 2+ боя.</b> Это и есть «живой» игрок.</span></li>
+      </ul>
+      <div class="note gold"><b>Бюджет на всё:</b> 15 000–25 000 ₽. Если совсем туго — можно стартовать с 5 000 ₽ только на посевы, остальное бесплатными методами.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Поехали по дням</div>
+    <h2>Неделя по шагам</h2>
+    <p class="lead">Каждый день — конкретные дела. Ставь галочки. Не прыгай вперёд: дни идут по порядку не просто так.</p>
+
+    <div class="card">
+      <span class="day-tag"><span class="free">●</span> День 1 · Подготовка</span>
+      <div class="meta"><span class="chip time">⏱ 2–3 часа</span><span class="chip cost">₽ 0</span></div>
+      <ul class="check" data-group="d1">
+        <li><input type="checkbox"><span><b>Проверь сам игру как новичок.</b> Зайди, пополни, сыграй, выведи. Всё должно быть понятно за 30 секунд.</span></li>
+        <li><input type="checkbox"><span><b>Сделай 1 короткое видео (15–30 сек):</b> как ты заходишь, ставишь, топишь корабли и забираешь выигрыш. Снимай прямо с телефона.</span></li>
+        <li><input type="checkbox"><span><b>Сделай 3–4 скриншота:</b> момент победы, баланс с выигрышем, поле боя.</span></li>
+        <li><input type="checkbox"><span><b>Напиши 1 короткий текст-описание игры</b> (см. шаблоны ниже) — он понадобится для всех чатов.</span></li>
+        <li><input type="checkbox"><span><b>Заведи табличку</b> (хоть в заметках): колонки «Чат / Ссылка / Цена / Сколько пришло».</span></li>
+      </ul>
+      <div class="note"><b>Зачем:</b> без видео и скринов реклама не цепляет. Один раз сделаешь — будешь использовать всю неделю.</div>
+    </div>
+
+    <div class="card">
+      <span class="day-tag"><span class="free">●</span> День 2 · Сбор базы чатов</span>
+      <div class="meta"><span class="chip time">⏱ 2 часа</span><span class="chip cost">₽ 0</span></div>
+      <ul class="check" data-group="d2">
+        <li><input type="checkbox"><span><b>Открой tgstat.com</b> (бесплатно). Ищи по словам: <b>крипта чат</b>, <b>p2p</b>, <b>тапалки</b>, <b>mini app игры</b>, <b>ставки</b>, <b>лудоманы</b>.</span></li>
+        <li><input type="checkbox"><span><b>Собери 30–40 чатов/каналов.</b> Бери только живые: где сообщения идут прямо сейчас, а не «вчера одно».</span></li>
+        <li><input type="checkbox"><span><b>Раздели на 2 списка:</b> где есть платная реклама (пишешь админу) и где можно просто общаться (нативно).</span></li>
+        <li><input type="checkbox"><span><b>Напиши 10 админам в личку</b> по шаблону «сколько стоит пост». Узнай цены — это бесплатно.</span></li>
+      </ul>
+      <div class="note green"><b>Лайфхак:</b> мелкие чаты на 5–15к человек дают самый дешёвый и тёплый трафик. Не гонись за миллионниками.</div>
+    </div>
+
+    <div class="card">
+      <span class="day-tag">● День 3 · Первые посевы</span>
+      <div class="meta"><span class="chip time">⏱ 1–2 часа</span><span class="chip cost">₽ ~6 000</span></div>
+      <ul class="check" data-group="d3">
+        <li><input type="checkbox"><span><b>Купи 6–8 постов</b> в самых живых и дешёвых чатах из списка. По 300–1500 ₽ за пост.</span></li>
+        <li><input type="checkbox"><span><b>В каждом посте — своя метка ссылки</b> (chat1, chat2…). Так узнаешь, кто реально привёл людей.</span></li>
+        <li><input type="checkbox"><span><b>Пост = видео + 2–3 строки текста + кнопка «Играть».</b> Без воды.</span></li>
+        <li><input type="checkbox"><span><b>Записывай в табличку:</b> где, за сколько, во сколько вышло.</span></li>
+      </ul>
+      <div class="note"><b>Не сливай весь бюджет сразу!</b> Сегодня — только тест. Завтра посмотрим, что сработало.</div>
+    </div>
+
+    <div class="card">
+      <span class="day-tag"><span class="free">●</span> День 4 · Кросс-промо (бесплатно)</span>
+      <div class="meta"><span class="chip time">⏱ 1–2 часа</span><span class="chip cost">₽ 0</span></div>
+      <ul class="check" data-group="d4">
+        <li><input type="checkbox"><span><b>Найди 10–15 других мини-игр в Telegram</b> примерно твоего размера (тапалки, мини-аппы).</span></li>
+        <li><input type="checkbox"><span><b>Напиши их авторам:</b> «Давай взаимопиар — я тебя у себя, ты меня у себя». Бесплатно для обоих.</span></li>
+        <li><input type="checkbox"><span><b>Договорись с 3–5</b> — этого хватит. Поставьте друг друга в меню или после боя «Другие игры».</span></li>
+        <li><input type="checkbox"><span><b>Проверь вчерашние посевы:</b> отметь в табличке, какой чат дал людей, а какой — пусто.</span></li>
+      </ul>
+      <div class="note green"><b>Почему это топ:</b> к тебе идут люди, которые УЖЕ играют в мини-аппы. Они конвертятся лучше всего и стоят 0 ₽.</div>
+    </div>
+
+    <div class="card">
+      <span class="day-tag">● День 5 · Микро-блогеры</span>
+      <div class="meta"><span class="chip time">⏱ 1–2 часа</span><span class="chip cost">₽ ~7 500</span></div>
+      <ul class="check" data-group="d5">
+        <li><input type="checkbox"><span><b>В tgstat найди 3 мелких канала</b> (3–20к подписчиков) с живой вовлечённостью (ER &gt; 5%).</span></li>
+        <li><input type="checkbox"><span><b>Закажи формат «отыгрыш»:</b> блогер сам играет и показывает, как выиграл/проиграл. Это честнее рекламы и лучше заходит.</span></li>
+        <li><input type="checkbox"><span><b>Цена у мелких — 1 000–4 000 ₽.</b> Бери 3 интеграции.</span></li>
+        <li><input type="checkbox"><span><b>Опять разные метки ссылок</b> для каждого блогера.</span></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <span class="day-tag">● День 6 · Удвой то, что работает</span>
+      <div class="meta"><span class="chip time">⏱ 1 час</span><span class="chip cost">₽ ~5 000 (резерв)</span></div>
+      <ul class="check" data-group="d6">
+        <li><input type="checkbox"><span><b>Посмотри табличку.</b> Найди 2–3 канала/чата, которые дали больше всего живых игроков.</span></li>
+        <li><input type="checkbox"><span><b>Закажи там повторный пост</b> или возьми похожие чаты той же тематики.</span></li>
+        <li><input type="checkbox"><span><b>Мёртвые каналы вычеркни</b> и больше туда не вкладывай.</span></li>
+        <li><input type="checkbox"><span><b>Запости результаты в свой канал/чат игры:</b> «Сегодня кто-то выиграл Х ₽» — это разгоняет интерес.</span></li>
+      </ul>
+      <div class="note gold"><b>Главный секрет роста:</b> не размазывай бюджет ровным слоем. Нашёл рабочий канал — вливай туда ещё.</div>
+    </div>
+
+    <div class="card">
+      <span class="day-tag">● День 7 · Событие + итоги</span>
+      <div class="meta"><span class="chip time">⏱ 1–2 часа</span><span class="chip cost">₽ 0–3 000</span></div>
+      <ul class="check" data-group="d7">
+        <li><input type="checkbox"><span><b>Запусти турнир выходного дня:</b> «Топ-3 по победам за сегодня получают приз». Это держит людей в игре.</span></li>
+        <li><input type="checkbox"><span><b>Анонсируй турнир во всех чатах,</b> где уже выходила реклама (там тебя уже знают).</span></li>
+        <li><input type="checkbox"><span><b>Подведи итоги недели:</b> сколько всего пришло, сколько играют регулярно, сколько потрачено.</span></li>
+        <li><input type="checkbox"><span><b>Составь план на следующую неделю</b> из рабочих каналов. Дальше — повторяешь и масштабируешь.</span></li>
+      </ul>
+      <div class="note green"><b>Готово!</b> Если всё сделал — у тебя есть и игроки, и понимание, какие каналы работают. Дальше просто крути рабочие связки.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Куда уходят деньги</div>
+    <h2>Бюджет</h2>
+    <p class="lead">Минимальный реальный расклад. Можно урезать — но не урезай тесты, иначе будешь лить вслепую.</p>
+    <div class="scroll">
+      <table class="tbl">
+        <tr><th>На что</th><th>Сколько</th></tr>
+        <tr><td>Видео и скрины (сам)</td><td class="num">0 ₽</td></tr>
+        <tr><td>Посевы в чатах (6–8 постов)</td><td class="num">6 000 ₽</td></tr>
+        <tr><td>Кросс-промо с играми</td><td class="num">0 ₽</td></tr>
+        <tr><td>Микро-блогеры (3 шт)</td><td class="num">7 500 ₽</td></tr>
+        <tr><td>Резерв на рабочие каналы</td><td class="num">5 000 ₽</td></tr>
+        <tr><td>Турнир-приз (по желанию)</td><td class="num">0–3 000 ₽</td></tr>
+        <tr class="total"><td>Итого старт</td><td class="num">~18 500 ₽</td></tr>
+      </table>
+    </div>
+    <div class="note"><b>Эконом-режим:</b> только посевы + кросс-промо + бесплатные методы = <b>~6 000 ₽</b>. Рост медленнее, но реально.</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Бери и копируй</div>
+    <h2>Готовые тексты</h2>
+    <p class="lead">Не выдумывай с нуля. Поменяй ссылку на свою — и в дело.</p>
+
+    <div class="tpl">
+      <button class="copy">копировать</button>
+      <h4>Описание игры (для постов)</h4>
+      <p>⚓ Морской Бой — дуэль 1 на 1 на реальные деньги в Telegram.
+Расставь корабли, топи флот соперника, забирай банк. Кто умнее — тот и выиграл.
+Вывод сразу. Заходи и проверь себя 👇</p>
+    </div>
+
+    <div class="tpl">
+      <button class="copy">копировать</button>
+      <h4>Сообщение админу чата</h4>
+      <p>Привет! Сколько стоит рекламный пост у вас в чате?
+Тематика подходящая — игра на деньги в Telegram. Пост готов (видео + текст). Дайте цену и свободные даты 🙌</p>
+    </div>
+
+    <div class="tpl">
+      <button class="copy">копировать</button>
+      <h4>Предложение о взаимопиаре</h4>
+      <p>Здарова! Делаю мини-игру в Telegram, аудитория похожа на твою.
+Давай взаимопиар: я тебя ставлю у себя в боте, ты меня — у себя. Бесплатно, всем плюс. Го?</p>
+    </div>
+
+    <div class="tpl">
+      <button class="copy">копировать</button>
+      <h4>Анонс турнира</h4>
+      <p>🏆 Турнир выходного дня в Морском Бою!
+Сегодня до 23:59 топ-3 по победам забирают призы. Каждый бой = шанс. Погнали 👇</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Честно, без сказок</div>
+    <h2>Какие шансы</h2>
+    <div class="prob">
+      <div class="prob-row">
+        <div class="top"><span>Набрать 200 регистраций</span><span class="pct p-hi">~85%</span></div>
+        <div class="pbar"><i class="p-hi" style="width:85%;background:var(--green)"></i></div>
+      </div>
+      <div class="prob-row">
+        <div class="top"><span>200 именно активных (играют регулярно)</span><span class="pct p-mid">~45%</span></div>
+        <div class="pbar"><i style="width:45%;background:var(--gold)"></i></div>
+      </div>
+      <div class="prob-row">
+        <div class="top"><span>Выйти в плюс / окупаемость</span><span class="pct p-lo">~35%</span></div>
+        <div class="pbar"><i style="width:35%;background:var(--red2)"></i></div>
+      </div>
+    </div>
+    <div class="note"><b>Вывод:</b> собрать людей — реально. Удержать и не спалить репутацию выплат — вот что решает. Делай выплаты как часы, и шансы резко растут.</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Частые вопросы</div>
+    <h2>Если что-то непонятно</h2>
+
+    <details>
+      <summary>А если бюджета вообще нет?</summary>
+      <div class="inner">Делай только бесплатное: <b>кросс-промо</b> с другими играми, <b>нативное участие</b> в чатах (играешь, по-человечески делишься победами), <b>турниры</b>. Рост будет медленнее — 200 человек за 2–3 недели вместо одной, но без вложений реально.</div>
+    </details>
+    <details>
+      <summary>Где брать чаты, если tgstat мало?</summary>
+      <div class="inner">Ещё площадки: <b>telemetr.io</b>, <b>lyzem.com</b>, <b>combot.org/telegram/top</b>. И просто поиск в самом Telegram по словам «крипта», «p2p», «ставки», «мини игры».</div>
+    </details>
+    <details>
+      <summary>Что писать, если в чате забанят рекламу?</summary>
+      <div class="inner">Не постить рекламу в лоб без согласия админа. Либо платный пост у админа, либо нативно: участвуй в общении, а игру упоминай к месту. Прямой спам = бан и минус к репутации.</div>
+    </details>
+    <details>
+      <summary>Как понять, что канал «живой»?</summary>
+      <div class="inner">Заходишь и смотришь: сообщения идут <b>сегодня и часто</b>, под постами есть реакции и ответы реальных людей. Если последняя активность «вчера» и пусто — пропускай.</div>
+    </details>
+    <details>
+      <summary>Реклама вышла, а людей мало. Что делать?</summary>
+      <div class="inner">Нормально — не все каналы стреляют. Поэтому мы и тестим по чуть-чуть. Смотри в табличку: <b>2–3 рабочих канала из 10 — это успех</b>. В них и вкладывай дальше, остальные забудь.</div>
+    </details>
+  </section>
+
+  <footer>
+    Морской Бой · план раскрутки. Отмечай галочки — прогресс сохраняется в этом устройстве.<br>
+    Делай выплаты вовремя. Это твоя главная реклама.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var KEY = 'promo-plan-checks-v1';
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('ul.check input[type=checkbox]'));
+  // у каждого чекбокса свой стабильный id по позиции
+  boxes.forEach(function(b,i){ b.dataset.k = 'c'+i; });
+
+  var saved = {};
+  try{ saved = JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){}
+  boxes.forEach(function(b){ if(saved[b.dataset.k]) b.checked = true; });
+
+  var fill = document.getElementById('barFill');
+  var text = document.getElementById('barText');
+  function refresh(){
+    var done = boxes.filter(function(b){ return b.checked; }).length;
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    fill.style.width = pct + '%';
+    text.textContent = done + ' / ' + boxes.length + ' ✓';
+  }
+  boxes.forEach(function(b){
+    b.addEventListener('change', function(){
+      saved[b.dataset.k] = b.checked;
+      try{ localStorage.setItem(KEY, JSON.stringify(saved)); }catch(e){}
+      refresh();
+    });
+  });
+  refresh();
+
+  // Кнопки «копировать»
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var p = btn.parentElement.querySelector('p');
+      var t = p ? p.innerText : '';
+      var done = function(){ var o=btn.textContent; btn.textContent='скопировано ✓'; setTimeout(function(){btn.textContent=o;},1400); };
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done, done); }
+      else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

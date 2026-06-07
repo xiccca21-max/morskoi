@@ -42,6 +42,61 @@ const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max 
 const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 
 /**
+ * Курируемый пул из 30 «живых» соперников с заданными никами.
+ * Аватарки максимально разные: часть — реальные фото, часть — генеративные
+ * (разные стили DiceBear, в т.ч. на чёрном фоне), а ~1/4 ботов вообще БЕЗ аватара
+ * (avatar=''), и фронт рисует им цветной кружок с первой буквой имени.
+ * Индекс 0 (bot:1) занят «Рокки», поэтому это пул для bot:2 … bot:31.
+ */
+interface BotIdentity {
+  nickname: string;
+  firstName: string;
+  /** Полный https-URL аватара, либо '' — тогда у бота кружок с первой буквой. */
+  avatar: string;
+}
+/** Генеративный аватар DiceBear (разные стили/фоны, включая чёрный 000000). */
+const dice = (style: string, seed: string, bg: string) =>
+  `https://api.dicebear.com/7.x/${style}/png?seed=${encodeURIComponent(seed)}&backgroundColor=${bg}`;
+/** Реальное фото-портрет. */
+// «Человеческие» аватарки. randomuser.me не грузится в Telegram WebView,
+// поэтому используем DiceBear personas (стабильно отдаётся, выглядит как люди).
+const ruser = (g: 'men' | 'women', n: number) =>
+  `https://api.dicebear.com/7.x/personas/png?seed=${g}${n}&backgroundColor=1f2937`;
+
+const BOT_IDENTITIES: BotIdentity[] = [
+  { nickname: 'Aydar',       firstName: 'Айдар',     avatar: '' },
+  { nickname: 'Panda Crew',  firstName: 'Panda',     avatar: dice('bottts', 'PandaCrew', '000000') },
+  { nickname: 'Skyroom',     firstName: 'Sky',       avatar: dice('shapes', 'Skyroom', '0891b2') },
+  { nickname: 'mk91',        firstName: 'Mk',        avatar: '' },
+  { nickname: 'Dolmatix',    firstName: 'Dolmatix',  avatar: dice('identicon', 'Dolmatix', '1f2937') },
+  { nickname: 'n17club',     firstName: 'N17',       avatar: '' },
+  { nickname: 'whoptnova',   firstName: 'Whopt',     avatar: dice('fun-emoji', 'whoptnova', '7c3aed') },
+  { nickname: 'Макс',        firstName: 'Максим',    avatar: ruser('men', 32) },
+  { nickname: 'Am1r',        firstName: 'Amir',      avatar: dice('pixel-art', 'Am1r', '059669') },
+  { nickname: 'Skynex',      firstName: 'Sky',       avatar: dice('rings', 'Skynex', '000000') },
+  { nickname: 'Panda Unit',  firstName: 'Panda',     avatar: dice('bottts', 'PandaUnit', 'b91c1c') },
+  { nickname: 'd14room',     firstName: 'D14',       avatar: dice('glass', 'd14room', '334155') },
+  { nickname: 'Клим',        firstName: 'Клим',      avatar: ruser('men', 51) },
+  { nickname: 'mkr77',       firstName: 'Mkr',       avatar: dice('thumbs', 'mkr77', 'd97706') },
+  { nickname: 'Dolman',      firstName: 'Dolman',    avatar: '' },
+  { nickname: '@whoptbase',  firstName: 'Whoptbase', avatar: dice('notionists', 'whoptbase', 'db2777') },
+  { nickname: 'Sky Support', firstName: 'Sky',       avatar: dice('shapes', 'SkySupport', '000000') },
+  { nickname: 'Роман',       firstName: 'Роман',     avatar: ruser('men', 12) },
+  { nickname: 'n9room',      firstName: 'N9',        avatar: dice('identicon', 'n9room', '7c3aed') },
+  { nickname: 'Makarov',     firstName: 'Макаров',   avatar: ruser('men', 67) },
+  { nickname: 'Panda Labs',  firstName: 'Panda',     avatar: dice('bottts', 'PandaLabs', '059669') },
+  { nickname: 'skyness77',   firstName: 'Sky',       avatar: '' },
+  { nickname: 'whoptzone',   firstName: 'Whopt',     avatar: dice('micah', 'whoptzone', '0891b2') },
+  { nickname: 'Арсен',       firstName: 'Арсен',     avatar: ruser('men', 78) },
+  { nickname: 'mk14',        firstName: 'Mk',        avatar: '' },
+  { nickname: 'Dolmat',      firstName: 'Dolmat',    avatar: dice('identicon', 'Dolmat', '000000') },
+  { nickname: 'Sky Panda',   firstName: 'Sky',       avatar: dice('big-smile', 'SkyPanda', '7c3aed') },
+  { nickname: 'n22room',     firstName: 'N22',       avatar: '' },
+  { nickname: 'Тимур',       firstName: 'Тимур',     avatar: ruser('men', 9) },
+  { nickname: 'Whopt Corp',  firstName: 'Whopt',     avatar: dice('shapes', 'WhoptCorp', 'b91c1c') },
+];
+
+/**
  * Выделенный тренировочный бот. Живёт в отдельном неймспейсе `trainbot:`,
  * поэтому НЕ попадает ни в матчмейкинг/публичные лобби (там фильтр `bot:`),
  * ни в публичный рейтинг (исключается в LeaderboardService). Используется
@@ -101,17 +156,26 @@ function buildBotProfile(index: number): BotProfile {
     };
   }
 
-  const female = index % 3 === 0;
-  const first = female ? pick(FEMALE_NAMES) : pick(MALE_NAMES);
-  const portraitN = index % 100;
-  const avatar = `https://api.dicebear.com/7.x/personas/png?seed=navalbot${index}_${portraitN}&backgroundColor=1a1a2e`;
-
-  // Имя/ник в стиле живых игроков: иногда тег, иногда имя с цифрами.
-  const style = index % 3;
+  // Для bot:2 … bot:31 берём уникальную личность из курируемого пула.
+  // Если ботов запрошено больше пула — добираем процедурно (имена/теги вразнобой).
+  const fromPool = index - 1 < BOT_IDENTITIES.length ? BOT_IDENTITIES[index - 1] : null;
+  let first: string;
   let nickname: string;
-  if (style === 0) nickname = `${pick(TAGS)}${rnd(1, 99)}`;
-  else if (style === 1) nickname = `${first}_${rnd(10, 99)}`;
-  else nickname = `${first} ${pick(['⚓', '🔱', '🎯', '🏴‍☠️', ''])}`.trim();
+  let avatar: string;
+  if (fromPool) {
+    first = fromPool.firstName;
+    nickname = fromPool.nickname;
+    avatar = fromPool.avatar; // '' = без аватара (фронт нарисует кружок с буквой)
+  } else {
+    const female = index % 3 === 0;
+    first = female ? pick(FEMALE_NAMES) : pick(MALE_NAMES);
+    const portraitN = index % 100;
+    avatar = `https://api.dicebear.com/7.x/personas/png?seed=navalbot${index}_${portraitN}&backgroundColor=1a1a2e`;
+    const style = index % 3;
+    if (style === 0) nickname = `${pick(TAGS)}${rnd(1, 99)}`;
+    else if (style === 1) nickname = `${first}_${rnd(10, 99)}`;
+    else nickname = `${first} ${pick(['⚓', '🔱', '🎯', '🏴‍☠️', ''])}`.trim();
+  }
   const username = `${pick(TAGS).toLowerCase()}_${rnd(100, 999)}`;
 
   // Профиль «нетто-победителя»: винрейт 53–75%.
@@ -154,6 +218,11 @@ export class BotsService implements OnModuleInit {
   private readonly botIds = new Set<string>();
   private readonly matchSkill = new Map<string, BotSkillLevel>();
   private trainingBotId: string | null = null;
+  /**
+   * Онлайн-сессии ботов: имитируем живых людей — кто-то «сидит» в лобби,
+   * кто-то ушёл на перерыв. Хранится в памяти (сбрасывается при рестарте).
+   */
+  private readonly botSessions = new Map<string, { online: boolean; nextToggle: number }>();
 
   private readonly enabled = (process.env.BOTS_ENABLED ?? 'true') !== 'false';
   /** Автоподбор бота в очередь на реальные ставки (по умолчанию выкл — только PvP). */
@@ -321,40 +390,20 @@ export class BotsService implements OnModuleInit {
   async ensureBots() {
     const all = await this.prisma.user.findMany({
       where: { telegramId: { startsWith: 'bot:' } },
-      select: { id: true },
-      orderBy: { telegramId: 'asc' },
+      select: { id: true, telegramId: true },
     });
+    const byTid = new Map(all.map((u) => [u.telegramId, u]));
+    const botNum = (tid: string) => {
+      const m = /^bot:(\d+)$/.exec(tid);
+      return m ? Number(m[1]) : NaN;
+    };
 
-    const keep = all.slice(0, this.targetCount);
-    const surplus = all.slice(this.targetCount);
-    keep.forEach((u) => this.botIds.add(u.id));
-
-    for (let i = 0; i < keep.length; i++) {
-      const p = buildBotProfile(i);
-      try {
-        await this.prisma.user.update({
-          where: { id: keep[i].id },
-          data: {
-            username: p.username,
-            firstName: p.firstName,
-            nickname: p.nickname,
-            avatar: p.avatar,
-            ...(i === 0
-              ? {
-                  wins: p.wins,
-                  losses: p.losses,
-                  draws: p.draws,
-                  totalWon: p.totalWon,
-                  totalWagered: p.totalWagered,
-                }
-              : {}),
-          } as any,
-        });
-      } catch (e: any) {
-        this.logger.warn(`refresh bot:${i + 1} profile failed: ${e?.message}`);
-      }
-    }
-
+    // Лишние боты (номер > targetCount) — баним и закрываем их лобби, чтобы они
+    // исчезли из матчмейкинга/лобби, но без удаления из БД (внешние ключи).
+    const surplus = all.filter((u) => {
+      const n = botNum(u.telegramId);
+      return Number.isFinite(n) && n > this.targetCount;
+    });
     if (surplus.length) {
       const ids = surplus.map((u) => u.id);
       await this.prisma.lobby.updateMany({
@@ -369,30 +418,54 @@ export class BotsService implements OnModuleInit {
       this.logger.log(`Neutralized ${surplus.length} surplus bot(s)`);
     }
 
-    for (let i = all.length; i < this.targetCount; i++) {
+    // Создаём недостающих и обновляем личность существующих (bot:1 … bot:targetCount).
+    // Так новые ники/аватарки применяются прямо на деплое, без правок в БД.
+    for (let i = 0; i < this.targetCount; i++) {
       const p = buildBotProfile(i);
+      const existing = byTid.get(p.telegramId);
       try {
-        const u = await this.prisma.user.create({
-          data: {
-            telegramId: p.telegramId,
-            username: p.username,
+        if (!existing) {
+          const u = await this.prisma.user.create({
+            data: {
+              telegramId: p.telegramId,
+              username: p.username,
+              firstName: p.firstName,
+              nickname: p.nickname,
+              avatar: p.avatar,
+              balance: p.balance,
+              withdrawable: 0,
+              wins: p.wins,
+              losses: p.losses,
+              draws: p.draws,
+              totalWagered: p.totalWagered,
+              totalWon: p.totalWon,
+              agreedToTermsAt: new Date(),
+              createdAt: p.createdAt,
+            } as any,
+          });
+          this.botIds.add(u.id);
+        } else {
+          // Обновляем только личность (ник/имя/аватар) и снимаем бан, если был.
+          // username не трогаем (уникальное поле), статистику живых ботов сохраняем.
+          // Исключение — «Рокки» (i=0): у него статистика зафиксирована.
+          const data: any = {
             firstName: p.firstName,
             nickname: p.nickname,
             avatar: p.avatar,
-            balance: p.balance,
-            withdrawable: 0,
-            wins: p.wins,
-            losses: p.losses,
-            draws: p.draws,
-            totalWagered: p.totalWagered,
-            totalWon: p.totalWon,
-            agreedToTermsAt: new Date(),
-            createdAt: p.createdAt,
-          } as any,
-        });
-        this.botIds.add(u.id);
+            banned: false,
+          };
+          if (i === 0) {
+            data.wins = p.wins;
+            data.losses = p.losses;
+            data.draws = p.draws;
+            data.totalWon = p.totalWon;
+            data.totalWagered = p.totalWagered;
+          }
+          await this.prisma.user.update({ where: { id: existing.id }, data });
+          this.botIds.add(existing.id);
+        }
       } catch (e: any) {
-        this.logger.warn(`create bot ${p.telegramId} failed: ${e?.message}`);
+        this.logger.warn(`ensure bot ${p.telegramId} failed: ${e?.message}`);
       }
     }
     this.logger.log(`Bots ready: ${this.botIds.size}/${this.targetCount}`);
@@ -475,7 +548,52 @@ export class BotsService implements OnModuleInit {
 
   // ============= Публичные лобби с ботами =============
 
-  /** Каждые 10 секунд держим открытыми ~BOT_OPEN_LOBBIES публичных вызовов от ботов. */
+  /**
+   * Онлайн ли бот прямо сейчас. Имитация живого игрока: сессия в лобби 20–90 мин,
+   * затем перерыв 30–60 мин. Первичная инициализация со случайным сдвигом, чтобы
+   * боты не «появлялись» и не «уходили» все одновременно.
+   */
+  private isBotOnline(botId: string): boolean {
+    const now = Date.now();
+    let s = this.botSessions.get(botId);
+    if (!s) {
+      const startOnline = Math.random() < 0.55;
+      const dur = startOnline ? rnd(20, 90) : rnd(30, 60);
+      const elapsed = Math.floor(Math.random() * dur); // уже «внутри» периода
+      s = { online: startOnline, nextToggle: now + (dur - elapsed) * 60_000 };
+      this.botSessions.set(botId, s);
+      return s.online;
+    }
+    if (now >= s.nextToggle) {
+      s.online = !s.online;
+      const dur = s.online ? rnd(20, 90) : rnd(30, 60);
+      s.nextToggle = now + dur * 60_000;
+    }
+    return s.online;
+  }
+
+  /** Дневной ритм: ночью в лобби меньше «людей», днём/вечером — больше. МSK ≈ UTC+3. */
+  private onlineFactor(now: Date): number {
+    const h = (now.getUTCHours() + 3) % 24;
+    if (h >= 2 && h < 8) return 0.25;   // глубокая ночь
+    if (h >= 8 && h < 12) return 0.6;   // утро
+    if (h >= 12 && h < 24) return 1;    // день и вечер — пик
+    return 0.5;                          // 00:00–02:00
+  }
+
+  /** «Абсолютно разные» ставки: чаще круглые пресеты, иногда произвольная сумма. */
+  private randomBotWager(balance: number): number {
+    const min = Number(process.env.MIN_WAGER ?? 100);
+    const presets = [100, 150, 200, 250, 300, 400, 500, 700, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
+    const affordable = presets.filter((w) => w >= min && w <= balance);
+    if (affordable.length && Math.random() < 0.7) return pick(affordable);
+    const hi = Math.min(balance, 5000);
+    if (hi <= min) return affordable.length ? pick(affordable) : min;
+    const raw = min + Math.floor(Math.random() * (hi - min));
+    return Math.max(min, Math.round(raw / 50) * 50); // кратно 50 — выглядит «по-человечески»
+  }
+
+  /** Каждые 10 секунд поддерживаем живой список лобби: онлайн-боты заходят, ушедшие — пропадают. */
   @Cron('*/10 * * * * *')
   async lobbyFillTick() {
     if (!this.enabled || this.openLobbies <= 0) return;
@@ -489,28 +607,41 @@ export class BotsService implements OnModuleInit {
 
     const openBot = await this.prisma.lobby.findMany({
       where: { isPublic: true, status: 'OPEN', expiresAt: { gt: now }, host: { telegramId: { startsWith: 'bot:' } } } as any,
-      select: { hostId: true },
+      select: { id: true, hostId: true },
     });
-    const need = this.openLobbies - openBot.length;
+
+    // «Ушедшие на перерыв» боты убирают своё открытое лобби (как будто вышли из игры).
+    const wentOffline = openBot.filter((l) => !this.isBotOnline(l.hostId));
+    if (wentOffline.length) {
+      await this.prisma.lobby.updateMany({
+        where: { id: { in: wentOffline.map((l) => l.id) } },
+        data: { status: 'CLOSED' },
+      });
+    }
+    const stillOpen = openBot.filter((l) => this.isBotOnline(l.hostId));
+
+    // Сколько лобби держать сейчас — с дневным ритмом и лёгким разбросом.
+    const target = Math.max(
+      1,
+      Math.min(this.openLobbies, Math.round(this.openLobbies * this.onlineFactor(now)) + rnd(-1, 1)),
+    );
+    const need = target - stillOpen.length;
     if (need <= 0) return;
 
-    const busy = new Set(openBot.map((l) => l.hostId));
-    const min = Number(process.env.MIN_WAGER ?? 100);
-    const max = Number(process.env.MAX_WAGER ?? 10000);
-    const wagerSet = [100, 200, 300, 500, 1000, 2000, 3000, 5000].filter((w) => w >= min && w <= max);
-
+    const busy = new Set(stillOpen.map((l) => l.hostId));
     const poolBots = await this.prisma.user.findMany({
       where: { telegramId: { startsWith: 'bot:' }, banned: false },
       select: { id: true, balance: true },
     });
-    const avail = poolBots.filter((b) => !busy.has(b.id));
+    // Только онлайн и не занятые лобби боты могут «зайти».
+    const avail = poolBots.filter((b) => !busy.has(b.id) && this.isBotOnline(b.id));
 
     for (let i = 0; i < need && avail.length; i++) {
       const bot = avail.splice(Math.floor(Math.random() * avail.length), 1)[0];
-      const affordable = (wagerSet.length ? wagerSet : [min]).filter((w) => Number(bot.balance) >= w);
-      if (!affordable.length) continue;
+      const wager = this.randomBotWager(Number(bot.balance));
+      if (Number(bot.balance) < wager) continue;
       try {
-        await this.createBotLobby(bot.id, pick(affordable));
+        await this.createBotLobby(bot.id, wager);
       } catch (e: any) {
         this.logger.warn(`createBotLobby failed: ${e?.message}`);
       }

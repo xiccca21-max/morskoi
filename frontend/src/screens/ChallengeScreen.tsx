@@ -23,7 +23,9 @@ export default function ChallengeScreen() {
   const maxWager = useGameConfigStore((s) => s.maxWager);
   const lastWager = useSettingsStore((s) => s.lastWager);
   const setLastWager = useSettingsStore((s) => s.setLastWager);
-  const presets = useMemo(() => wagerPresetsRub(minWager, maxWager), [minWager, maxWager]);
+  const balanceForMax = me?.balance ?? 0;
+  const effectiveMax = maxWager > 0 ? Math.min(maxWager, Math.max(minWager, balanceForMax)) : Math.max(minWager, balanceForMax);
+  const presets = useMemo(() => wagerPresetsRub(minWager, effectiveMax), [minWager, effectiveMax]);
 
   const [opponent, setOpponent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,7 @@ export default function ChallengeScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const balance = me?.balance ?? 0;
-  const effectiveMax = Math.max(maxWager, balance);
+  const balance = balanceForMax;
   const wager = Math.max(minWager, Math.min(effectiveMax, unitToRub(Number(rawInput) || rubToUnit(minWager))));
   const overBalance = wager > balance;
 
@@ -135,7 +136,7 @@ export default function ChallengeScreen() {
           <button
             className="shrink-0 w-12 h-12 rounded-2xl bg-danger flex items-center justify-center text-white transition active:scale-95 disabled:opacity-30"
             onClick={() => setWager(wager + 25)}
-            disabled={wager >= maxWager}
+            disabled={wager >= effectiveMax}
             aria-label="+25"
           >
             <Icon name="plus" size={24} />

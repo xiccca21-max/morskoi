@@ -20,7 +20,7 @@ import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { MatchEventsService } from '../common/match-events.service';
 import { BotsService } from '../bots/bots.service';
 import { PresenceService } from '../common/presence.service';
-import { chooseBotMove, BOT_SKILL_STRONG, BOT_SKILL_WEAK } from '../bots/bot-engine';
+import { chooseBotMove, hasUnresolvedHits, BOT_SKILL_STRONG, BOT_SKILL_WEAK } from '../bots/bot-engine';
 import { normalizeWager } from '../common/wager';
 import { assertCanPlay } from '../common/responsible-gaming';
 
@@ -302,13 +302,23 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     try {
       const gs = await this.prisma.gameState.findUnique({ where: { matchId } });
       if (!gs || gs.gameStatus !== 'IN_PROGRESS' || !gs.currentTurn) return;
-      if (!this.bots.isBot(gs.currentTurn)) return;
+      const botId = gs.currentTurn;
+      if (!this.bots.isBot(botId)) return;
       if (this.botThinking.has(matchId)) return;
       this.botThinking.add(matchId);
 
-      const min = Number(process.env.BOT_MIN_DELAY_MS ?? 1000);
-      const max = Number(process.env.BOT_MAX_DELAY_MS ?? 3000);
-      const delay = min + Math.floor(Math.random() * Math.max(1, max - min));
+      // Бот «нащупал» корабль соперника? Тогда отвечает быстрее (азарт добивания),
+      // иначе — раздумывает по-разному: иногда мгновенно, иногда 3–5–9 секунд.
+      const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+      let hunting = false;
+      try {
+        const botIsP1 = match?.player1Id === botId;
+        const humanBoardJson = (botIsP1 ? gs.player2Board : gs.player1Board) as unknown as string;
+        const attacks: AttackCell[] = JSON.parse(humanBoardJson)?.attacksReceived ?? [];
+        hunting = hasUnresolvedHits(attacks);
+      } catch { /* нет истории — обычный поиск */ }
+
+      const delay = this.humanThinkDelay(hunting);
       setTimeout(() => {
         this.performBotMove(matchId)
           .catch((e: any) => this.logger.warn(`bot move ${matchId}: ${e?.message}`))
@@ -318,6 +328,33 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       this.logger.warn(`driveBot ${matchId}: ${e?.message}`);
       this.botThinking.delete(matchId);
     }
+  }
+
+  /**
+   * «Человеческая» задержка хода бота. Не равномерная 1–3с, а живое распределение:
+   * иногда рефлекс (мгновенно), чаще пара секунд, иногда задумался на 5–9с.
+   * При добивании подбитого корабля бот реагирует заметно быстрее (как азартный игрок).
+   * Жёстко ограничено BOT_MIN/MAX_DELAY_MS, чтобы не упереться в таймаут хода.
+   */
+  private humanThinkDelay(hunting: boolean): number {
+    const min = Number(process.env.BOT_MIN_DELAY_MS ?? 400);
+    const max = Number(process.env.BOT_MAX_DELAY_MS ?? 9000);
+    const rand = (a: number, b: number) => a + Math.random() * (b - a);
+    const r = Math.random();
+    let d: number;
+    if (hunting) {
+      // Добивает корабль — отвечает живо и сфокусированно.
+      if (r < 0.18) d = rand(300, 800);        // почти сразу
+      else if (r < 0.8) d = rand(800, 2600);   // пара секунд
+      else d = rand(2600, 4800);               // чуть задумался
+    } else {
+      // Обычный поиск — разброс шире, иногда «отвлёкся».
+      if (r < 0.08) d = rand(300, 700);        // рефлекс, сразу
+      else if (r < 0.55) d = rand(900, 2600);  // обдумал быстро
+      else if (r < 0.85) d = rand(2600, 5200); // подумал
+      else d = rand(5200, 9000);               // отвлёкся / тянет
+    }
+    return Math.round(Math.min(max, Math.max(min, d)));
   }
 
   private async performBotMove(matchId: string) {
