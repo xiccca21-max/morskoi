@@ -8,16 +8,8 @@ function isSafeAvatarUrl(src: string): boolean {
     return false;
   }
 }
-const COLORS = [
-  '#E1574B', '#2563EB', '#7C3AED', '#0891B2',
-  '#059669', '#D97706', '#DB2777', '#475569',
-];
-
-function hashColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return COLORS[h % COLORS.length];
-}
+/** Фолбэк-фон для аватара без фото — наш фирменный красный. */
+const FALLBACK_BG = 'var(--c-danger)';
 
 interface AvatarProps {
   name?: string | null;
@@ -42,7 +34,7 @@ export function Avatar({ name, src, size = 40, rounded = 'full', className = '' 
         width: size,
         height: size,
         borderRadius: radius,
-        background: showImg ? 'transparent' : hashColor(label || 'guest'),
+        background: showImg ? 'transparent' : FALLBACK_BG,
         fontSize: size * 0.42,
       }}
     >

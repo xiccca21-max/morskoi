@@ -54,46 +54,45 @@ interface BotIdentity {
   /** Полный https-URL аватара, либо '' — тогда у бота кружок с первой буквой. */
   avatar: string;
 }
-/** Генеративный аватар DiceBear (разные стили/фоны, включая чёрный 000000). */
-const dice = (style: string, seed: string, bg: string) =>
-  `https://api.dicebear.com/7.x/${style}/png?seed=${encodeURIComponent(seed)}&backgroundColor=${bg}`;
-/** Реальное фото-портрет. */
-// «Человеческие» аватарки. randomuser.me не грузится в Telegram WebView,
-// поэтому используем DiceBear personas (стабильно отдаётся, выглядит как люди).
-const ruser = (g: 'men' | 'women', n: number) =>
-  `https://api.dicebear.com/7.x/personas/png?seed=${g}${n}&backgroundColor=1f2937`;
+/**
+ * Аватар-картинка, отдаётся НАШИМ origin из frontend/public/bots
+ * (стабильно грузится в Telegram WebView, в отличие от внешних сервисов).
+ */
+const botImg = (file: string) => selfAsset(`bots/${file}`);
 
+// 25 загруженных аватарок раздаём первым 25 ботам; последним 5 картинок «не хватило» —
+// у них avatar='' и фронт рисует первую букву имени на нашем красном фоне.
 const BOT_IDENTITIES: BotIdentity[] = [
-  { nickname: 'Aydar',       firstName: 'Айдар',     avatar: '' },
-  { nickname: 'Panda Crew',  firstName: 'Panda',     avatar: dice('bottts', 'PandaCrew', '000000') },
-  { nickname: 'Skyroom',     firstName: 'Sky',       avatar: dice('shapes', 'Skyroom', '0891b2') },
-  { nickname: 'mk91',        firstName: 'Mk',        avatar: '' },
-  { nickname: 'Dolmatix',    firstName: 'Dolmatix',  avatar: dice('identicon', 'Dolmatix', '1f2937') },
-  { nickname: 'n17club',     firstName: 'N17',       avatar: '' },
-  { nickname: 'whoptnova',   firstName: 'Whopt',     avatar: dice('fun-emoji', 'whoptnova', '7c3aed') },
-  { nickname: 'Макс',        firstName: 'Максим',    avatar: ruser('men', 32) },
-  { nickname: 'Am1r',        firstName: 'Amir',      avatar: dice('pixel-art', 'Am1r', '059669') },
-  { nickname: 'Skynex',      firstName: 'Sky',       avatar: dice('rings', 'Skynex', '000000') },
-  { nickname: 'Panda Unit',  firstName: 'Panda',     avatar: dice('bottts', 'PandaUnit', 'b91c1c') },
-  { nickname: 'd14room',     firstName: 'D14',       avatar: dice('glass', 'd14room', '334155') },
-  { nickname: 'Клим',        firstName: 'Клим',      avatar: ruser('men', 51) },
-  { nickname: 'mkr77',       firstName: 'Mkr',       avatar: dice('thumbs', 'mkr77', 'd97706') },
-  { nickname: 'Dolman',      firstName: 'Dolman',    avatar: '' },
-  { nickname: '@whoptbase',  firstName: 'Whoptbase', avatar: dice('notionists', 'whoptbase', 'db2777') },
-  { nickname: 'Sky Support', firstName: 'Sky',       avatar: dice('shapes', 'SkySupport', '000000') },
-  { nickname: 'Роман',       firstName: 'Роман',     avatar: ruser('men', 12) },
-  { nickname: 'n9room',      firstName: 'N9',        avatar: dice('identicon', 'n9room', '7c3aed') },
-  { nickname: 'Makarov',     firstName: 'Макаров',   avatar: ruser('men', 67) },
-  { nickname: 'Panda Labs',  firstName: 'Panda',     avatar: dice('bottts', 'PandaLabs', '059669') },
-  { nickname: 'skyness77',   firstName: 'Sky',       avatar: '' },
-  { nickname: 'whoptzone',   firstName: 'Whopt',     avatar: dice('micah', 'whoptzone', '0891b2') },
-  { nickname: 'Арсен',       firstName: 'Арсен',     avatar: ruser('men', 78) },
-  { nickname: 'mk14',        firstName: 'Mk',        avatar: '' },
-  { nickname: 'Dolmat',      firstName: 'Dolmat',    avatar: dice('identicon', 'Dolmat', '000000') },
-  { nickname: 'Sky Panda',   firstName: 'Sky',       avatar: dice('big-smile', 'SkyPanda', '7c3aed') },
-  { nickname: 'n22room',     firstName: 'N22',       avatar: '' },
-  { nickname: 'Тимур',       firstName: 'Тимур',     avatar: ruser('men', 9) },
-  { nickname: 'Whopt Corp',  firstName: 'Whopt',     avatar: dice('shapes', 'WhoptCorp', 'b91c1c') },
+  { nickname: 'Aydar',       firstName: 'Aydar',       avatar: botImg('bot01.png') },
+  { nickname: 'Panda Crew',  firstName: 'Panda Crew',  avatar: botImg('bot02.png') },
+  { nickname: 'Skyroom',     firstName: 'Skyroom',     avatar: botImg('bot03.png') },
+  { nickname: 'mk91',        firstName: 'mk91',        avatar: botImg('bot04.png') },
+  { nickname: 'Dolmatix',    firstName: 'Dolmatix',    avatar: botImg('bot05.png') },
+  { nickname: 'n17club',     firstName: 'n17club',     avatar: botImg('bot06.png') },
+  { nickname: 'whoptnova',   firstName: 'whoptnova',   avatar: botImg('bot07.png') },
+  { nickname: 'Макс',        firstName: 'Макс',        avatar: botImg('bot08.png') },
+  { nickname: 'Am1r',        firstName: 'Am1r',        avatar: botImg('bot09.png') },
+  { nickname: 'Skynex',      firstName: 'Skynex',      avatar: botImg('bot10.png') },
+  { nickname: 'Panda Unit',  firstName: 'Panda Unit',  avatar: botImg('bot11.png') },
+  { nickname: 'd14room',     firstName: 'd14room',     avatar: botImg('bot12.png') },
+  { nickname: 'Клим',        firstName: 'Клим',        avatar: botImg('bot13.png') },
+  { nickname: 'mkr77',       firstName: 'mkr77',       avatar: botImg('bot14.png') },
+  { nickname: 'Dolman',      firstName: 'Dolman',      avatar: botImg('bot15.png') },
+  { nickname: '@whoptbase',  firstName: '@whoptbase',  avatar: botImg('bot16.png') },
+  { nickname: 'Sky Support', firstName: 'Sky Support', avatar: botImg('bot17.png') },
+  { nickname: 'Роман',       firstName: 'Роман',       avatar: botImg('bot18.png') },
+  { nickname: 'n9room',      firstName: 'n9room',      avatar: botImg('bot19.png') },
+  { nickname: 'Makarov',     firstName: 'Makarov',     avatar: botImg('bot20.png') },
+  { nickname: 'Panda Labs',  firstName: 'Panda Labs',  avatar: botImg('bot21.png') },
+  { nickname: 'skyness77',   firstName: 'skyness77',   avatar: botImg('bot22.png') },
+  { nickname: 'whoptzone',   firstName: 'whoptzone',   avatar: botImg('bot23.png') },
+  { nickname: 'Арсен',       firstName: 'Арсен',       avatar: botImg('bot24.png') },
+  { nickname: 'mk14',        firstName: 'mk14',        avatar: botImg('bot25.png') },
+  { nickname: 'Dolmat',      firstName: 'Dolmat',      avatar: '' },
+  { nickname: 'Sky Panda',   firstName: 'Sky Panda',   avatar: '' },
+  { nickname: 'n22room',     firstName: 'n22room',     avatar: '' },
+  { nickname: 'Тимур',       firstName: 'Тимур',       avatar: '' },
+  { nickname: 'Whopt Corp',  firstName: 'Whopt Corp',  avatar: '' },
 ];
 
 /**
