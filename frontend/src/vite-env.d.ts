@@ -4,6 +4,7 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_SOCKET_URL: string;
   readonly VITE_TG_BOT_USERNAME: string;
+  readonly VITE_BUILD_SHA: string;
 }
 
 interface ImportMeta {

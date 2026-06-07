@@ -54,6 +54,35 @@ function LazyScreen({ children }: { children: JSX.Element }) {
   return <Suspense fallback={null}>{children}</Suspense>;
 }
 
+/**
+ * Авто-сброс залипшего кэша Telegram WebView. Клиент знает версию, с которой собран
+ * (VITE_BUILD_SHA), сервер отдаёт свою в /api/config. Если версии разошлись — значит
+ * Telegram отдал старый закэшированный фронт. Один раз чистим кэши и перезагружаемся.
+ * sessionStorage-гард не даёт зациклиться, если перезагрузка не помогла.
+ */
+function maybeReloadStaleClient(serverBuild: string | null) {
+  const clientBuild = import.meta.env.VITE_BUILD_SHA as string | undefined;
+  if (!serverBuild || !clientBuild || clientBuild === 'dev' || serverBuild === clientBuild) {
+    return;
+  }
+  const KEY = 'nc_reloaded_for_build';
+  try {
+    if (sessionStorage.getItem(KEY) === serverBuild) return;
+    sessionStorage.setItem(KEY, serverBuild);
+  } catch {
+    /* приватный режим — всё равно пробуем перезагрузиться один раз */
+  }
+  const done = () => window.location.reload();
+  if (typeof caches !== 'undefined') {
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(done, done);
+  } else {
+    done();
+  }
+}
+
 function Protected({ children }: { children: JSX.Element }) {
   const authenticated = useAuthStore((s) => s.authenticated);
   if (!authenticated) return <Navigate to="/" replace />;
@@ -158,7 +187,11 @@ export default function App() {
 
   useEffect(() => {
     ConfigAPI.get()
-      .then((c) => setServerBuild((c as { build?: string }).build ?? null))
+      .then((c) => {
+        const sBuild = (c as { build?: string }).build ?? null;
+        setServerBuild(sBuild);
+        maybeReloadStaleClient(sBuild);
+      })
       .catch(() => setServerBuild(null));
   }, [authAttempt]);
 

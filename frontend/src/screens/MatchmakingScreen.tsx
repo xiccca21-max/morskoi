@@ -245,10 +245,13 @@ export default function MatchmakingScreen() {
     }
   }, [debouncedQuery, debouncedMin, debouncedMax]);
 
-  // Список: только при открытии вкладки или смене фильтров (без фонового опроса)
+  // Список: при открытии вкладки/смене фильтров + лёгкое фоновое обновление каждые 8с,
+  // чтобы счётчик «N боёв в эфире» был живым (новые лобби ботов появляются постоянно).
   useEffect(() => {
     if (tab !== 'browse') return;
     void fetchList();
+    const id = setInterval(() => { void fetchList(); }, 8000);
+    return () => clearInterval(id);
   }, [tab, debouncedQuery, debouncedMin, debouncedMax, fetchList]);
 
   // При смене фильтров/поиска снова показываем первые 5.
