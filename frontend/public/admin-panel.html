@@ -136,6 +136,12 @@
     <!-- STATS -->
     <div id="tab-stats" class="hidden">
       <div class="card"><div id="statsBox" class="stat-grid"></div></div>
+      <div class="card" style="margin-top:12px">
+        <div style="font-weight:600;margin-bottom:8px">🤖 Управление ботами</div>
+        <p style="font-size:13px;color:var(--muted,#888);margin-bottom:10px">Принудительно создаёт/обновляет весь пул ботов до значения BOTS_COUNT. Используй если после деплоя боты не появились.</p>
+        <button type="button" class="btn" id="botsSyncBtn">Синхронизировать ботов</button>
+        <div id="botsSyncResult" style="margin-top:8px;font-size:13px"></div>
+      </div>
     </div>
 
     <!-- LOGS -->
@@ -544,6 +550,23 @@
         }).join('');
       } catch (e) { errEl.textContent = e.message; body.innerHTML = ''; }
     }
+
+    // ---- bots sync ----
+    document.getElementById('botsSyncBtn').onclick = async () => {
+      const btn = document.getElementById('botsSyncBtn');
+      const res = document.getElementById('botsSyncResult');
+      btn.disabled = true; btn.textContent = 'Синхронизация…';
+      res.textContent = '';
+      try {
+        await api('/bots/sync', { method: 'POST' });
+        res.innerHTML = '<span style="color:var(--success,#2ec460)">✓ Готово — боты синхронизированы</span>';
+        flash('Боты синхронизированы');
+      } catch (e) {
+        res.innerHTML = '<span class="err">Ошибка: ' + esc(e.message) + '</span>';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Синхронизировать ботов';
+      }
+    };
 
     document.getElementById('hideHelp').onclick = () => {
       document.getElementById('helpBox').classList.add('hidden');

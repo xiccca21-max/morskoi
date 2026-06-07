@@ -5,6 +5,7 @@ import { AdminService } from './admin.service';
 import { PaymentsService } from '../payments/payments.service';
 import { AdminKeyGuard } from '../payments/admin-key.guard';
 import { AdminAlertService } from '../common/admin-alert.service';
+import { BotsService } from '../bots/bots.service';
 
 class CreditDto {
   @IsNumber()
@@ -45,6 +46,7 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly payments: PaymentsService,
     private readonly alerts: AdminAlertService,
+    private readonly bots: BotsService,
   ) {}
 
   @Get('stats')
@@ -105,5 +107,11 @@ export class AdminController {
   @Post('withdrawals/:id/process')
   process(@Param('id') id: string, @Body() dto: ProcessDto) {
     return this.payments.processWithdrawal(id, dto.action as 'pay' | 'reject', dto.note);
+  }
+
+  @Post('bots/sync')
+  async botsSync() {
+    await this.bots.ensureBots();
+    return { ok: true, message: 'Bot pool synced' };
   }
 }
