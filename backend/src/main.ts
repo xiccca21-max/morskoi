@@ -135,6 +135,10 @@ async function bootstrap() {
       // КРИТИЧНО: этот middleware смонтирован на '/' и иначе вешает 7-дневный кэш
       // на ответы /api (список боёв «протухает», join падает). Пропускаем API/сокеты.
       if (req.path === '/api' || req.path.startsWith('/api/') || req.path.startsWith('/socket.io') || req.path === '/health') {
+        // Явный no-store: иначе WebView (особенно Telegram iOS) эвристически кэширует
+        // GET-ответы и показывает устаревшие данные (старые лобби, ники и аватарки ботов).
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
         return next();
       }
       res.setHeader('Access-Control-Allow-Origin', '*');
