@@ -550,8 +550,8 @@ export class BotsService implements OnModuleInit {
     // Доля онлайна ~0.36 от пула (≈80 ботов) даёт «в сети» обычно 20–40 человек,
     // число всё время плавает, а конкретные боты постоянно меняются (ротация).
     if (!s) {
-      const startOnline = Math.random() < 0.36;
-      const dur = startOnline ? rnd(30, 90) : rnd(60, 150);
+      const startOnline = Math.random() < 0.62;
+      const dur = startOnline ? rnd(40, 120) : rnd(30, 70);
       const elapsed = Math.floor(Math.random() * dur); // уже «внутри» периода
       s = { online: startOnline, nextToggle: now + (dur - elapsed) * 60_000 };
       this.botSessions.set(botId, s);
@@ -559,7 +559,7 @@ export class BotsService implements OnModuleInit {
     }
     if (now >= s.nextToggle) {
       s.online = !s.online;
-      const dur = s.online ? rnd(30, 90) : rnd(60, 150);
+      const dur = s.online ? rnd(40, 120) : rnd(30, 70);
       s.nextToggle = now + dur * 60_000;
     }
     return s.online;
@@ -613,12 +613,12 @@ export class BotsService implements OnModuleInit {
     }
     const stillOpen = openBot.filter((l) => this.isBotOnline(l.hostId));
 
-    // Держим список «живым»: всегда минимум 10 открытых боёв, до openLobbies сверху.
-    // Дневной ритм лишь слегка играет числом в этом коридоре (не опускаемся ниже 10).
-    const floor = Math.min(10, this.openLobbies);
+    // Держим список «живым»: всегда минимум 30 открытых боёв, до openLobbies сверху.
+    // Дневной ритм лишь слегка играет числом в этом коридоре (не опускаемся ниже 30).
+    const floor = Math.min(30, this.openLobbies);
     const target = Math.max(
       floor,
-      Math.min(this.openLobbies, Math.round(this.openLobbies * this.onlineFactor(now)) + rnd(-1, 1)),
+      Math.min(this.openLobbies, Math.round(this.openLobbies * this.onlineFactor(now)) + rnd(-2, 2)),
     );
     const need = target - stillOpen.length;
     if (need <= 0) return;
