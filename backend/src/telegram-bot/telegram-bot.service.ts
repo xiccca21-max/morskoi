@@ -174,7 +174,7 @@ export class TelegramBotService implements OnModuleInit {
     await this.setupBotProfile(token);
 
     // Устанавливаем кнопку меню «Начать играть» для всех чатов по умолчанию
-    const webAppUrl = process.env.TELEGRAM_WEBAPP_URL;
+    const webAppUrl = this.webAppUrl();
     if (webAppUrl) {
       await fetch(`${this.apiRoot}/bot${token}/setChatMenuButton`, {
         method: 'POST',
@@ -196,7 +196,7 @@ export class TelegramBotService implements OnModuleInit {
     }
 
     this.bot.onText(/\/start(.*)/, async (msg, match) => {
-      const url = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
+      const baseUrl = process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
       const param = (match?.[1] ?? '').trim();
 
       // Диплинк в лобби: t.me/Bot?start=lobby_CODE. Открываем бота и сразу даём
@@ -204,7 +204,7 @@ export class TelegramBotService implements OnModuleInit {
       // даже без настроенного Main Mini App — поэтому это надёжнее, чем startapp-URL.
       if (/^lobby_[A-Za-z0-9]{4,12}$/.test(param)) {
         const code = param.slice('lobby_'.length).toUpperCase();
-        const lobbyUrl = `${url}?startapp=lobby_${code}`;
+        const lobbyUrl = this.webAppUrl({ startapp: `lobby_${code}` });
         await this.bot!.sendMessage(
           msg.chat.id,
           '⚔️ <b>Тебя зовут на морской бой!</b>\n\nНажми кнопку ниже — и ты сразу окажешься в лобби.',
@@ -216,8 +216,8 @@ export class TelegramBotService implements OnModuleInit {
         return;
       }
 
-      const launchUrl = param ? `${url}?startapp=${encodeURIComponent(param)}` : url;
-      const photoUrl = `${url}/bot-welcome.png`;
+      const launchUrl = param ? this.webAppUrl({ startapp: param }) : this.webAppUrl();
+      const photoUrl = `${baseUrl.replace(/\/$/, '')}/bot-welcome.png`;
       const minWager = Number(process.env.MIN_WAGER ?? 100);
       const caption =
         '⚓ <b>Naval Clash — морской бой с реальными ставками</b>\n\n' +
@@ -297,7 +297,20 @@ export class TelegramBotService implements OnModuleInit {
     });
   }
 
-  /** Тексты кнопок reply-клавиатуры (должны совпадать с mainReplyKeyboard). */
+  /** URL мини-приложения с ?v=BUILD — Telegram кэширует WebView по URL; смена v сбрасывает залипший фронт. */
+  private webAppUrl(opts?: { startapp?: string; base?: string }): string {
+    const raw = (opts?.base ?? process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com').replace(/\/$/, '');
+    const build = process.env.APP_RELEASE || process.env.GIT_SHA;
+    try {
+      const u = new URL(raw);
+      if (build) u.searchParams.set('v', build);
+      if (opts?.startapp) u.searchParams.set('startapp', opts.startapp);
+      return u.toString();
+    } catch {
+      return raw;
+    }
+  }
+
   private static readonly BTN = {
     PLAY: '⚔️ В бой',
     CHALLENGE: '⚓ Вызвать друга',
@@ -314,7 +327,7 @@ export class TelegramBotService implements OnModuleInit {
    * «В бой» открывает мини-приложение; остальные — текстовые команды.
    */
   private mainReplyKeyboard(launchUrl?: string): TelegramBot.ReplyKeyboardMarkup {
-    const url = launchUrl ?? process.env.TELEGRAM_WEBAPP_URL ?? 'https://example.com';
+    const url = launchUrl ? this.webAppUrl({ base: launchUrl }) : this.webAppUrl();
     const { BTN } = TelegramBotService;
     return {
       keyboard: [
@@ -335,7 +348,7 @@ export class TelegramBotService implements OnModuleInit {
 
   /** Inline-кнопка «Начать играть», открывающая мини-приложение. */
   private playButton(launchUrl?: string) {
-    const url = launchUrl ?? process.env.TELEGRAM_WEBAPP_URL;
+    const url = launchUrl ? this.webAppUrl({ base: launchUrl }) : this.webAppUrl();
     if (!url) return undefined;
     return { inline_keyboard: [[{ text: '⚔️ Начать играть', web_app: { url } }]] };
   }
@@ -1025,7 +1038,7 @@ export class TelegramBotService implements OnModuleInit {
 
   async notify(telegramId: string, text: string, withPlay = false) {
     if (!this.bot) return;
-    const url = process.env.TELEGRAM_WEBAPP_URL;
+    const url = this.webAppUrl();
     try {
       await this.bot.sendMessage(Number(telegramId), text, {
         parse_mode: 'HTML',
@@ -1109,7 +1122,7 @@ export class TelegramBotService implements OnModuleInit {
     if (!u) return;
     if (typeof u.telegramId === 'string' && u.telegramId.startsWith('bot:')) return;
     // Сообщение идёт прямо в личку — можно использовать web_app-кнопку (1 тап, надёжно).
-    const url = process.env.TELEGRAM_WEBAPP_URL;
+    const url = this.webAppUrl({ startapp: `lobby_${code}` });
     const text =
       `⚓ <b>${this.escapeHtml(fromName)}</b> принял твой вызов!\n` +
       `Ставка: <b>${wager} ₽</b>\n` +
@@ -1118,7 +1131,7 @@ export class TelegramBotService implements OnModuleInit {
       await this.bot.sendMessage(Number(u.telegramId), text, {
         parse_mode: 'HTML',
         ...(url
-          ? { reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять бой', web_app: { url: `${url}?startapp=lobby_${code}` } }]] } }
+          ? { reply_markup: { inline_keyboard: [[{ text: '⚔️ Принять бой', web_app: { url } }]] } }
           : {}),
       });
     } catch (e: any) {
@@ -1138,7 +1151,7 @@ export class TelegramBotService implements OnModuleInit {
       return;
     }
     if (typeof user.telegramId === 'string' && user.telegramId.startsWith('bot:')) return;
-    const url = process.env.TELEGRAM_WEBAPP_URL;
+    const url = this.webAppUrl();
     const text =
       `🚢 <b>${joinerName}</b> принял твой вызов!\n` +
       `Ставка: <b>${wager} ₽</b>\n` +

@@ -16,7 +16,7 @@ export interface GameConfig {
 
 const DEFAULTS: GameConfig = {
   minWager: 100,
-  maxWager: 10_000,
+  maxWager: 0,
   minWithdraw: 1000,
   minDeposit: 0,
   maxDeposit: 100_000,

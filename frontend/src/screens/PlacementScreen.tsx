@@ -422,7 +422,7 @@ export default function PlacementScreen() {
                 >
                   <VintageShip kind={s.kind} size={s.size} orientation="H" icon skin={skin} />
                 </div>
-                {s.placed && <span className="placement-dock-meta">✓</span>}
+                {/* placed indicator removed */}
               </button>
             );
           })}

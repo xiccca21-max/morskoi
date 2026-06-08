@@ -4,6 +4,7 @@ import { AuthAPI } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
 import { useSettingsStore } from '../stores/settings-store';
 import { tgHaptic } from '../lib/telegram';
+import { lockScroll, unlockScroll } from '../lib/scroll-lock';
 import { toast } from '../stores/toast-store';
 import { useGameConfigStore } from '../stores/game-config-store';
 import { formatMoney } from '../lib/format';
@@ -20,11 +21,12 @@ export function ConsentGate() {
   const platformRakePercent = useGameConfigStore((s) => s.platformRakePercent);
   const winPct = 100 - platformRakePercent;
 
-  // Блокируем скролл страницы под оверлеем и гарантированно восстанавливаем при закрытии
+  // Блокируем скролл страницы под оверлеем и гарантированно восстанавливаем при закрытии.
+  // Через общий счётчик: иначе при наложении оверлеев один мог «запомнить» hidden
+  // и навсегда оставить страницу без скролла (баг у новых игроков после принятия правил).
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    lockScroll();
+    return () => unlockScroll();
   }, []);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);

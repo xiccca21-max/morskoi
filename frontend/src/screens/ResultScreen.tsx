@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { VictoryBurst } from '../components/Effects';
-import { Ship } from '../components/Ship';
 import { useMatchStore } from '../stores/match-store';
 import { useAuthStore } from '../stores/auth-store';
 import { GameAPI, MatchmakingAPI, UsersAPI, WalletAPI } from '../api/endpoints';
@@ -19,6 +18,45 @@ import { referralBotLink } from '../lib/referral';
 import { getRank } from '../lib/rank';
 
 const REMATCH_WAIT_MS = 120_000;
+
+/** Анимация поражения: иконки волн и якорь уходят вниз. */
+function DefeatVisual() {
+  const bubbles = [
+    { delay: 0,    x: -18, size: 7  },
+    { delay: 0.35, x:   4, size: 5  },
+    { delay: 0.6,  x:  20, size: 9  },
+  ];
+  return (
+    <div className="relative flex items-end justify-center" style={{ width: 80, height: 64 }}>
+      {/* Пузыри поднимаются вверх */}
+      {bubbles.map((b, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full border border-danger/40 bg-danger/10"
+          style={{ width: b.size, height: b.size, left: '50%', bottom: 8, marginLeft: b.x }}
+          initial={{ y: 0, opacity: 0.8 }}
+          animate={{ y: -52, opacity: 0, scale: [1, 1.3, 0.8] }}
+          transition={{ duration: 1.4, delay: b.delay, repeat: Infinity, ease: 'easeOut' }}
+        />
+      ))}
+      {/* Якорь тонет вниз */}
+      <motion.div
+        className="text-danger/70 relative z-10"
+        initial={{ y: 0, rotate: -8 }}
+        animate={{ y: [0, 4, 0], rotate: [-8, 8, -8] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <Icon name="anchor" size={38} />
+      </motion.div>
+      {/* Волна снизу */}
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 h-2 rounded-full bg-danger/15"
+        animate={{ scaleX: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </div>
+  );
+}
 
 export default function ResultScreen() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -181,7 +219,7 @@ export default function ResultScreen() {
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-5 pt-6">
+    <div className="max-w-md mx-auto space-y-3 pt-3">
       {rematchOffer && !waitingRematch && !isTraining && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="card p-3 border-danger flex items-center gap-3">
           <Icon name="swords" size={18} className="text-danger shrink-0" />
@@ -193,7 +231,7 @@ export default function ResultScreen() {
       <motion.section
         initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="card p-8 text-center relative"
+        className="card p-5 text-center relative"
       >
         {/* Тематическое свечение фона: золото победы / багровый сумрак поражения */}
         <motion.div
@@ -213,14 +251,14 @@ export default function ResultScreen() {
 
         <div className="relative">
         {/* Пульсирующая аура вокруг иконки результата */}
-        <div className="relative mx-auto w-20 h-20 mb-4">
+        <div className="relative mx-auto w-14 h-14 mb-3">
           {!draw && (
             <motion.span
               className="absolute inset-0 rounded-full"
               style={{
                 boxShadow: won
-                  ? '0 0 40px rgba(46,196,96,0.5)'
-                  : '0 0 40px rgba(232,50,40,0.45)',
+                  ? '0 0 30px rgba(46,196,96,0.5)'
+                  : '0 0 30px rgba(232,50,40,0.45)',
               }}
               animate={{ opacity: [0.45, 0.9, 0.45], scale: [1, 1.08, 1] }}
               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
@@ -231,7 +269,7 @@ export default function ResultScreen() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.05 }}
             className={[
-              'relative w-20 h-20 rounded-full flex items-center justify-center border-4',
+              'relative w-14 h-14 rounded-full flex items-center justify-center border-4',
               won
                 ? 'bg-success/10 text-success border-success'
                 : draw || matchCancelled
@@ -239,11 +277,11 @@ export default function ResultScreen() {
                 : 'bg-danger/10 text-danger border-danger',
             ].join(' ')}
           >
-            <Icon name={(draw ? 'handshake' : matchCancelled ? 'anchor' : won ? 'trophy' : 'skull') as IconName} size={36} />
+            <Icon name={(draw ? 'handshake' : matchCancelled ? 'anchor' : won ? 'trophy' : 'skull') as IconName} size={28} />
           </motion.div>
         </div>
 
-        <p className={['font-display text-2xl tracking-[0.16em] uppercase', won ? 'text-success' : draw || matchCancelled ? 'text-muted' : 'text-danger'].join(' ')}>
+        <p className={['font-display text-xl tracking-[0.16em] uppercase', won ? 'text-success' : draw || matchCancelled ? 'text-muted' : 'text-danger'].join(' ')}>
           {matchCancelled ? 'Бой отменён' : draw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}
         </p>
 
@@ -256,7 +294,7 @@ export default function ResultScreen() {
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 16, delay: 0.25 }}
-            className={['font-display text-4xl mt-1 tnum', won ? 'text-success' : 'text-danger'].join(' ')}
+            className={['font-display text-3xl mt-1 tnum', won ? 'text-success' : 'text-danger'].join(' ')}
             style={{ textShadow: won ? '0 0 24px rgba(46,196,96,0.4)' : '0 0 24px rgba(232,50,40,0.35)' }}
           >
             {won ? '+' : '−'}
@@ -289,13 +327,11 @@ export default function ResultScreen() {
 
         {!won && !draw && !matchCancelled && (
           <div className="mx-auto mt-3 flex justify-center">
-            <div className="animate-sink">
-              <Ship kind="cruiser" size={3} orientation="H" sunk />
-            </div>
+            <DefeatVisual />
           </div>
         )}
 
-        <div className="rope my-5" />
+        <div className="rope my-3" />
 
         {!isTraining && (
           <>
@@ -305,7 +341,7 @@ export default function ResultScreen() {
               <Stat label="Добыча" value={won ? formatMoney(payout) : '—'} />
             </div>
 
-            <div className="rope my-4" />
+            <div className="rope my-3" />
             <p className="text-muted text-xs">
               Баланс: <span className="font-display text-main tabular-nums">{formatMoney(me?.balance ?? 0)}</span>
             </p>
@@ -313,7 +349,7 @@ export default function ResultScreen() {
         )}
 
         {matchId && (
-          <p className="text-[10px] text-muted font-mono tracking-wide mt-3">
+          <p className="text-[10px] text-muted font-mono tracking-wide mt-2">
             Игра #{matchId.slice(-8).toUpperCase()}
           </p>
         )}
@@ -352,9 +388,9 @@ export default function ResultScreen() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-panel p-3">
-      <div className="text-main font-display tabular-nums">{value}</div>
-      <div className="eyebrow mt-0.5">{label}</div>
+    <div className="bg-panel py-2 px-1">
+      <div className="text-main font-display tabular-nums text-sm">{value}</div>
+      <div className="eyebrow mt-0.5 text-[9px]">{label}</div>
     </div>
   );
 }

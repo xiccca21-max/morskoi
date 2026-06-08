@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { tgReady, waitForInitData, isTelegramWebView, getInitData, persistInitData, getStartParam, clearStartParam, setHapticsGate } from './lib/telegram';
+import { ensureStorageForCurrentUser } from './lib/telegram-account';
+import { resetOpenMatchesCache } from './lib/open-matches-cache';
 import { lazyWithRetry, prefetchScreens } from './lib/lazy-with-retry';
+import { ensureFreshClient, fetchServerBuild, hardReloadForBuild, shouldReloadForBuild } from './lib/client-version';
 import { readSettings, useSettingsStore } from './stores/settings-store';
 import { toast } from './stores/toast-store';
 import { AuthAPI, UsersAPI, WalletAPI, ConfigAPI, GameAPI, MatchmakingAPI } from './api/endpoints';
@@ -55,31 +58,11 @@ function LazyScreen({ children }: { children: JSX.Element }) {
 }
 
 /**
- * Авто-сброс залипшего кэша Telegram WebView. Клиент знает версию, с которой собран
- * (VITE_BUILD_SHA), сервер отдаёт свою в /api/config. Если версии разошлись — значит
- * Telegram отдал старый закэшированный фронт. Один раз чистим кэши и перезагружаемся.
- * sessionStorage-гард не даёт зациклиться, если перезагрузка не помогла.
+ * Авто-сброс залипшего кэша Telegram WebView (см. lib/client-version.ts).
  */
 function maybeReloadStaleClient(serverBuild: string | null) {
-  const clientBuild = import.meta.env.VITE_BUILD_SHA as string | undefined;
-  if (!serverBuild || !clientBuild || clientBuild === 'dev' || serverBuild === clientBuild) {
-    return;
-  }
-  const KEY = 'nc_reloaded_for_build';
-  try {
-    if (sessionStorage.getItem(KEY) === serverBuild) return;
-    sessionStorage.setItem(KEY, serverBuild);
-  } catch {
-    /* приватный режим — всё равно пробуем перезагрузиться один раз */
-  }
-  const done = () => window.location.reload();
-  if (typeof caches !== 'undefined') {
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
-      .then(done, done);
-  } else {
-    done();
+  if (shouldReloadForBuild(serverBuild)) {
+    hardReloadForBuild(serverBuild!);
   }
 }
 
@@ -195,6 +178,25 @@ export default function App() {
       .catch(() => setServerBuild(null));
   }, [authAttempt]);
 
+  // Периодически и при возврате в приложение сверяем версию с сервером —
+  // Telegram WebView может «откатить» кэш без нового деплоя.
+  useEffect(() => {
+    const check = () => {
+      void fetchServerBuild().then((build) => {
+        if (shouldReloadForBuild(build)) hardReloadForBuild(build!);
+      });
+    };
+    const id = window.setInterval(check, 120_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
   useEffect(() => {
     tgReady();
     let cancelled = false;
@@ -246,7 +248,14 @@ export default function App() {
         ]);
         if (cancelled) return;
 
-        if (existing && initData) {
+        if (initData && ensureStorageForCurrentUser()) {
+          setAuthToken(null);
+          resetOpenMatchesCache();
+        }
+
+        const existingAfterSwitch = loadToken();
+
+        if (existingAfterSwitch && initData) {
           persistInitData(initData);
           try {
             const me = meEarly ?? (await UsersAPI.me());
@@ -266,7 +275,7 @@ export default function App() {
           return;
         }
 
-        if (existing) {
+        if (existingAfterSwitch) {
           try {
             const me = meEarly ?? (await UsersAPI.me());
             if (cancelled) return;
@@ -279,7 +288,7 @@ export default function App() {
           }
         }
 
-        if (existing && getInitData()) {
+        if (existingAfterSwitch && getInitData()) {
           try {
             const me = await UsersAPI.me();
             if (cancelled) return;

@@ -195,7 +195,9 @@
             var last = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
             if (now - last > 30000) {
               sessionStorage.setItem(RELOAD_KEY, String(now));
-              location.reload();
+              var base = location.pathname + location.search;
+              var sep = base.indexOf('?') >= 0 ? '&' : '?';
+              location.replace(base + sep + '_=' + now + location.hash);
               return;
             }
           } catch (err) {}

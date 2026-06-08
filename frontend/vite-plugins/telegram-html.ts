@@ -28,6 +28,40 @@ function bustAssetUrls(html: string): string {
   );
 }
 
+/** Проверка версии ДО загрузки React — ловит залипший index.html в Telegram WebView. */
+function injectVersionGuard(html: string): string {
+  let out = html.replace(/<head>/i, `<head>\n    <meta name="nc-build" content="${BUILD_ID}">`);
+  const guard = `
+    <script>
+      (function () {
+        var CLIENT = "${BUILD_ID}";
+        function hardReload(serverBuild) {
+          try {
+            var k = "nc_inline_reload";
+            var raw = sessionStorage.getItem(k);
+            var now = Date.now();
+            if (raw) {
+              var prev = JSON.parse(raw);
+              if (prev && prev.b === serverBuild && now - prev.t < 60000) return;
+            }
+            sessionStorage.setItem(k, JSON.stringify({ b: serverBuild, t: now }));
+          } catch (e) {}
+          var base = location.pathname + location.search;
+          var sep = base.indexOf("?") >= 0 ? "&" : "?";
+          location.replace(base + sep + "ncb=" + encodeURIComponent(serverBuild) + "&_=" + now + location.hash);
+        }
+        fetch("/api/config?_=" + Date.now(), { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
+          .then(function (r) { return r.json(); })
+          .then(function (c) {
+            if (!c || !c.build || c.build === CLIENT) return;
+            hardReload(c.build);
+          })
+          .catch(function () {});
+      })();
+    </script>`;
+  return out.replace('</head>', `${guard}\n  </head>`);
+}
+
 /** Убрать inline System.import — ломает WebView + CSP (vitejs/vite#21393). */
 function externalizeLegacyLoader(html: string, outDir: string): string {
   const tag = html.match(/<script[^>]*id="vite-legacy-entry"[^>]*>[\s\S]*?<\/script>/);
@@ -75,6 +109,7 @@ export function telegramHtml(): Plugin {
           out = externalizeLegacyLoader(out, outDir);
         }
         out = bustAssetUrls(out);
+        out = injectVersionGuard(out);
         return out;
       },
     },

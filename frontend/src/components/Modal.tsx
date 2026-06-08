@@ -2,6 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Icon, IconName } from './Icon';
+import { lockScroll, unlockScroll } from '../lib/scroll-lock';
 
 interface ModalProps {
   open: boolean;
@@ -14,12 +15,12 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, icon, children, dismissable = true }: ModalProps) {
-  // Блокируем скролл страницы, пока модалка открыта.
+  // Блокируем скролл страницы, пока модалка открыта (через общий счётчик,
+  // чтобы наложение оверлеев не оставляло страницу без скролла).
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    lockScroll();
+    return () => unlockScroll();
   }, [open]);
 
   // Без AnimatePresence/exit: при подтверждении мы закрываем модалку и тут же

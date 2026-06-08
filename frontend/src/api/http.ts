@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getInitData } from '../lib/telegram';
+import { tokenStorageKey } from '../lib/telegram-account';
 
 // По умолчанию используем относительный путь — тогда Vite proxy (dev)
 // или nginx (prod) сами перенаправят на backend. Это нужно для Telegram Mini App,
@@ -28,18 +29,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-const TOKEN_KEY = 'naval_token';
+const LEGACY_TOKEN_KEY = 'naval_token';
 let _token: string | null = null;
 
-/** Telegram WebView часто сбрасывает sessionStorage между открытиями — JWT держим в localStorage. */
+/** JWT привязан к telegram user id — на одном телефоне аккаунты не делят сессию. */
 function persistToken(token: string | null) {
+  const key = tokenStorageKey();
   try {
     if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(key, token);
+      sessionStorage.setItem(key, token);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+      sessionStorage.removeItem(LEGACY_TOKEN_KEY);
     } else {
-      localStorage.removeItem(TOKEN_KEY);
-      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
     }
   } catch {
     /* ignore */
@@ -79,7 +83,11 @@ function isJwtExpired(token: string): boolean {
 
 export function loadToken(): string | null {
   try {
-    const t = sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
+    const key = tokenStorageKey();
+    let t = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+    if (!t) {
+      t = sessionStorage.getItem(LEGACY_TOKEN_KEY) ?? localStorage.getItem(LEGACY_TOKEN_KEY);
+    }
     if (t && isJwtExpired(t)) {
       setAuthToken(null);
       return null;
