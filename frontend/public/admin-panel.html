@@ -417,13 +417,20 @@
             <div class="stat"><div class="v">${fmt(u.withdrawable)} ₽</div><div class="l">Можно вывести</div></div>
           </div>
           <h3>Выдать / списать монеты</h3>
+          <p class="muted" style="margin:-4px 0 8px;font-size:12px;">
+            💳 Пополнение рублёвым переводом: введите сумму со знаком «+» и
+            <b>обязательно поставьте галочку «можно выводить»</b> — это реальные деньги игрока.
+          </p>
           <div class="row">
             <input id="cAmount" type="number" placeholder="Сумма (+ выдать, − списать)" />
-            <input id="cReason" placeholder="Причина (необязательно)" />
+            <input id="cReason" placeholder="Причина (напр. «пополнение рублями»)" />
           </div>
           <div class="row" style="margin-top:8px;">
             <label class="chk"><input type="checkbox" id="cWithdraw" /> можно выводить (реальные)</label>
             <button type="button" class="btn success" id="cBtn">Применить</button>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button type="button" class="btn" id="cRubBtn">💳 Пополнение рублями (можно выводить)</button>
           </div>
           <div id="cMsg"></div>
           <div class="row" style="margin-top:14px;">
@@ -448,6 +455,19 @@
               body: JSON.stringify({ amount, reason: document.getElementById('cReason').value, withdrawable: document.getElementById('cWithdraw').checked }),
             });
             msg.className = 'ok'; msg.textContent = 'Готово';
+            openUser(id);
+          } catch (e) { msg.className = 'err'; msg.textContent = e.message; }
+        };
+        document.getElementById('cRubBtn').onclick = async () => {
+          const msg = document.getElementById('cMsg'); msg.textContent = ''; msg.className = '';
+          const amount = Number(document.getElementById('cAmount').value);
+          if (!amount || amount <= 0) { msg.className = 'err'; msg.textContent = 'Введите сумму пополнения (положительную)'; return; }
+          try {
+            await api('/users/' + encodeURIComponent(id) + '/credit', {
+              method: 'POST',
+              body: JSON.stringify({ amount, reason: document.getElementById('cReason').value || 'Пополнение рублями', withdrawable: true }),
+            });
+            msg.className = 'ok'; msg.textContent = 'Рублёвое пополнение зачислено (с выводом)';
             openUser(id);
           } catch (e) { msg.className = 'err'; msg.textContent = e.message; }
         };

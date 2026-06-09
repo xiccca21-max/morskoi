@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WalletAPI, Withdrawal } from '../api/endpoints';
 import { useAuthStore } from '../stores/auth-store';
-import { tgHaptic, tgOpenPayment, tgMainButton, isTelegram } from '../lib/telegram';
+import { tgHaptic, tgOpenPayment, tgOpenLink, tgMainButton, isTelegram } from '../lib/telegram';
 import { Icon } from '../components/Icon';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { VictoryBurst } from '../components/Effects';
@@ -23,6 +23,11 @@ import {
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 function payId(txId: string) { return 'PAY-' + txId.slice(0, 8).toUpperCase(); }
+
+// Менеджер ручного пополнения рублёвым переводом.
+const RUB_MANAGER = 'Naval_pay_manager';
+
+type DepositMethod = 'crypto' | 'rub';
 
 const GAME_TYPES = new Set(['WAGER_LOCK', 'WAGER_REFUND', 'PAYOUT', 'RAKE']);
 
@@ -63,6 +68,7 @@ export default function WalletScreen() {
   useCurrencyStore((s) => s.ratesVersion);
 
   const [tab, setTab] = useState<Tab>('deposit');
+  const [depositMethod, setDepositMethod] = useState<DepositMethod>('crypto');
   const [amount, setAmount] = useState(100);
   const [txs, setTxs] = useState<any[]>([]);
   const [visibleCount, setVisibleCount] = useState(5);
@@ -140,15 +146,35 @@ export default function WalletScreen() {
     } finally { setBusy(false); }
   };
 
+  const contactRubManager = () => {
+    const a = Number.isFinite(amount) ? amount : 0;
+    // Полный id — чтобы менеджер нашёл аккаунт точным поиском в админке.
+    const fullId = user?.id ?? '';
+    const msg =
+      `Здравствуйте! Хочу пополнить баланс рублёвым переводом.\n` +
+      `Сумма: ${a} ₽\n` +
+      `Мой игровой ID: ${fullId}`;
+    tgHaptic('medium');
+    tgOpenLink(`https://t.me/${RUB_MANAGER}?text=${encodeURIComponent(msg)}`);
+  };
+
   useEffect(() => {
     if (!isTelegram() || tab !== 'deposit' || showWithdraw) return;
+    if (depositMethod === 'rub') {
+      return tgMainButton({
+        text: 'Написать менеджеру',
+        onClick: contactRubManager,
+        active: validDeposit,
+        progress: false,
+      });
+    }
     return tgMainButton({
       text: validDeposit ? `Пополнить ${formatMoney(amount)}` : 'Пополнить',
       onClick: deposit,
       active: validDeposit && !busy && !awaitingPayment,
       progress: busy,
     });
-  }, [tab, amount, validDeposit, busy, awaitingPayment, showWithdraw]); // eslint-disable-line
+  }, [tab, depositMethod, amount, validDeposit, busy, awaitingPayment, showWithdraw]); // eslint-disable-line
 
   const openWithdraw = () => {
     if (withdrawable < minWithdraw) {
@@ -262,9 +288,29 @@ export default function WalletScreen() {
 
       {tab === 'deposit' ? (
         <section className="card p-5 space-y-3">
-          <p className="eyebrow">Сумма пополнения ({currencySymbol()} на баланс)</p>
+          <p className="eyebrow">Способ пополнения</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => { setDepositMethod('crypto'); setError(null); }}
+              className={['py-2.5 px-2 rounded-lg text-left transition border', depositMethod === 'crypto' ? 'bg-danger text-white border-danger' : 'bg-panel text-muted border-line hover:text-main'].join(' ')}
+            >
+              <div className="font-display text-xs">Криптовалюта</div>
+              <div className={['text-[10px] mt-0.5', depositMethod === 'crypto' ? 'text-white/80' : 'text-muted'].join(' ')}>@CryptoBot · сразу</div>
+            </button>
+            <button
+              onClick={() => { setDepositMethod('rub'); setError(null); }}
+              className={['py-2.5 px-2 rounded-lg text-left transition border', depositMethod === 'rub' ? 'bg-danger text-white border-danger' : 'bg-panel text-muted border-line hover:text-main'].join(' ')}
+            >
+              <div className="font-display text-xs">Рубли</div>
+              <div className={['text-[10px] mt-0.5', depositMethod === 'rub' ? 'text-white/80' : 'text-muted'].join(' ')}>Перевод · до 2 часов</div>
+            </button>
+          </div>
+
+          <p className="eyebrow pt-1">Сумма пополнения ({currencySymbol()} на баланс)</p>
           <p className="text-muted text-xs leading-relaxed">
-            Оплата через @CryptoBot — платите криптой.
+            {depositMethod === 'crypto'
+              ? 'Оплата через @CryptoBot — платите криптой, баланс пополняется сразу.'
+              : 'Пополнение рублёвым переводом через менеджера. Зачисление — до 2 часов.'}
           </p>
           <input
             type="number"
@@ -287,14 +333,36 @@ export default function WalletScreen() {
             ))}
           </div>
           {error && <p className="text-danger text-sm">{error}</p>}
-          <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit || awaitingPayment}>
-            <Icon name="plus" size={16} /> Пополнить {formatMoney(Number.isFinite(amount) ? amount : 0)}
-          </button>
-          {awaitingPayment && (
-            <div className="flex items-center justify-center gap-2 text-muted text-xs">
-              <span className="w-3 h-3 rounded-full border-2 border-transparent border-t-danger animate-spin" />
-              Ждём подтверждения оплаты…
-            </div>
+          {depositMethod === 'crypto' ? (
+            <>
+              <button className="btn-primary w-full" onClick={deposit} disabled={busy || !validDeposit || awaitingPayment}>
+                <Icon name="plus" size={16} /> Пополнить {formatMoney(Number.isFinite(amount) ? amount : 0)}
+              </button>
+              {awaitingPayment && (
+                <div className="flex items-center justify-center gap-2 text-muted text-xs">
+                  <span className="w-3 h-3 rounded-full border-2 border-transparent border-t-danger animate-spin" />
+                  Ждём подтверждения оплаты…
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
+                <Icon name="info" size={15} className="text-warning shrink-0 mt-0.5" />
+                <div className="text-[11px] text-main leading-relaxed space-y-1">
+                  <p>Как пополнить рублями:</p>
+                  <p>1. Нажми «Написать менеджеру» — откроется чат с готовым сообщением.</p>
+                  <p>2. Менеджер пришлёт реквизиты для перевода.</p>
+                  <p>3. После перевода баланс пополнится в течение <b>2 часов</b>.</p>
+                </div>
+              </div>
+              <button className="btn-primary w-full" onClick={contactRubManager} disabled={!validDeposit}>
+                <Icon name="share" size={16} /> Написать менеджеру
+              </button>
+              <p className="text-[10px] text-muted text-center">
+                Менеджер: <span className="text-main">@{RUB_MANAGER}</span>
+              </p>
+            </>
           )}
         </section>
       ) : (
