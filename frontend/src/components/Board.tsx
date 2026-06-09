@@ -88,8 +88,10 @@ export function Board({
     if (c) onCellEnter(c.x, c.y);
   }, [mode, disabled, onCellEnter, cellFromClient]);
 
+  // Ширина ограничена и высотой вьюпорта (min): на обычных телефонах правит ширина,
+  // на низких экранах/ландшафте поле ужимается, чтобы кнопки не уезжали за экран.
   return (
-    <div className="relative w-full max-w-[480px] mx-auto select-none">
+    <div className="relative w-full mx-auto select-none" style={{ maxWidth: 'min(480px, 58dvh)' }}>
       {/* Рама поля боя */}
       <div
         className="rounded-xl p-2"

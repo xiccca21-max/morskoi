@@ -102,15 +102,24 @@ export default function BattleScreen() {
 
   useEffect(() => {
     if (!lastAttack) return;
+    const mine = lastAttack.by === me?.id;
     if (lastAttack.hit) {
       setShake(true);
       setTimeout(() => setShake(false), 400);
-      // Вибрация как при уведомлении: двойной импульс на попадание, длиннее — на потопление
-      tgNotify(lastAttack.sunk ? 'error' : 'success');
       playSound('boom');
+      if (mine) {
+        // Мой удар: попадание — успех, потопление — мощный праздничный импульс.
+        if (lastAttack.sunk) { tgNotify('success'); tgVibrate([0, 45, 60, 45]); }
+        else { tgHaptic('success'); tgVibrate(30); }
+      } else {
+        // Соперник попал по мне: ощущается как урон — резче и неприятнее.
+        if (lastAttack.sunk) { tgNotify('error'); tgVibrate([0, 80, 40, 80]); }
+        else { tgHaptic('heavy'); tgVibrate(60); }
+      }
     } else {
+      // Промах: свой — лёгкий, чужой — едва заметный.
       tgHaptic('light');
-      tgVibrate(35);
+      tgVibrate(mine ? 35 : 20);
       playSound('splash');
     }
   }, [lastAttack?.ts]); // eslint-disable-line

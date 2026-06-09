@@ -7,6 +7,7 @@ import { joinLobbyAction } from '../api/lobby-join';
 import { useAuthStore } from '../stores/auth-store';
 import { toast } from '../stores/toast-store';
 import { Icon } from '../components/Icon';
+import { Spinner } from '../components/Spinner';
 import { Avatar } from '../components/Avatar';
 import { ConfirmDialog } from '../components/Modal';
 import { formatMoney } from '../lib/format';
@@ -247,7 +248,8 @@ export default function LobbyScreen() {
       ) : (
         <>
           <button className="btn-primary w-full" onClick={() => setConfirmJoin(true)} disabled={joining}>
-            <Icon name="swords" size={18} /> {joining ? 'Подключение…' : 'Принять вызов'}
+            {joining ? <Spinner size={16} className="border-white/40 border-t-white" /> : <Icon name="swords" size={18} />}
+            {joining ? 'Подключение…' : 'Принять вызов'}
           </button>
           <button className="btn-ghost w-full" onClick={() => navigate('/home')}>Отклонить</button>
         </>
