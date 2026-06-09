@@ -14,7 +14,8 @@ export function Toaster() {
 
   return (
     <div
-      className="fixed top-2 inset-x-0 z-[200] flex flex-col items-center gap-2 px-4 pointer-events-none"
+      className="fixed inset-x-0 z-[200] flex flex-col items-center gap-2 px-4 pointer-events-none"
+      style={{ top: 'calc(0.5rem + env(safe-area-inset-top))' }}
       role="status"
       aria-live="polite"
     >

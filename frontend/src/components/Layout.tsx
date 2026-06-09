@@ -88,7 +88,7 @@ export function Layout() {
         ].join(' ')}
         style={{
           paddingTop: 'env(safe-area-inset-top)',
-          height: 'calc(3.5rem + env(safe-area-inset-top)',
+          height: 'calc(3.5rem + env(safe-area-inset-top))',
           background: 'rgba(var(--c-panel-rgb) / 0.82)',
         }}
       >

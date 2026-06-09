@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-base text-center">
+      <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-base text-center">
         <div className="card p-6 max-w-sm w-full space-y-4">
           <div className="flex justify-center"><Icon name="anchor" size={40} className="text-danger" /></div>
           <h2 className="font-display text-main text-lg">Что-то пошло не так</h2>

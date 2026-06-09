@@ -52,7 +52,13 @@ export function ConsentGate() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-base overflow-y-auto flex items-start justify-center p-5 pb-8">
+    <div
+      className="fixed inset-0 z-50 bg-base overflow-y-auto flex items-start justify-center px-5"
+      style={{
+        paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(2rem, calc(1rem + env(safe-area-inset-bottom)))',
+      }}
+    >
       <motion.div
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
