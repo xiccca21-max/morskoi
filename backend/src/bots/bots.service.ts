@@ -218,10 +218,13 @@ export class BotsService implements OnModuleInit {
   private readonly enabled = (process.env.BOTS_ENABLED ?? 'true') !== 'false';
   /** Автоподбор бота в очередь на реальные ставки (по умолчанию выкл — только PvP). */
   private readonly paidMmEnabled = process.env.BOT_PAID_MM === 'true';
-  private readonly targetCount = Number(process.env.BOTS_COUNT ?? 1);
+  // Безопасные дефолты на уровне прод-значений: если окружение контейнера
+  // вдруг не содержит BOTS_COUNT/BOT_OPEN_LOBBIES (старый образ, не прокинутый
+  // .env и т.п.) — пул НЕ схлопывается до 1 бота, а остаётся полноценным.
+  private readonly targetCount = Number(process.env.BOTS_COUNT ?? 81);
   private readonly winRate = Number(process.env.BOT_WIN_RATE ?? 0.62);
   private readonly waitSec = Number(process.env.BOT_MATCH_WAIT_SEC ?? 10);
-  private readonly openLobbies = Number(process.env.BOT_OPEN_LOBBIES ?? 1);
+  private readonly openLobbies = Number(process.env.BOT_OPEN_LOBBIES ?? 40);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -395,7 +398,18 @@ export class BotsService implements OnModuleInit {
       const n = botNum(u.telegramId);
       return Number.isFinite(n) && n > this.targetCount;
     });
-    if (surplus.length) {
+    // ЗАЩИТА: не выкашиваем уже созданный пул из-за заниженного targetCount
+    // (старый серверный .env с BOTS_COUNT=1, не прокинутый env и т.п.). Если
+    // нас просят забанить большинство ботов — это почти наверняка мисконфиг,
+    // а не намеренное сокращение. В этом случае оставляем пул как есть.
+    const massWipe = all.length >= 10 && surplus.length > all.length / 2;
+    if (massWipe) {
+      this.logger.warn(
+        `Skip neutralizing ${surplus.length}/${all.length} bots: targetCount=${this.targetCount} ` +
+          `looks misconfigured (env not applied?). Keeping existing pool.`,
+      );
+    }
+    if (surplus.length && !massWipe) {
       const ids = surplus.map((u) => u.id);
       await this.prisma.lobby.updateMany({
         where: { hostId: { in: ids }, status: 'OPEN' },
@@ -409,9 +423,18 @@ export class BotsService implements OnModuleInit {
       this.logger.log(`Neutralized ${surplus.length} surplus bot(s)`);
     }
 
-    // Создаём недостающих и обновляем личность существующих (bot:1 … bot:targetCount).
+    // При мисконфиге (massWipe) поднимаем эффективный размер пула до самого
+    // большого номера уже существующего бота — чтобы цикл ниже СНЯЛ бан со всех
+    // ранее забаненных ботов и пул самовосстановился, а не остался из 1 бота.
+    const highestExisting = all.reduce((max, u) => {
+      const n = botNum(u.telegramId);
+      return Number.isFinite(n) ? Math.max(max, n) : max;
+    }, 0);
+    const effectiveTarget = massWipe ? Math.max(this.targetCount, highestExisting) : this.targetCount;
+
+    // Создаём недостающих и обновляем личность существующих (bot:1 … effectiveTarget).
     // Так новые ники/аватарки применяются прямо на деплое, без правок в БД.
-    for (let i = 0; i < this.targetCount; i++) {
+    for (let i = 0; i < effectiveTarget; i++) {
       const p = buildBotProfile(i);
       const existing = byTid.get(p.telegramId);
       try {
@@ -459,7 +482,7 @@ export class BotsService implements OnModuleInit {
         this.logger.warn(`ensure bot ${p.telegramId} failed: ${e?.message}`);
       }
     }
-    this.logger.log(`Bots ready: ${this.botIds.size}/${this.targetCount}`);
+    this.logger.log(`Bots ready: ${this.botIds.size}/${effectiveTarget}`);
   }
 
   /** Подбирает бота, способного покрыть ставку. При нехватке — пополняет баланс боту. */
