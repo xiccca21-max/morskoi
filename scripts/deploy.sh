@@ -39,3 +39,6 @@ chmod +x scripts/smoke-test.sh 2>/dev/null || true
 docker compose -f docker-compose.prod.yml exec -T app \
   node -e "Promise.all([fetch('http://127.0.0.1:4000/health'),fetch('http://127.0.0.1:4000/api/config')]).then(rs=>process.exit(rs.every(r=>r.ok)?0:1)).catch(()=>process.exit(1))" \
   || echo "WARN: smoke check failed — see docker logs app"
+
+# Маркер успешного деплоя — watchdog читает его при проверке
+echo "${GIT_SHA} $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > .last-deploy
