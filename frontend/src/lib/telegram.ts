@@ -2,12 +2,22 @@
 
 const TG_INIT_KEY = 'tg_init_data';
 
-function isInitDataFresh(raw: string): boolean {
+/**
+ * Допустим ли сохранённый initData к использованию.
+ * ВАЖНО: НЕ полагаемся на локальные часы телефона — у пользователя они могут
+ * быть сбиты на часы/дни, и валидный initData ошибочно считался «протухшим»
+ * → человек вообще не мог войти. Финальную проверку auth_date делает бэкенд
+ * по своим (верным) часам. Здесь лишь отсекаем заведомо древние записи
+ * (старше 2 суток) и принимаем будущие auth_date (= часы телефона отстают).
+ */
+function isInitDataUsable(raw: string): boolean {
   try {
     const authDate = Number(new URLSearchParams(raw).get('auth_date') ?? '0');
     if (!authDate) return false;
-    const maxAgeSec = 3600;
-    return Date.now() / 1000 - authDate <= maxAgeSec;
+    const ageSec = Date.now() / 1000 - authDate;
+    if (ageSec < 0) return true; // auth_date в будущем — сбиты часы, доверяем серверу
+    const maxAgeSec = 2 * 24 * 3600;
+    return ageSec <= maxAgeSec;
   } catch {
     return false;
   }
@@ -19,7 +29,10 @@ export function persistInitData(raw: string | null | undefined): void {
 }
 
 function storeInitData(raw: string | null | undefined): void {
-  if (!raw || !isInitDataFresh(raw)) return;
+  // Сохраняем всегда, если строка непустая: это собственные данные пользователя,
+  // решение об их валидности принимает сервер. Клиентская фильтрация по часам
+  // телефона приводила к тому, что человек не мог войти при сбитом времени.
+  if (!raw) return;
   try {
     sessionStorage.setItem(TG_INIT_KEY, raw);
     // WebView Telegram часто чистит sessionStorage — дублируем в localStorage.
@@ -161,7 +174,7 @@ export function getInitData(): string {
   }
   try {
     const stored = sessionStorage.getItem(TG_INIT_KEY) ?? localStorage.getItem(TG_INIT_KEY);
-    if (stored && isInitDataFresh(stored)) return stored;
+    if (stored && isInitDataUsable(stored)) return stored;
     if (stored) {
       sessionStorage.removeItem(TG_INIT_KEY);
       localStorage.removeItem(TG_INIT_KEY);

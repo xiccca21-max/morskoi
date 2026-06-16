@@ -88,6 +88,8 @@ export default function App() {
   const navigate = useNavigate();
   const deepLinkHandled = useRef(false);
   const resumeHandled = useRef(false);
+  // Счётчик авторетраев при пустом initData — до 3 раз без участия пользователя.
+  const autoRetryCount = useRef(0);
   const applyGameConfig = useGameConfigStore((s) => s.apply);
   const [matchFound, setMatchFound] = useState<{
     open: boolean;
@@ -200,6 +202,7 @@ export default function App() {
   useEffect(() => {
     tgReady();
     let cancelled = false;
+    let scheduledRetry = false;
     setReady(false);
     setAuthError(null);
     (async () => {
@@ -300,6 +303,21 @@ export default function App() {
         }
 
         if (isTelegramWebView()) {
+          // initData пустой, но мы точно в Telegram — иногда SDK передаёт данные
+          // с задержкой (медленный телефон, фоновый запуск, слабый интернет).
+          // Автоматически повторяем до 3 раз перед тем, как показать ошибку.
+          if (autoRetryCount.current < 3) {
+            autoRetryCount.current += 1;
+            scheduledRetry = true;
+            // Сбрасываем tg.ready() чтобы SDK заново прислал initData
+            try { (window as any).Telegram?.WebApp?.ready?.(); } catch { /* ignore */ }
+            setTimeout(() => {
+              if (!cancelled) setAuthAttempt((a) => a + 1);
+            }, 2500);
+            return; // не показываем ошибку, ждём следующей попытки
+          }
+          // Все 3 авторетрая исчерпаны — показываем ошибку
+          autoRetryCount.current = 0;
           setAuthError('Telegram не передал данные авторизации. Закройте приложение и откройте снова через «⚔️ В бой» в боте.');
         } else {
           setAuthError('Откройте приложение через Telegram');
@@ -321,7 +339,8 @@ export default function App() {
           setAuthError(msg || 'Не удалось авторизоваться');
         }
       } finally {
-        if (!cancelled) setReady(true);
+        // При запланированном авторетрае держим сплеш — не мигаем белым экраном.
+        if (!cancelled && !scheduledRetry) setReady(true);
       }
     })();
     return () => {
