@@ -276,8 +276,15 @@ export class TelegramBotService implements OnModuleInit {
       }
     };
 
-    await call('setMyDescription', { description });
-    await call('setMyShortDescription', { short_description: shortDescription });
+    // По умолчанию НЕ перезаписываем описание: иначе бот при каждом старте/деплое
+    // затирает то, что вручную выставлено в @BotFather (канал, поддержка и т.п.).
+    // Чтобы бот сам ставил описание из кода — задать BOT_FORCE_DESCRIPTION=true.
+    if (process.env.BOT_FORCE_DESCRIPTION === 'true') {
+      await call('setMyDescription', { description });
+      await call('setMyShortDescription', { short_description: shortDescription });
+    } else {
+      this.logger.log('Skip setMyDescription — управляется вручную через BotFather');
+    }
 
     // Список команд — показывается при вводе «/» и в меню команд.
     await call('setMyCommands', {
