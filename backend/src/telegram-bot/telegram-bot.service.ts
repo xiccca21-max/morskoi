@@ -1044,7 +1044,12 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   async notify(telegramId: string, text: string, withPlay = false) {
-    if (!this.bot) return;
+    await this.tryNotify(telegramId, text, withPlay);
+  }
+
+  /** Отправка в личку; возвращает успех (для рассылок и статистики). */
+  async tryNotify(telegramId: string, text: string, withPlay = false): Promise<boolean> {
+    if (!this.bot) return false;
     const url = this.webAppUrl();
     try {
       await this.bot.sendMessage(Number(telegramId), text, {
@@ -1053,9 +1058,47 @@ export class TelegramBotService implements OnModuleInit {
           ? { reply_markup: { inline_keyboard: [[{ text: '⚔️ К бою', web_app: { url } }]] } }
           : {}),
       });
+      return true;
     } catch (e: any) {
       this.logger.warn(`notify ${telegramId} failed: ${e?.message}`);
+      return false;
     }
+  }
+
+  /** Рассылка всем живым игрокам (не ботам, не забаненным). ~28 msg/s — лимит Telegram. */
+  async broadcastToAllUsers(
+    text: string,
+    withPlay = false,
+  ): Promise<{ total: number; sent: number; failed: number }> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        banned: false,
+        NOT: { telegramId: { startsWith: 'bot:' } },
+      },
+      select: { telegramId: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    let sent = 0;
+    let failed = 0;
+    for (const u of users) {
+      const ok = await this.tryNotify(u.telegramId, text, withPlay);
+      if (ok) sent++;
+      else failed++;
+      await new Promise((r) => setTimeout(r, 36));
+    }
+
+    this.logger.log(`Broadcast done: ${sent}/${users.length} sent, ${failed} failed`);
+    return { total: users.length, sent, failed };
+  }
+
+  async countBroadcastAudience(): Promise<number> {
+    return this.prisma.user.count({
+      where: {
+        banned: false,
+        NOT: { telegramId: { startsWith: 'bot:' } },
+      },
+    });
   }
 
   async notifyUser(

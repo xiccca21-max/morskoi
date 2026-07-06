@@ -120,6 +120,13 @@ export class AdminService {
     return this.publicUser(u);
   }
 
+  async logBroadcast(text: string, result: { total: number; sent: number; failed: number }) {
+    this.audit.log(null, 'ADMIN_BROADCAST', {
+      preview: text.slice(0, 120),
+      ...result,
+    });
+  }
+
   /** Заявки на вывод всех пользователей (по статусу). */
   async listWithdrawals(status?: string) {
     const where = status ? { status } : {};

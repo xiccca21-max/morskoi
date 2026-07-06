@@ -36,6 +36,7 @@
       <button type="button" class="nav-btn active" data-tab="activity"><span class="ico">📡</span>Сейчас</button>
       <button type="button" class="nav-btn" data-tab="users"><span class="ico">👥</span>Игроки</button>
       <button type="button" class="nav-btn" data-tab="withdrawals"><span class="ico">💸</span>Выводы</button>
+      <button type="button" class="nav-btn" data-tab="broadcast"><span class="ico">📢</span>Рассылка</button>
       <button type="button" class="nav-btn" data-tab="stats"><span class="ico">📊</span>Цифры</button>
       <button type="button" class="nav-btn" data-tab="logs"><span class="ico">📜</span>Журнал</button>
     </nav>
@@ -45,6 +46,7 @@
         <button type="button" class="nav-btn active" data-tab="activity"><span class="ico">📡</span> Сейчас в игре</button>
         <button type="button" class="nav-btn" data-tab="users"><span class="ico">👥</span> Игроки</button>
         <button type="button" class="nav-btn" data-tab="withdrawals"><span class="ico">💸</span> Выводы</button>
+        <button type="button" class="nav-btn" data-tab="broadcast"><span class="ico">📢</span> Рассылка</button>
         <button type="button" class="nav-btn" data-tab="stats"><span class="ico">📊</span> Статистика</button>
         <button type="button" class="nav-btn" data-tab="logs"><span class="ico">📜</span> Журнал</button>
       </nav>
@@ -131,6 +133,24 @@
         <div id="wErr" class="err"></div>
       </div>
       <div class="card"><div id="wList" class="ulist"></div></div>
+    </div>
+
+    <!-- BROADCAST -->
+    <div id="tab-broadcast" class="hidden">
+      <div class="card">
+        <h3 style="margin:0 0 8px">📢 Рассылка в личку</h3>
+        <p style="font-size:13px;color:var(--muted,#888);margin:0 0 12px">
+          Сообщение придёт всем игрокам, которые хоть раз запускали бота. Кто заблокировал бота — не получит.
+          HTML: <code>&lt;b&gt;жирный&lt;/b&gt;</code>, <code>&lt;i&gt;курсив&lt;/i&gt;</code>.
+        </p>
+        <p id="broadcastAudience" class="muted" style="margin-bottom:10px">Загрузка…</p>
+        <textarea id="broadcastText" rows="8" style="width:100%;box-sizing:border-box;margin-bottom:10px;font:inherit" placeholder="⚓ Привет, капитаны!&#10;&#10;Сегодня новый турнир — заходи в бой!"></textarea>
+        <label class="chk" style="display:block;margin-bottom:12px">
+          <input type="checkbox" id="broadcastWithPlay" checked /> Кнопка «⚔️ К бою» под сообщением
+        </label>
+        <button type="button" class="btn" id="broadcastSendBtn">Разослать всем</button>
+        <div id="broadcastResult" style="margin-top:10px;font-size:13px"></div>
+      </div>
     </div>
 
     <!-- STATS -->
@@ -262,6 +282,7 @@
       ADMIN_DEBIT: 'Админ: списание',
       ADMIN_BAN: 'Бан',
       ADMIN_UNBAN: 'Разбан',
+      ADMIN_BROADCAST: 'Рассылка',
     };
 
     function actionLabel(code) { return ACTION_LABELS[code] || code; }
@@ -286,7 +307,7 @@
     }
 
     // ---- tabs ----
-    const tabs = ['activity','users','withdrawals','stats','logs'];
+    const tabs = ['activity','users','withdrawals','broadcast','stats','logs'];
     let activityTimer = null;
     function switchTab(name) {
       document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
@@ -303,6 +324,7 @@
       if (name === 'stats') loadStats();
       if (name === 'withdrawals') loadWithdrawals();
       if (name === 'logs') loadLogs();
+      if (name === 'broadcast') loadBroadcastAudience();
     }
     document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
     document.getElementById('activityRefresh').onclick = loadActivity;
@@ -570,6 +592,43 @@
         }).join('');
       } catch (e) { errEl.textContent = e.message; body.innerHTML = ''; }
     }
+
+    // ---- broadcast ----
+    async function loadBroadcastAudience() {
+      const el = document.getElementById('broadcastAudience');
+      try {
+        const r = await api('/broadcast/audience');
+        el.textContent = 'Получателей: ' + (r.count ?? 0) + ' игроков (без ботов)';
+      } catch (e) {
+        el.textContent = 'Не удалось загрузить: ' + e.message;
+      }
+    }
+
+    document.getElementById('broadcastSendBtn').onclick = async () => {
+      const text = document.getElementById('broadcastText').value.trim();
+      const withPlay = document.getElementById('broadcastWithPlay').checked;
+      const btn = document.getElementById('broadcastSendBtn');
+      const res = document.getElementById('broadcastResult');
+      if (!text) { flash('Введите текст сообщения', 'err'); return; }
+      if (!confirm('Разослать это сообщение всем игрокам?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Отправка… (может занять минуту)';
+      res.textContent = '';
+      try {
+        const r = await api('/broadcast', {
+          method: 'POST',
+          body: JSON.stringify({ text, withPlay }),
+        });
+        res.innerHTML = '<span style="color:var(--success,#2ec460)">✓ Отправлено: ' + esc(String(r.sent)) +
+          ' из ' + esc(String(r.total)) + (r.failed ? ', не доставлено: ' + esc(String(r.failed)) : '') + '</span>';
+        flash('Рассылка завершена');
+      } catch (e) {
+        res.innerHTML = '<span class="err">' + esc(e.message) + '</span>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Разослать всем';
+      }
+    };
 
     // ---- bots sync ----
     document.getElementById('botsSyncBtn').onclick = async () => {

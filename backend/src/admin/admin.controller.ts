@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsBoolean, IsNumber, IsOptional, IsString, IsIn, Min, Max, MaxLength } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, IsIn, Min, Max, MaxLength, MinLength } from 'class-validator';
 import { AdminService } from './admin.service';
 import { PaymentsService } from '../payments/payments.service';
 import { AdminKeyGuard } from '../payments/admin-key.guard';
 import { AdminAlertService } from '../common/admin-alert.service';
 import { BotsService } from '../bots/bots.service';
+import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 
 class CreditDto {
   @IsNumber()
@@ -39,6 +40,17 @@ class ProcessDto {
   note?: string;
 }
 
+class BroadcastDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4096)
+  text!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  withPlay?: boolean;
+}
+
 @Controller('admin')
 @UseGuards(AdminKeyGuard)
 export class AdminController {
@@ -47,6 +59,7 @@ export class AdminController {
     private readonly payments: PaymentsService,
     private readonly alerts: AdminAlertService,
     private readonly bots: BotsService,
+    private readonly telegram: TelegramBotService,
   ) {}
 
   @Get('stats')
@@ -113,5 +126,20 @@ export class AdminController {
   async botsSync() {
     await this.bots.ensureBots();
     return { ok: true, message: 'Bot pool synced' };
+  }
+
+  @Get('broadcast/audience')
+  async broadcastAudience() {
+    const count = await this.telegram.countBroadcastAudience();
+    return { count };
+  }
+
+  /** Рассылка в личку всем игрокам (кто хоть раз запускал бота). Не чаще 2 раз в час. */
+  @Throttle({ default: { limit: 2, ttl: 3_600_000 } })
+  @Post('broadcast')
+  async broadcast(@Body() dto: BroadcastDto) {
+    const result = await this.telegram.broadcastToAllUsers(dto.text, dto.withPlay ?? true);
+    await this.admin.logBroadcast(dto.text, result);
+    return { ok: true, ...result };
   }
 }
